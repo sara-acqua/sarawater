@@ -53,21 +53,20 @@ def test_scenario_discharge_plot():
     plotter = ReachPlotter(test_visualization_reach)
 
     # Test plotting without saving
-    plotter.plot_scenarios_discharge(save=False)
+    plotter.plot_scenarios_discharge()
 
     # Test plotting with date range
     start_date = datetime.datetime(2025, 6, 1)
     end_date = datetime.datetime(2025, 12, 31)
     plotter.plot_scenarios_discharge(
-        start_date=start_date, end_date=end_date, save=False
+        start_date=start_date, end_date=end_date
     )
 
 
 def test_iha_plots():
     """Test IHA parameter plotting"""
     plotter = ReachPlotter(test_visualization_reach)
-    # Test plotting without saving
-    plotter.plot_iha_parameters(save=False)
+    plotter.plot_iha_parameters( )
 
 
 def test_iari_plots():
@@ -78,8 +77,7 @@ def test_iari_plots():
     for scenario in test_visualization_reach.scenarios:
         scenario.compute_IHA_index(index_metric="IARI")
 
-    # Test plotting without saving
-    plotter.plot_iari_groups(save=False)
+    plotter.plot_iari_groups( )
 
 
 def test_normalized_IHA_plot():
@@ -90,8 +88,7 @@ def test_normalized_IHA_plot():
     for scenario in test_visualization_reach.scenarios:
         scenario.compute_IHA_index(index_metric="normalized_IHA")
 
-    # Test plotting without saving
-    plotter.plot_nIHA_summary(save=False)
+    plotter.plot_nIHA_summary()
 
 
 def test_monthly_abstraction_plot():
@@ -102,8 +99,7 @@ def test_monthly_abstraction_plot():
     for scenario in test_visualization_reach.scenarios:
         scenario.compute_natural_abstracted_volumes()
 
-    # Test plotting without saving
-    plotter.plot_monthly_abstraction(save=False)
+    plotter.plot_monthly_abstraction()
 
 
 def test_iari_vs_volume_plot():
@@ -116,14 +112,14 @@ def test_iari_vs_volume_plot():
         scenario.compute_natural_abstracted_volumes()
 
     # Test plotting without saving
-    plotter.plot_iari_vs_volume(save=False)
+    plotter.plot_iari_vs_volume()
 
 
 if __name__ == "__main__":
-    # test_plotter_initialization()
-    # test_scenario_discharge_plot()
-    # test_iari_plots()
-    # test_iha_plots()
-    # test_monthly_abstraction_plot()
+    test_plotter_initialization()
+    test_scenario_discharge_plot()
+    test_iari_plots()
+    test_iha_plots()
+    test_monthly_abstraction_plot()
     test_iari_vs_volume_plot()
     plt.show()
