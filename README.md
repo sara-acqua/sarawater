@@ -37,9 +37,7 @@ If you use SARAwater in your research, please cite the release published on Zeno
   month        = jan,
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {},
-  doi          = {},
-  url          = {}
+  doi          = {https://doi.org/10.5281/zenodo.18183767},
 }
 ```
 
