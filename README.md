@@ -10,7 +10,7 @@ Analysis of different types of alterations in river reaches subject to flow abst
 
 ---
 
-For details on how to use the package, including code examples, visit the [Documentation](https://sara-acqua.github.io/SARAwater/).
+For details on how to use the package, including code examples, visit the [Documentation](https://sara-acqua.github.io/sarawater/).
 
 ---
 
