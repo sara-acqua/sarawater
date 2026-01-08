@@ -30,7 +30,7 @@ class ReachPlotter:
             "tab:gray",
             "tab:olive",
             "tab:cyan",
-        ],  # Default colors
+        ],
     ):
         """
         Initialize a ReachPlotter instance.
@@ -39,21 +39,22 @@ class ReachPlotter:
         ----------
         reach : Reach
             The reach object containing scenarios to plot
-        output_dir : str, optional
-            Directory where to save the plots. By default "outputs". Note that plotting methods need to be called with save=True to save the plots.
+        output_dir : str or None, optional
+            Directory where to save the plots. By default "outputs". Set to None to prevent the directory from being created. Note that plotting methods need to be called with save=True to save the plots.
         scenario_colors : list of str, optional
             List of colors to use for each scenario in the plots. Default is a set of distinct tab colors.
         """
         self.reach = reach
-        self.output_dir = output_dir
         self.scenario_colors = scenario_colors
-        if output_dir:
-            self.iha_dir = os.path.join(output_dir, "IHA_plots")
-            self.iari_dir = os.path.join(output_dir, "IARI_values_plots")
-            self.nIHA_dir = os.path.join(output_dir, "nIHA_plots")
-            os.makedirs(self.iha_dir, exist_ok=True)
-            os.makedirs(self.iari_dir, exist_ok=True)
-            os.makedirs(self.nIHA_dir, exist_ok=True)
+        self.output_dir = output_dir
+        if output_dir is not None:
+            os.makedirs(self.output_dir, exist_ok=True)
+
+    def _ensure_iha_dir(self) -> str:
+        """Create IHA subfolder if it doesn't exist (for multi-file methods)."""
+        iha_dir = os.path.join(self.output_dir, "IHA_plots")
+        os.makedirs(iha_dir, exist_ok=True)
+        return iha_dir
 
     def plot_scenarios_discharge(
         self,
@@ -169,7 +170,7 @@ class ReachPlotter:
 
             if save:
                 plt.savefig(
-                    os.path.join(self.iari_dir, f"{group}_IARI_Comparison.png"),
+                    os.path.join(self.output_dir, f"{group}_IARI_Comparison.png"),
                     bbox_inches="tight",
                 )
         return plt.gca()
@@ -215,7 +216,9 @@ class ReachPlotter:
 
                 if save:
                     plt.savefig(
-                        os.path.join(self.iha_dir, f"{indicator}_IHA_Comparison.png"),
+                        os.path.join(
+                            self._ensure_iha_dir(), f"{indicator}_IHA_Comparison.png"
+                        ),
                         bbox_inches="tight",
                     )
         return plt.gca()
@@ -258,7 +261,7 @@ class ReachPlotter:
 
         if save:
             plt.savefig(
-                os.path.join(self.iari_dir, "IARI_Summary.png"), bbox_inches="tight"
+                os.path.join(self.output_dir, "IARI_Summary.png"), bbox_inches="tight"
             )
         return plt.gca()
 
@@ -302,7 +305,7 @@ class ReachPlotter:
 
         if save:
             plt.savefig(
-                os.path.join(self.nIHA_dir, "nIHA_Summary.png"), bbox_inches="tight"
+                os.path.join(self.output_dir, "nIHA_Summary.png"), bbox_inches="tight"
             )
         return plt.gca()
 
@@ -334,7 +337,9 @@ class ReachPlotter:
 
                 if save:
                     plt.savefig(
-                        os.path.join(self.iha_dir, f"{indicator}_boxplot.png"),
+                        os.path.join(
+                            self._ensure_iha_dir(), f"{indicator}_boxplot.png"
+                        ),
                         bbox_inches="tight",
                     )
         return plt.gca()
@@ -384,7 +389,8 @@ class ReachPlotter:
                 if save:
                     plt.savefig(
                         os.path.join(
-                            self.iha_dir, f"{indicator}_relative_deviation.png"
+                            self._ensure_iha_dir(),
+                            f"{indicator}_relative_deviation.png",
                         ),
                         bbox_inches="tight",
                     )

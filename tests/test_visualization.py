@@ -46,8 +46,6 @@ def test_plotter_initialization():
     test_output_dir = os.path.join("tests", "test_output")
     plotter = ReachPlotter(test_visualization_reach, test_output_dir)
     assert plotter.output_dir == test_output_dir
-    assert os.path.exists(os.path.join(test_output_dir, "IARI_values_plots"))
-    assert os.path.exists(os.path.join(test_output_dir, "IHA_plots"))
 
 
 def test_scenario_discharge_plot():
