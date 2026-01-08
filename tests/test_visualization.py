@@ -58,15 +58,13 @@ def test_scenario_discharge_plot():
     # Test plotting with date range
     start_date = datetime.datetime(2025, 6, 1)
     end_date = datetime.datetime(2025, 12, 31)
-    plotter.plot_scenarios_discharge(
-        start_date=start_date, end_date=end_date
-    )
+    plotter.plot_scenarios_discharge(start_date=start_date, end_date=end_date)
 
 
 def test_iha_plots():
     """Test IHA parameter plotting"""
     plotter = ReachPlotter(test_visualization_reach)
-    plotter.plot_iha_parameters( )
+    plotter.plot_iha_parameters()
 
 
 def test_iari_plots():
@@ -77,7 +75,7 @@ def test_iari_plots():
     for scenario in test_visualization_reach.scenarios:
         scenario.compute_IHA_index(index_metric="IARI")
 
-    plotter.plot_iari_groups( )
+    plotter.plot_iari_groups()
 
 
 def test_normalized_IHA_plot():
