@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sarawater"
+version = "0.1.0"
+dependencies = ["numpy", "matplotlib", "pandas"]
+
+[project.optional-dependencies]
+dev = ["pytest", "black"]
+docs = ["sphinx", "furo"]
+excel = ["openpyxl"]
+
+[tool.setuptools]
+packages = ["sarawater"]

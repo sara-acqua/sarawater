@@ -1,0 +1,14 @@
+/.pytest_cache
+/.vscode
+tests/__pycache__/test_scenarios.cpython-312-pytest-8.3.5.pyc
+*.pyc
+docs/build/*
+docs/make.bat
+_source/*
+_static/*
+*.egg-info/
+__pycache__/
+dist/
+build/
+examples/*.csv
+examples/*.xlsx

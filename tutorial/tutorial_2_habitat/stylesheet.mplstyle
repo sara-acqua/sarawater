@@ -1,0 +1,8 @@
+    figure.figsize  : 8,6
+    font.size: 17
+    legend.fontsize: 15
+    xtick.labelsize : 13
+    ytick.labelsize : 13
+    lines.linewidth : 2.5
+    font.sans-serif : Arial
+    mathtext.fontset : cm
