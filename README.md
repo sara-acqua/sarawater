@@ -1,5 +1,7 @@
 # SARAwater - Scenario-based Alteration of Rivers subject to water Abstraction
 
+[![DOI](https://zenodo.org/badge/1130288528.svg)](https://doi.org/10.5281/zenodo.18183767)
+
 <div class="nav3" style="height:705px;">
     <img src="tutorial/images/SARA_overview.png" alt="Overview of the SARAwater package" width="100%"></a>
 </div>
