@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sarawater"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = ["numpy", "matplotlib", "pandas"]
 
 [project.optional-dependencies]
 dev = ["pytest", "black"]
-docs = ["sphinx", "furo"]
+docs = ["ipykernel", "sphinx", "furo"]
 excel = ["openpyxl"]
 
 [tool.setuptools]
