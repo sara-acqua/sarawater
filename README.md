@@ -58,5 +58,5 @@ sphinx-build -M html source build
 ```
 This repository relies on the `black` formatter for code formatting. To format the code locally, run:
 ```cmd
-black
+black .
 ```
