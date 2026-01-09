@@ -50,7 +50,7 @@ def test_export_scenarios_summary_basic():
     assert len(df) == 1  # One scenario
     assert df.loc[0, "scenario_name"] == "Test Scenario"
     assert df.loc[0, "scenario_description"] == "A test scenario"
-    assert df.loc[0, "Qabs_max"] == 30.0
+    assert df.loc[0, "Qabs_max"] ==  30.0
 
 
 def test_export_scenarios_summary_with_prop_params():
