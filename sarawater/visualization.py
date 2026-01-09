@@ -922,7 +922,8 @@ class ReachPlotter:
         Create a scatter plot showing the relationship between abstracted volumes and nIHA indexes.
         Each scenario is shown with error bars representing standard deviations.
 
-        X-axis shows ecohydrological quality (1 - nIHA)
+        X-axis shows ecohydrological quality (-nIHA)
+
         Y-axis shows normalized abstracted volume (Vturb/Vnat)
 
         Parameters
