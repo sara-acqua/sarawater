@@ -28,17 +28,17 @@ Assuming that your flow discharge data is stored in a CSV file with two columns:
 
 Let's now add a :code:`Scenario`, that is, a rule that determines the minimum flow that must be released downstream of the abstraction.
 
-The simplest form of :code:`Scenario` consists of prescribing a minimum flow value for each month. This type of scenario can be created using the :code:`ConstScenario` class, which requires us to provide a list of 12 values via the argument :code:`QR_months`, one for each month of the year.
+The simplest form of :code:`Scenario` consists of prescribing a minimum flow value for each month. This type of scenario can be created using the :code:`ConstScenario` class, which requires us to provide a list of 12 values via the argument :code:`Qreq_months`, one for each month of the year.
 
 The following code creates a scenario that prescribes a minimum flow of 1 cubic meter per second for each month of the year, except for the summer season (june, july, and august), when the minimum flow is set to 0.5 cubic meters per second.
 
 .. code-block:: python
 
    # Define the minimum flow for each month (in cubic meters per second)
-   QR_months = [1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 1, 1, 1, 1]
+   Qreq_months = [1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 1, 1, 1, 1]
 
    # Create a ConstScenario object
-   my_scenario = sara.ConstScenario("My Scenario", QR_months)
+   my_scenario = sara.ConstScenario("My Scenario", Qreq_months)
 
 After creating the scenario, we can add it to our reach using the :code:`add_scenario` method.
 

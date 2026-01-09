@@ -14,12 +14,12 @@ dates = [
 np.random.seed(42)  # for reproducibility
 mu, sigma = 2.0, 1.0  # parameters for lognormal distribution
 Qnat = np.random.lognormal(mu, sigma, len(dates))
-QS = Qnat * 0.5  # Modified flow at half the natural flow
+Qrel = Qnat * 0.5  # Modified flow at half the natural flow
 
 
 def test_IHA_groups():
     """Test that all IHA groups are computed correctly"""
-    IHA_groups = compute_IHA(Qnat, QS, dates)
+    IHA_groups = compute_IHA(Qnat, Qrel, dates)
 
     # Test we have all 5 groups
     assert len(IHA_groups) == 5
@@ -69,7 +69,7 @@ def test_IHA_groups():
 def test_IARI_computation():
     """Test IARI computation with different weights"""
     # Test with default weights
-    _, iari_default = compute_IHA_index(Qnat, QS, dates, index_metric="IARI")
+    _, iari_default = compute_IHA_index(Qnat, Qrel, dates, index_metric="IARI")
     assert "groups" in iari_default
     assert "aggregated" in iari_default
     assert len(iari_default["groups"]) == 5
@@ -77,58 +77,15 @@ def test_IARI_computation():
     # Test with custom weights
     weights = [0.1, 0.2, 0.3, 0.2, 0.2]
     _, iari_custom = compute_IHA_index(
-        Qnat, QS, dates, index_metric="IARI", weights=weights
+        Qnat, Qrel, dates, index_metric="IARI", weights=weights
     )
     assert len(iari_custom["groups"]) == 5
 
     # Test weight validation
     try:
         invalid_weights = [0.1, 0.2, 0.3, 0.2]  # Only 4 weights
-        compute_IHA_index(Qnat, QS, dates, index_metric="IARI", weights=invalid_weights)
-        assert False, "Should have raised ValueError for invalid number of weights"
-    except ValueError:
-        pass
-
-    try:
-        invalid_weights = [0.1, 0.2, 0.3, 0.2, 0.1]  # Sum != 1
-        compute_IHA_index(Qnat, QS, dates, index_metric="IARI", weights=invalid_weights)
-        assert False, "Should have raised ValueError for weights not summing to 1"
-    except ValueError:
-        pass
-
-
-def test_IARI_values():
-    """Test IARI values for specific scenarios"""
-    # Test when QS = Qnat (no alteration)
-    _, iari_no_change = compute_IHA_index(Qnat, Qnat, dates, index_metric="IARI")
-
-    # Test when QS = 0 (maximum alteration)
-    QS_zero = np.zeros_like(Qnat)
-    _, iari_max_change = compute_IHA_index(Qnat, QS_zero, dates, index_metric="IARI")
-    assert np.all(iari_max_change["aggregated"] > 0)
-    assert np.all(iari_max_change["aggregated"] > iari_no_change["aggregated"])
-
-
-def test_normalized_IHA_computation():
-    """Test normalized IHA computation with different weights"""
-    # Test with default weights
-    _, niha_default = compute_IHA_index(Qnat, QS, dates, index_metric="normalized_IHA")
-    assert "groups" in niha_default
-    assert "aggregated" in niha_default
-    assert len(niha_default["groups"]) == 5
-
-    # Test with custom weights
-    weights = [0.1, 0.2, 0.3, 0.2, 0.2]
-    _, niha_custom = compute_IHA_index(
-        Qnat, QS, dates, index_metric="normalized_IHA", weights=weights
-    )
-    assert len(niha_custom["groups"]) == 5
-
-    # Test weight validation
-    try:
-        invalid_weights = [0.1, 0.2, 0.3, 0.2]  # Only 4 weights
         compute_IHA_index(
-            Qnat, QS, dates, index_metric="normalized_IHA", weights=invalid_weights
+            Qnat, Qrel, dates, index_metric="IARI", weights=invalid_weights
         )
         assert False, "Should have raised ValueError for invalid number of weights"
     except ValueError:
@@ -137,7 +94,56 @@ def test_normalized_IHA_computation():
     try:
         invalid_weights = [0.1, 0.2, 0.3, 0.2, 0.1]  # Sum != 1
         compute_IHA_index(
-            Qnat, QS, dates, index_metric="normalized_IHA", weights=invalid_weights
+            Qnat, Qrel, dates, index_metric="IARI", weights=invalid_weights
+        )
+        assert False, "Should have raised ValueError for weights not summing to 1"
+    except ValueError:
+        pass
+
+
+def test_IARI_values():
+    """Test IARI values for specific scenarios"""
+    # Test when Qrel = Qnat (no alteration)
+    _, iari_no_change = compute_IHA_index(Qnat, Qnat, dates, index_metric="IARI")
+
+    # Test when Qrel = 0 (maximum alteration)
+    Qrel_zero = np.zeros_like(Qnat)
+    _, iari_max_change = compute_IHA_index(Qnat, Qrel_zero, dates, index_metric="IARI")
+    assert np.all(iari_max_change["aggregated"] > 0)
+    assert np.all(iari_max_change["aggregated"] > iari_no_change["aggregated"])
+
+
+def test_normalized_IHA_computation():
+    """Test normalized IHA computation with different weights"""
+    # Test with default weights
+    _, niha_default = compute_IHA_index(
+        Qnat, Qrel, dates, index_metric="normalized_IHA"
+    )
+    assert "groups" in niha_default
+    assert "aggregated" in niha_default
+    assert len(niha_default["groups"]) == 5
+
+    # Test with custom weights
+    weights = [0.1, 0.2, 0.3, 0.2, 0.2]
+    _, niha_custom = compute_IHA_index(
+        Qnat, Qrel, dates, index_metric="normalized_IHA", weights=weights
+    )
+    assert len(niha_custom["groups"]) == 5
+
+    # Test weight validation
+    try:
+        invalid_weights = [0.1, 0.2, 0.3, 0.2]  # Only 4 weights
+        compute_IHA_index(
+            Qnat, Qrel, dates, index_metric="normalized_IHA", weights=invalid_weights
+        )
+        assert False, "Should have raised ValueError for invalid number of weights"
+    except ValueError:
+        pass
+
+    try:
+        invalid_weights = [0.1, 0.2, 0.3, 0.2, 0.1]  # Sum != 1
+        compute_IHA_index(
+            Qnat, Qrel, dates, index_metric="normalized_IHA", weights=invalid_weights
         )
         assert False, "Should have raised ValueError for weights not summing to 1"
     except ValueError:
@@ -146,7 +152,7 @@ def test_normalized_IHA_computation():
 
 def test_normalized_IHA_values():
     """Test normalized IHA values for specific scenarios"""
-    # Test when QS = Qnat (no alteration) - should give values close to 0
+    # Test when Qrel = Qnat (no alteration) - should give values close to 0
     _, niha_no_change = compute_IHA_index(
         Qnat, Qnat, dates, index_metric="normalized_IHA"
     )
@@ -154,19 +160,19 @@ def test_normalized_IHA_values():
     # When flows are identical, normalized IHA should be close to 0
     assert np.all(niha_no_change["aggregated"] < 0.01)
 
-    # Test when QS = 0.5 * Qnat (moderate alteration)
-    QS_half = Qnat * 0.5
+    # Test when Qrel = 0.5 * Qnat (moderate alteration)
+    Qrel_half = Qnat * 0.5
     _, niha_half = compute_IHA_index(
-        Qnat, QS_half, dates, index_metric="normalized_IHA"
+        Qnat, Qrel_half, dates, index_metric="normalized_IHA"
     )
     assert np.all(niha_half["aggregated"] > 0)
     # Should show alteration since flows are different
     assert np.all(niha_half["aggregated"] > niha_no_change["aggregated"])
 
-    # Test when QS = 0 (maximum alteration)
-    QS_zero = np.zeros_like(Qnat) + 0.01  # Add small value to avoid division by zero
+    # Test when Qrel = 0 (maximum alteration)
+    Qrel_zero = np.zeros_like(Qnat) + 0.01  # Add small value to avoid division by zero
     _, niha_max_change = compute_IHA_index(
-        Qnat, QS_zero, dates, index_metric="normalized_IHA"
+        Qnat, Qrel_zero, dates, index_metric="normalized_IHA"
     )
     assert np.all(niha_max_change["aggregated"] > 0)
     # Maximum alteration should have higher values than moderate alteration
@@ -176,7 +182,7 @@ def test_normalized_IHA_values():
 def test_index_metric_validation():
     """Test that invalid index_metric raises ValueError"""
     try:
-        compute_IHA_index(Qnat, QS, dates, index_metric="invalid_metric")
+        compute_IHA_index(Qnat, Qrel, dates, index_metric="invalid_metric")
         assert False, "Should have raised ValueError for invalid index_metric"
     except ValueError as e:
         assert "index_metric must be either 'IARI' or 'normalized_IHA'" in str(e)
@@ -192,17 +198,17 @@ def test_IHA_numerical_accuracy():
     # Sinusoidal flow with known properties
     t = np.linspace(0, 2 * np.pi, 365)
     Qnat_test = 10 + 5 * np.sin(t)  # Mean = 10, amplitude = 5
-    QS_test = 8 + 4 * np.sin(t)  # Mean = 8, amplitude = 4
+    Qrel_test = 8 + 4 * np.sin(t)  # Mean = 8, amplitude = 4
 
-    IHA_groups = compute_IHA(Qnat_test, QS_test, dates_1y)
+    IHA_groups = compute_IHA(Qnat_test, Qrel_test, dates_1y)
 
     # Test Group 1: Monthly means
     # January mean (days 0-30)
-    jan_mean = np.mean(QS_test[:31])
+    jan_mean = np.mean(Qrel_test[:31])
     assert np.isclose(IHA_groups["Group1"]["mean_january"][0], jan_mean, rtol=1e-10)
 
     # July mean (days 181-211)
-    jul_mean = np.mean(QS_test[181:212])
+    jul_mean = np.mean(Qrel_test[181:212])
     assert np.isclose(IHA_groups["Group1"]["mean_july"][0], jul_mean, rtol=1e-10)
 
     # Test Group 2: Moving averages
@@ -213,7 +219,7 @@ def test_IHA_numerical_accuracy():
     assert IHA_groups["Group2"]["zero_flow_days"][0] == 0
 
     # 7-day moving average extremes
-    moving_avg_7d = np.convolve(QS_test, np.ones(7) / 7, mode="valid")
+    moving_avg_7d = np.convolve(Qrel_test, np.ones(7) / 7, mode="valid")
     assert np.isclose(
         IHA_groups["Group2"]["moving_avg_7d_min"][0], np.min(moving_avg_7d), rtol=1e-10
     )
@@ -222,8 +228,8 @@ def test_IHA_numerical_accuracy():
     )
 
     # Test Group 3: Timing of extremes
-    max_day = np.argmax(QS_test) + 1  # Adding 1 because Julian days start at 1
-    min_day = np.argmin(QS_test) + 1
+    max_day = np.argmax(Qrel_test) + 1  # Adding 1 because Julian days start at 1
+    min_day = np.argmin(Qrel_test) + 1
     assert IHA_groups["Group3"]["julian_day_max"][0] == max_day
     assert IHA_groups["Group3"]["julian_day_min"][0] == min_day
 
@@ -233,11 +239,11 @@ def test_IHA_numerical_accuracy():
         datetime.datetime(2025, 1, 1) + datetime.timedelta(days=x) for x in range(100)
     ]
     pulse_Qnat = np.ones(100) * 10
-    pulse_QS = np.ones(100) * 10
-    pulse_QS[10:20] = 5  # Low pulse for 10 days
-    pulse_QS[50:70] = 15  # High pulse for 20 days
+    pulse_Qrel = np.ones(100) * 10
+    pulse_Qrel[10:20] = 5  # Low pulse for 10 days
+    pulse_Qrel[50:70] = 15  # High pulse for 20 days
 
-    pulse_IHA = compute_IHA(pulse_Qnat, pulse_QS, pulse_dates)
+    pulse_IHA = compute_IHA(pulse_Qnat, pulse_Qrel, pulse_dates)
     assert pulse_IHA["Group4"]["low_pulse_count"][0] == 1
     assert pulse_IHA["Group4"]["high_pulse_count"][0] == 1
     assert pulse_IHA["Group4"]["low_pulse_duration"][0] == 10
@@ -245,13 +251,13 @@ def test_IHA_numerical_accuracy():
 
     # Test Group 5: Flow variations
     # Create simple variation data
-    var_QS = np.array([1, 2, 1, 2, 1, 2, 1, 2, 1, 2])
+    var_Qrel = np.array([1, 2, 1, 2, 1, 2, 1, 2, 1, 2])
     var_dates = [
         datetime.datetime(2025, 1, 1) + datetime.timedelta(days=x) for x in range(10)
     ]
-    var_Qnat = np.ones_like(var_QS)
+    var_Qnat = np.ones_like(var_Qrel)
 
-    var_IHA = compute_IHA(var_Qnat, var_QS, var_dates)
+    var_IHA = compute_IHA(var_Qnat, var_Qrel, var_dates)
     assert np.isclose(
         var_IHA["Group5"]["positive_variation_median"][0], 1.0, rtol=1e-10
     )
@@ -272,26 +278,28 @@ def test_zero_flow_days():
 
     # Create flow data with 5 zero-flow days (days 5-9)
     Qnat_test = np.ones(30) * 10.0
-    QS_test = np.ones(30) * 10.0
-    QS_test[5:10] = 0.0  # 5 days with zero flow
+    Qrel_test = np.ones(30) * 10.0
+    Qrel_test[5:10] = 0.0  # 5 days with zero flow
 
-    IHA_groups = compute_IHA(Qnat_test, QS_test, dates_test)
+    IHA_groups = compute_IHA(Qnat_test, Qrel_test, dates_test)
 
     # Should detect exactly 5 zero-flow days
     assert IHA_groups["Group2"]["zero_flow_days"][0] == 5
 
     # Test with flow below threshold but not exactly zero
-    QS_test2 = np.ones(30) * 10.0
-    QS_test2[10:15] = 0.0005  # 5 days below default threshold (0.001)
+    Qrel_test2 = np.ones(30) * 10.0
+    Qrel_test2[10:15] = 0.0005  # 5 days below default threshold (0.001)
 
-    IHA_groups2 = compute_IHA(Qnat_test, QS_test2, dates_test)
+    IHA_groups2 = compute_IHA(Qnat_test, Qrel_test2, dates_test)
     assert IHA_groups2["Group2"]["zero_flow_days"][0] == 5
 
     # Test with custom threshold
-    QS_test3 = np.ones(30) * 10.0
-    QS_test3[2:8] = 0.5  # 6 days with low flow
+    Qrel_test3 = np.ones(30) * 10.0
+    Qrel_test3[2:8] = 0.5  # 6 days with low flow
 
-    IHA_groups3 = compute_IHA(Qnat_test, QS_test3, dates_test, zero_flow_threshold=1.0)
+    IHA_groups3 = compute_IHA(
+        Qnat_test, Qrel_test3, dates_test, zero_flow_threshold=1.0
+    )
     assert IHA_groups3["Group2"]["zero_flow_days"][0] == 6
 
 
@@ -309,10 +317,10 @@ def test_daily_averaging():
     # Day 3: all hours = 30 m³/s, average = 30
     hourly_Qnat = np.concatenate([np.ones(24) * 10, np.ones(24) * 20, np.ones(24) * 30])
 
-    hourly_QS = np.concatenate([np.ones(24) * 8, np.ones(24) * 16, np.ones(24) * 24])
+    hourly_Qrel = np.concatenate([np.ones(24) * 8, np.ones(24) * 16, np.ones(24) * 24])
 
     # Compute IHA with hourly data
-    IHA_hourly = compute_IHA(hourly_Qnat, hourly_QS, hourly_dates)
+    IHA_hourly = compute_IHA(hourly_Qnat, hourly_Qrel, hourly_dates)
 
     # Create equivalent daily data
     daily_dates = [
@@ -321,10 +329,10 @@ def test_daily_averaging():
         datetime.datetime(2025, 1, 3),
     ]
     daily_Qnat = np.array([10, 20, 30])
-    daily_QS = np.array([8, 16, 24])
+    daily_Qrel = np.array([8, 16, 24])
 
     # Compute IHA with daily data
-    IHA_daily = compute_IHA(daily_Qnat, daily_QS, daily_dates)
+    IHA_daily = compute_IHA(daily_Qnat, daily_Qrel, daily_dates)
 
     # The results should be identical since hourly data averages to the same daily values
     # Check Group 2: base_flow (which is the mean of the series)
@@ -352,19 +360,19 @@ def test_daily_averaging():
     day2_hourly = np.linspace(10, 30, 24)
 
     hourly_Qnat_varying = np.concatenate([day1_hourly, day2_hourly])
-    hourly_QS_varying = hourly_Qnat_varying * 0.8  # 80% of natural flow
+    hourly_Qrel_varying = hourly_Qnat_varying * 0.8  # 80% of natural flow
 
     # Compute IHA with varying hourly data
     IHA_varying = compute_IHA(
-        hourly_Qnat_varying, hourly_QS_varying, hourly_dates_varying
+        hourly_Qnat_varying, hourly_Qrel_varying, hourly_dates_varying
     )
 
     # Create daily data with correct averages
     daily_dates_2d = [datetime.datetime(2025, 1, 1), datetime.datetime(2025, 1, 2)]
     daily_Qnat_2d = np.array([10.0, 20.0])  # Averages of the hourly data
-    daily_QS_2d = daily_Qnat_2d * 0.8
+    daily_Qrel_2d = daily_Qnat_2d * 0.8
 
-    IHA_daily_2d = compute_IHA(daily_Qnat_2d, daily_QS_2d, daily_dates_2d)
+    IHA_daily_2d = compute_IHA(daily_Qnat_2d, daily_Qrel_2d, daily_dates_2d)
 
     # Compare base flow values
     assert np.isclose(

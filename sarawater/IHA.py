@@ -6,9 +6,9 @@ from sarawater.utils import compute_consecutive_lengths
 
 
 def compute_IHA(
-    Qnat: np.ndarray, QS: np.ndarray, dates: list, zero_flow_threshold: float = 0.001
+    Qnat: np.ndarray, Qrel: np.ndarray, dates: list, zero_flow_threshold: float = 0.001
 ) -> dict[str, dict[str, np.ndarray]]:
-    """Compute Indicators of Hydrologic Alteration (IHA) for a given flow time series QS with respect to a natural time series Qnat.
+    """Compute Indicators of Hydrologic Alteration (IHA) for a given flow time series Qrel with respect to a natural time series Qnat.
     Each indicator is computed yearly. The indicators are grouped into 5 groups as per IHA methodology.
 
     Note: If the input data has sub-daily resolution (e.g., hourly), it will be automatically aggregated to daily averages
@@ -18,7 +18,7 @@ def compute_IHA(
     ----------
     Qnat : np.ndarray
         Natural flow rate time series (any temporal resolution; will be aggregated to daily)
-    QS : np.ndarray
+    Qrel : np.ndarray
         Released flow rate time series (any temporal resolution; will be aggregated to daily)
     dates : list
         List of datetime objects corresponding to flow rates
@@ -49,16 +49,16 @@ def compute_IHA(
 
     dates_array = np.array(dates)
     df = pd.DataFrame(
-        {"date": pd.to_datetime(dates_array).date, "Qnat": Qnat, "QS": QS}
+        {"date": pd.to_datetime(dates_array).date, "Qnat": Qnat, "Qrel": Qrel}
     )
 
     # Group by date and compute daily averages
-    df_daily = df.groupby("date").agg({"Qnat": "mean", "QS": "mean"}).reset_index()
+    df_daily = df.groupby("date").agg({"Qnat": "mean", "Qrel": "mean"}).reset_index()
 
     # Extract daily-averaged data
     dates_daily = pd.to_datetime(df_daily["date"]).tolist()
     Qnat_daily = df_daily["Qnat"].values
-    QS_daily = df_daily["QS"].values
+    Qrel_daily = df_daily["Qrel"].values
 
     IHA_groups = {f"Group{i+1}": {} for i in range(5)}
     years = np.unique([d.year for d in dates_daily])
@@ -73,7 +73,7 @@ def compute_IHA(
                 [d.month == month and d.year == year for d in dates_daily]
             )
             if np.any(year_month_mask):
-                yearly_means[i] = np.mean(QS_daily[year_month_mask])
+                yearly_means[i] = np.mean(Qrel_daily[year_month_mask])
         IHA_groups["Group1"][f"mean_{month_name}"] = yearly_means
 
     # Group 2: Moving averages, base flow, zero-flow days
@@ -86,7 +86,7 @@ def compute_IHA(
 
     for i, year in enumerate(years):
         year_mask = np.array([d.year == year for d in dates_daily])
-        year_data = QS_daily[year_mask]
+        year_data = Qrel_daily[year_mask]
         yearly_base_flow[i] = np.mean(year_data)
         yearly_zero_flow_days[i] = np.sum(year_data < zero_flow_threshold)
 
@@ -110,7 +110,7 @@ def compute_IHA(
     julian_days_min = np.zeros(n_years)
     for i, year in enumerate(years):
         year_mask = np.array([d.year == year for d in dates_daily])
-        year_data = QS_daily[year_mask]
+        year_data = Qrel_daily[year_mask]
         year_dates = np.array(dates_daily)[year_mask]
 
         max_idx = np.argmax(year_data)
@@ -132,7 +132,7 @@ def compute_IHA(
 
     for i, year in enumerate(years):
         year_mask = np.array([d.year == year for d in dates_daily])
-        year_data = QS_daily[year_mask]
+        year_data = Qrel_daily[year_mask]
         year_nat = Qnat_daily[year_mask]
 
         low_limit = np.percentile(year_nat, 25)
@@ -171,7 +171,7 @@ def compute_IHA(
 
     for i, year in enumerate(years):
         year_mask = np.array([d.year == year for d in dates_daily])
-        year_data = QS_daily[year_mask]
+        year_data = Qrel_daily[year_mask]
         flow_changes = np.diff(year_data)
 
         pos_changes = flow_changes[flow_changes >= 0]
@@ -198,7 +198,7 @@ def compute_IHA(
 
 def compute_IHA_index(
     Qnat: np.ndarray,
-    QS: np.ndarray,
+    Qrel: np.ndarray,
     dates: list,
     index_metric: str,
     weights: list[float] = None,
@@ -212,7 +212,7 @@ def compute_IHA_index(
     ----------
     Qnat : np.ndarray
         Natural flow rate time series
-    QS : np.ndarray
+    Qrel : np.ndarray
         Released flow rate time series
     dates : list
         List of datetime objects corresponding to flow rates
@@ -255,7 +255,7 @@ def compute_IHA_index(
     if IHA_nat is None:
         IHA_nat = compute_IHA(Qnat, Qnat, dates)  # Natural state
     if IHA_alt is None:
-        IHA_alt = compute_IHA(Qnat, QS, dates)  # Altered state
+        IHA_alt = compute_IHA(Qnat, Qrel, dates)  # Altered state
 
     years = np.unique([d.year for d in dates])
     n_years = len(years)

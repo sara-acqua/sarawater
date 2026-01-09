@@ -96,7 +96,7 @@ class ReachPlotter:
         for color, scenario in zip(self.scenario_colors, self.reach.scenarios):
             plt.plot(
                 np.array(self.reach.dates)[mask],
-                scenario.QS[mask],
+                scenario.Qrel[mask],
                 color=color,
                 label=scenario.name,
             )
@@ -401,9 +401,9 @@ class ReachPlotter:
         Create a bar plot showing the duration percentage of each flow case for all scenarios.
 
         Flow cases are:
-        - Case 1: Q ≤ QR (Natural flow is less than or equal to minimum release)
-        - Case 2: QR < Q < QR + Qab_max (Natural flow is between minimum release and maximum abstraction)
-        - Case 3: Q ≥ QR + Qab_max (Natural flow exceeds maximum abstraction capacity)
+        - Case 1: Q ≤ Qreq (Natural flow is less than or equal to minimum release)
+        - Case 2: Qreq < Q < Qreq + Qabs_max (Natural flow is between minimum release and maximum abstraction)
+        - Case 3: Q ≥ Qreq + Qabs_max (Natural flow exceeds maximum abstraction capacity)
 
         Parameters
         ----------
@@ -416,13 +416,13 @@ class ReachPlotter:
                 not hasattr(scenario, "cases_duration")
                 or scenario.cases_duration is None
             ):
-                scenario.compute_QS()  # This will compute cases_duration as well
+                scenario.compute_Qrel()  # This will compute cases_duration as well
 
         n_scenarios = len(self.reach.scenarios)
         case_labels = [
-            "Case 1\n(Q ≤ QR)",
-            "Case 2\n(QR < Q < QR+Qab_max)",
-            "Case 3\n(Q ≥ QR+Qab_max)",
+            "Case 1\n(Q ≤ Qreq)",
+            "Case 2\n(Qreq < Q < Qreq+Qabs_max)",
+            "Case 3\n(Q ≥ Qreq+Qabs_max)",
         ]
 
         # Create a figure with appropriate size
@@ -508,9 +508,9 @@ class ReachPlotter:
 
         n_scenarios = len(self.reach.scenarios)
         case_labels = [
-            "Case 1\n(Q ≤ QR)",
-            "Case 2\n(QR < Q < QR+Qab_max)",
-            "Case 3\n(Q ≥ QR+Qab_max)",
+            "Case 1\n(Q ≤ Qreq)",
+            "Case 2\n(Qreq < Q < Qreq+Qabs_max)",
+            "Case 3\n(Q ≥ Qreq+Qabs_max)",
         ]
 
         plt.figure()
