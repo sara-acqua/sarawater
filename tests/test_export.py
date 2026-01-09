@@ -37,12 +37,10 @@ def test_export_scenarios_summary_basic():
     reach = create_test_reach()
 
     # Add a constant scenario
-    QR_months = [5.0] * 12
-    scenario = sc.ConstScenario("Test Scenario", "A test scenario", reach, QR_months)
+    Qreq_months = [5.0] * 12
+    scenario = sc.ConstScenario("Test Scenario", "A test scenario", reach, Qreq_months)
     reach.add_scenario(scenario)
-
-    # Compute QS
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     # Export without saving
     df = reach.export_scenarios_summary()
@@ -52,7 +50,7 @@ def test_export_scenarios_summary_basic():
     assert len(df) == 1  # One scenario
     assert df.loc[0, "scenario_name"] == "Test Scenario"
     assert df.loc[0, "scenario_description"] == "A test scenario"
-    assert df.loc[0, "Qab_max"] == 30.0
+    assert df.loc[0, "Qabs_max"] == 30.0
 
 
 def test_export_scenarios_summary_with_prop_params():
@@ -63,13 +61,13 @@ def test_export_scenarios_summary_with_prop_params():
         "Prop Test",
         "Proportional scenario",
         reach,
-        QRbase=5.0,
+        Qbase=5.0,
         c_Qin=0.2,
-        QRmin=3.0,
-        QRmax=20.0,
+        Qreq_min=3.0,
+        Qreq_max=20.0,
     )
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     df = reach.export_scenarios_summary()
 
@@ -85,7 +83,7 @@ def test_export_scenarios_summary_with_volumes():
 
     scenario = sc.ConstScenario("Vol Test", "Volume test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
     scenario.compute_natural_abstracted_volumes()
 
     df = reach.export_scenarios_summary()
@@ -107,7 +105,7 @@ def test_export_scenarios_summary_with_iari():
 
     scenario = sc.ConstScenario("IARI Test", "IARI test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
     scenario.compute_IHA_index(index_metric="IARI")
 
     df = reach.export_scenarios_summary()
@@ -128,7 +126,7 @@ def test_export_scenarios_summary_with_normalized_iha():
 
     scenario = sc.ConstScenario("nIHA Test", "nIHA test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
     scenario.compute_IHA_index(index_metric="normalized_IHA")
 
     df = reach.export_scenarios_summary()
@@ -149,13 +147,13 @@ def test_export_scenarios_summary_with_monthly_flows():
 
     scenario = sc.ConstScenario("Flow Test", "Flow test", reach, [10.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     df = reach.export_scenarios_summary()
 
     # Check monthly flow averages
     for month in range(1, 13):
-        col_name = f"QS_mean_month_{month}_m3s"
+        col_name = f"Qrel_mean_month_{month}_m3s"
         assert col_name in df.columns
         assert not pd.isna(df.loc[0, col_name])
 
@@ -173,9 +171,9 @@ def test_export_scenarios_summary_multiple_scenarios():
     reach.add_scenario(scenario2)
     reach.add_scenario(scenario3)
 
-    scenario1.compute_QS()
-    scenario2.compute_QS()
-    scenario3.compute_QS()
+    scenario1.compute_Qrel()
+    scenario2.compute_Qrel()
+    scenario3.compute_Qrel()
 
     df = reach.export_scenarios_summary()
 
@@ -192,7 +190,7 @@ def test_export_scenarios_summary_csv():
 
     scenario = sc.ConstScenario("CSV Test", "CSV test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         temp_path = f.name
@@ -218,7 +216,7 @@ def test_export_scenarios_summary_invalid_format():
 
     scenario = sc.ConstScenario("Format Test", "Format test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     try:
         reach.export_scenarios_summary(output_path="test.txt", format="txt")
@@ -233,7 +231,7 @@ def test_export_scenarios_summary_with_cases_duration():
 
     scenario = sc.ConstScenario("Cases Test", "Cases test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     df = reach.export_scenarios_summary()
 
@@ -257,7 +255,7 @@ def test_export_scenarios_summary_with_seasonal_volumes():
 
     scenario = sc.ConstScenario("Seasonal Test", "Seasonal test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
     scenario.compute_natural_abstracted_volumes()
 
     df = reach.export_scenarios_summary()
@@ -282,7 +280,7 @@ def test_export_scenarios_summary_with_annual_sediment_budget():
 
     scenario = sc.ConstScenario("Sediment Test", "Sediment test", reach, [15.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     # Try to compute annual sediment budget
     scenario.compute_annual_sediment_budget()
@@ -302,7 +300,7 @@ def test_export_scenarios_summary_excel_missing_openpyxl():
 
     scenario = sc.ConstScenario("Excel Test", "Excel test", reach, [5.0] * 12)
     reach.add_scenario(scenario)
-    scenario.compute_QS()
+    scenario.compute_Qrel()
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".xlsx", delete=False) as f:
         temp_path = f.name

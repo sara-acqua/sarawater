@@ -32,7 +32,7 @@ sc2 = sc.PropScenario(
 test_visualization_reach.add_scenario(sc1)
 test_visualization_reach.add_scenario(sc2)
 for scenario in test_visualization_reach.scenarios:
-    scenario.compute_QS()
+    scenario.compute_Qrel()
     scenario.compute_IHA()
 
 

@@ -24,8 +24,8 @@ def test_scenario_basics():
         sc1.Qnat, Qnat
     )  # Ensure Qnat is correctly fetched from the reach
     assert (
-        sc1.Qab_max == test_scenarios_reach.Qab_max
-    )  # Ensure Qab_max is correctly fetched from the reach
+        sc1.Qabs_max == test_scenarios_reach.Qabs_max
+    )  # Ensure Qabs_max is correctly fetched from the reach
     assert np.array_equal(
         sc1.dates, test_scenarios_reach.dates
     )  # Ensure dates are correctly fetched from the reach
@@ -52,23 +52,23 @@ def test_changing_reach_attrs():
 def test_const_scenario_with_dates():
 
     # Define monthly constant flow rates
-    QR_months = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
+    Qreq_months = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
 
-    # Create a ConstScenario with the reach and QR_months
+    # Create a ConstScenario with the reach and Qreq_months
     const_scenario = sc.ConstScenario(
         "Const Scenario with Dates",
         "A constant scenario with monthly flow rates.",
         test_scenarios_reach,
-        QR_months,
+        Qreq_months,
     )
 
-    # Verify that the QR mapping is carried out properly
-    assert np.array_equal(const_scenario.QR, QR_months), "QR mapping failed"
+    # Verify that the Qreq mapping is carried out properly
+    assert np.array_equal(const_scenario.Qreq, Qreq_months), "Qreq mapping failed"
     for i, month in enumerate(range(1, 13)):
         month_mask = np.array([date.month == month for date in dates])
         assert np.all(
-            const_scenario.QR[month_mask] == QR_months[i]
-        ), f"QR mapping failed for month {month}"
+            const_scenario.Qreq[month_mask] == Qreq_months[i]
+        ), f"Qreq mapping failed for month {month}"
 
 
 def test_const_scenario():
@@ -81,8 +81,8 @@ def test_const_scenario():
     assert np.array_equal(
         sc1.Qnat, Qnat
     )  # Ensure Qnat is correctly fetched from the reach
-    assert sc1.QR_months[0] == 1
-    assert len(sc1.QR_months) == 12
+    assert sc1.Qreq_months[0] == 1
+    assert len(sc1.Qreq_months) == 12
 
 
 def test_prop_scenario():
@@ -101,24 +101,24 @@ def test_prop_scenario():
     assert np.array_equal(
         sc1.Qnat, Qnat
     )  # Ensure Qnat is correctly fetched from the reach
-    assert sc1.QRbase == 1
+    assert sc1.Qbase == 1
     assert sc1.c_Qin == 0.3
-    assert sc1.QRmin == 0.5
-    assert sc1.QRmax == 50
+    assert sc1.Qreq_min == 0.5
+    assert sc1.Qreq_max == 50
 
 
 def test_scenario_IARI_computation():
     # Create a scenario with known properties
-    QR_months = [10] * 12  # Constant release of 10 units for all months
+    Qreq_months = [10] * 12  # Constant release of 10 units for all months
     test_scenario = sc.ConstScenario(
         "Test Scenario",
         "Test scenario for IARI computation",
         test_scenarios_reach,
-        QR_months,
+        Qreq_months,
     )
 
-    # Set QS to compute IARI
-    test_scenario.compute_QS()
+    # Set Qrel to compute IARI
+    test_scenario.compute_Qrel()
 
     # Test the compute_IHA_index method with IARI
     IHA, IARI = test_scenario.compute_IHA_index(index_metric="IARI")
@@ -136,16 +136,16 @@ def test_scenario_IARI_computation():
 
 def test_scenario_normalized_IHA_computation():
     # Create a scenario with known properties
-    QR_months = [10] * 12  # Constant release of 10 units for all months
+    Qreq_months = [10] * 12  # Constant release of 10 units for all months
     test_scenario = sc.ConstScenario(
         "Test Scenario",
         "Test scenario for normalized IHA computation",
         test_scenarios_reach,
-        QR_months,
+        Qreq_months,
     )
 
-    # Set QS to compute normalized IHA
-    test_scenario.compute_QS()
+    # Set Qrel to compute normalized IHA
+    test_scenario.compute_Qrel()
 
     # Test the compute_IHA_index method with normalized_IHA
     IHA, normalized_IHA = test_scenario.compute_IHA_index(index_metric="normalized_IHA")
@@ -163,15 +163,15 @@ def test_scenario_normalized_IHA_computation():
 
 def test_scenario_IARI_with_custom_weights():
     # Create a scenario with custom weights
-    QR_months = [5] * 12
+    Qreq_months = [5] * 12
     test_scenario = sc.ConstScenario(
         "Custom Weights Scenario",
         "Test scenario with custom weights",
         test_scenarios_reach,
-        QR_months,
+        Qreq_months,
     )
 
-    test_scenario.compute_QS()
+    test_scenario.compute_Qrel()
 
     # Test with custom weights
     weights = [0.1, 0.2, 0.3, 0.2, 0.2]
@@ -186,15 +186,15 @@ def test_scenario_IARI_with_custom_weights():
 
 def test_scenario_normalized_IHA_with_custom_weights():
     # Create a scenario with custom weights
-    QR_months = [5] * 12
+    Qreq_months = [5] * 12
     test_scenario = sc.ConstScenario(
         "Custom Weights Scenario",
         "Test scenario with custom weights",
         test_scenarios_reach,
-        QR_months,
+        Qreq_months,
     )
 
-    test_scenario.compute_QS()
+    test_scenario.compute_Qrel()
 
     # Test with custom weights
     weights = [0.1, 0.2, 0.3, 0.2, 0.2]

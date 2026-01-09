@@ -46,7 +46,7 @@ discharge_data = np.array(stream_df["Q"].to_list())
 minrel_df = pd.read_csv(
     os.path.join(data_dir, "minimum_flow_requirements.csv"), header=None
 )
-QR_months = np.array(minrel_df[1].tolist()) / 1000.0  # Convert l/s to m3/s
+Qreq_months = np.array(minrel_df[1].tolist()) / 1000.0  # Convert l/s to m3/s
 
 # Read HQ curves
 HQ_curves = pd.read_csv(
@@ -54,13 +54,13 @@ HQ_curves = pd.read_csv(
 )
 
 # Create reach object
-Qab_max = 0.2
+Qabs_max = 0.2
 
 
 def setup_reach_with_dmv_scenario():
     """Create a fresh reach object with DMV scenario for testing."""
     # Create initial reach object
-    reach = rch.Reach("tutorial_reach", datetime_list, discharge_data, Qab_max)
+    reach = rch.Reach("tutorial_reach", datetime_list, discharge_data, Qabs_max)
 
     # Add HQ curves to reach
     reach.add_HQ_curve(HQ_curves)
@@ -70,15 +70,15 @@ def setup_reach_with_dmv_scenario():
         name="DMV",
         description="Minimum release scenario from CSV file",
         reach=reach,
-        QR_months=QR_months,
+        Qreq_months=Qreq_months,
     )
 
     # Add scenario to reach
     reach.add_scenario(const_scenario)
 
-    # Compute QS for the scenario
+    # Compute Qrel for the scenario
     for scenario in reach.scenarios:
-        scenario.compute_QS()
+        scenario.compute_Qrel()
 
     return reach
 
@@ -159,7 +159,7 @@ def test_habitat_index_values():
     ), f"DMV scenario not found. Available scenarios: {[s.name for s in test_reach.scenarios]}"
 
     # Ensure computations are done
-    dmv_scenario.compute_QS()
+    dmv_scenario.compute_Qrel()
 
     # Get all available species
     available_species = test_reach.get_list_available_HQ_curves()
@@ -305,7 +305,7 @@ def test_compute_IH_default_behavior():
 
     # Get the DMV scenario
     dmv_scenario = test_reach.scenarios[0]
-    dmv_scenario.compute_QS()
+    dmv_scenario.compute_Qrel()
 
     # Get all available species
     available_species = test_reach.get_list_available_HQ_curves()
@@ -334,7 +334,7 @@ def test_compute_IH_single_species():
 
     # Get the DMV scenario
     dmv_scenario = test_reach.scenarios[0]
-    dmv_scenario.compute_QS()
+    dmv_scenario.compute_Qrel()
 
     # Call compute_IH_for_species with a single species
     dmv_scenario.compute_IH_for_species(species="BROW_A_R")
@@ -353,7 +353,7 @@ def test_compute_IH_species_list():
 
     # Get the DMV scenario
     dmv_scenario = test_reach.scenarios[0]
-    dmv_scenario.compute_QS()
+    dmv_scenario.compute_Qrel()
 
     # Call compute_IH_for_species with a list of species
     species_list = ["BROW_A_R", "TROU_J_R"]

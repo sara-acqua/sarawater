@@ -12,7 +12,7 @@ from sarawater.sediment_load import (
 
 
 class Scenario:
-    def __init__(self, name: str, description: str, reach: "Reach", Qab_max=None):  # type: ignore
+    def __init__(self, name: str, description: str, reach: "Reach", Qabs_max=None):  # type: ignore
         """Parent class for all types of scenarios. Contains the name and description of the scenario.
 
         Parameters
@@ -23,18 +23,18 @@ class Scenario:
             Description of the scenario.
         reach : Reach
             The reach object associated with this scenario.
-        Qab_max : float, optional
+        Qabs_max : float, optional
             Maximum value for the water abstraction, by default None (which takes the value from the reach object).
         """
         self.name = name
         self.description = description
         self.reach = reach
-        self.QR = None  # Placeholder for the minimum release flow time series
-        self.QS = None  # Placeholder for the released flow rate time series
-        if Qab_max is None:
-            self.Qab_max = reach.Qab_max
+        self.Qreq = None  # Placeholder for the minimum release flow time series
+        self.Qrel = None  # Placeholder for the released flow rate time series
+        if Qabs_max is None:
+            self.Qabs_max = reach.Qabs_max
         else:
-            self.Qab_max = Qab_max
+            self.Qabs_max = Qabs_max
         self.IH = {}
         self.IHA = None  # Placeholder for IHA indicators
 
@@ -51,7 +51,7 @@ class Scenario:
         """Get the dates from the associated Reach."""
         return self.reach.dates
 
-    def compute_QS(self) -> ndarray:
+    def compute_Qrel(self) -> ndarray:
         """Compute the released flow rate time series for the scenario.
 
         Returns
@@ -59,24 +59,24 @@ class Scenario:
         ndarray
             Released flow rate time series.
         """
-        if self.QR is None:
-            raise ValueError("QR must be set before computing QS.")
+        if self.Qreq is None:
+            raise ValueError("Qreq must be set before computing Qrel.")
 
-        QS = np.zeros_like(self.Qnat)
-        case1 = self.Qnat <= self.QR
-        case2 = (self.Qnat > self.QR) & (self.Qnat < self.Qab_max + self.QR)
-        case3 = self.Qnat >= self.Qab_max + self.QR
-        QS[case1] = self.Qnat[case1]
-        QS[case2] = self.QR[case2]
-        QS[case3] = self.Qnat[case3] - self.Qab_max
-        self.QS = QS
-        self.cases_duration = [sum(c) / QS.size for c in [case1, case2, case3]]
-        return QS
+        Qrel = np.zeros_like(self.Qnat)
+        case1 = self.Qnat <= self.Qreq
+        case2 = (self.Qnat > self.Qreq) & (self.Qnat < self.Qabs_max + self.Qreq)
+        case3 = self.Qnat >= self.Qabs_max + self.Qreq
+        Qrel[case1] = self.Qnat[case1]
+        Qrel[case2] = self.Qreq[case2]
+        Qrel[case3] = self.Qnat[case3] - self.Qabs_max
+        self.Qrel = Qrel
+        self.cases_duration = [sum(c) / Qrel.size for c in [case1, case2, case3]]
+        return Qrel
 
     def plot_scenario_discharge(
         self, start_date=None, end_date=None, **kwargs
     ) -> plt.Axes:
-        """Plot released discharge (QS) for a given scenario within a specified date range.
+        """Plot released discharge (Qrel) for a given scenario within a specified date range.
 
         Parameters
         ----------
@@ -109,7 +109,7 @@ class Scenario:
             kwargs["label"] = self.name
 
         # Plot the data with any additional keyword arguments
-        plt.plot(np.array(self.dates)[mask], self.QS[mask], **kwargs)
+        plt.plot(np.array(self.dates)[mask], self.Qrel[mask], **kwargs)
 
         # Customize the plot
         plt.title(f"Flow release time series for {self.reach.name}")
@@ -142,7 +142,7 @@ class Scenario:
                 'Group5': {...}
             }
         """
-        self.IHA = compute_IHA(self.Qnat, self.QS, self.dates, **kwargs)
+        self.IHA = compute_IHA(self.Qnat, self.Qrel, self.dates, **kwargs)
         return self.IHA
 
     def compute_IHA_index(
@@ -172,7 +172,7 @@ class Scenario:
 
         _, out_dict = compute_IHA_index(
             self.Qnat,
-            self.QS,
+            self.Qrel,
             self.dates,
             index_metric=index_metric,
             IHA_nat=self.reach.IHA_nat,
@@ -212,9 +212,9 @@ class Scenario:
             - Average natural volumes per month
             - Average abstracted volumes per month
         """
-        if self.QS is None:
+        if self.Qrel is None:
             raise ValueError(
-                "QS must be computed before calculating abstracted volumes."
+                "Qrel must be computed before calculating abstracted volumes."
             )
 
         # Default season mapping if none provided
@@ -245,7 +245,7 @@ class Scenario:
         time_steps = np.append(time_steps, time_steps[-1])
 
         # Calculate abstracted flow rates
-        Qab = self.Qnat - self.QS
+        Qab = self.Qnat - self.Qrel
 
         # Convert flow rates (m³/s) to volumes (m³)
         nat_volumes = self.Qnat * time_steps
@@ -299,18 +299,18 @@ class Scenario:
         list[float]
             List with the duration percentage of each case [case1, case2, case3] for the specified month.
         """
-        if self.QS is None or self.QR is None:
+        if self.Qrel is None or self.Qreq is None:
             raise ValueError(
-                "QS and QR must be computed before calculating case durations."
+                "Qrel and Qreq must be computed before calculating case durations."
             )
         month_mask = np.array([date.month == month for date in self.dates])
-        Qnat_m = self.Qnat[month_mask]
-        QR_m = self.QR[month_mask]
+        Qnat_month = self.Qnat[month_mask]
+        Qreq_month = self.Qreq[month_mask]
         # Compute cases for the month
-        case1 = Qnat_m <= QR_m
-        case2 = (Qnat_m > QR_m) & (Qnat_m < QR_m + self.Qab_max)
-        case3 = Qnat_m >= QR_m + self.Qab_max
-        total = len(Qnat_m)
+        case1 = Qnat_month <= Qreq_month
+        case2 = (Qnat_month > Qreq_month) & (Qnat_month < Qreq_month + self.Qabs_max)
+        case3 = Qnat_month >= Qreq_month + self.Qabs_max
+        total = len(Qnat_month)
         if total == 0:
             return [0, 0, 0]
         return [np.sum(case1) / total, np.sum(case2) / total, np.sum(case3) / total]
@@ -318,7 +318,7 @@ class Scenario:
     def compute_IH_for_species(
         self, species: str | list[str] | None = None, **kwargs
     ) -> dict:
-        """Compute the Habitat Index (IH) for a given species using the scenario's QS.
+        """Compute the Habitat Index (IH) for a given species using the scenario's Qrel.
 
         Parameters
         ----------
@@ -333,8 +333,8 @@ class Scenario:
         dict
             Dictionary with results from "compute_habitat_indices" for each species.
         """
-        if self.QS is None:
-            raise ValueError("QS must be computed before calculating IH.")
+        if self.Qrel is None:
+            raise ValueError("Qrel must be computed before calculating IH.")
 
         # Determine which species to process
         if species is None:
@@ -348,7 +348,7 @@ class Scenario:
         for sp in species_list:
             HQ = self.reach.get_HQ_curve(sp)
             IH_values = hab.compute_habitat_indices(
-                self.Qnat, self.QS, HQ, self.dates, **kwargs
+                self.Qnat, self.Qrel, HQ, self.dates, **kwargs
             )
             self.IH[sp] = IH_values
 
@@ -379,10 +379,10 @@ class Scenario:
         Raises
         ------
         ValueError
-            If self.QS is None (discharge must be computed before calling this method).
+            If self.Qrel is None (discharge must be computed before calling this method).
         """
-        if self.QS is None:
-            raise ValueError("QS must be computed first.")
+        if self.Qrel is None:
+            raise ValueError("Qrel must be computed first.")
 
         try:
             B = self.reach.width
@@ -394,7 +394,7 @@ class Scenario:
             )
 
         return compute_sediment_load(
-            self.QS,
+            self.Qrel,
             self.dates,
             B,
             slope,
@@ -520,7 +520,7 @@ class Scenario:
 
 class ConstScenario(Scenario):
     def __init__(
-        self, name: str, description: str, reach: "Reach", QR_months: list[float], **kwargs  # type: ignore
+        self, name: str, description: str, reach: "Reach", Qreq_months: list[float], **kwargs  # type: ignore
     ):
         """Constant flow rate scenario.
 
@@ -532,20 +532,20 @@ class ConstScenario(Scenario):
             Description of the scenario.
         reach : Reach
             The reach object associated with this scenario.
-        QR_months : list[float]
+        Qreq_months : list[float]
             Monthly constant flow rates.
         """
         super().__init__(name, description, reach, **kwargs)
 
-        if len(QR_months) != 12:
-            raise ValueError("QR_months must have 12 elements.")
-        self.QR_months = QR_months
+        if len(Qreq_months) != 12:
+            raise ValueError("Qreq_months must have 12 elements.")
+        self.Qreq_months = Qreq_months
 
         # Map the monthly flow rates to the dates of the reach
-        self.QR = np.zeros_like(self.Qnat)
-        for i, month in enumerate(self.QR_months):
+        self.Qreq = np.zeros_like(self.Qnat)
+        for i, month in enumerate(self.Qreq_months):
             month_mask = np.array([date.month == i + 1 for date in self.dates])
-            self.QR[month_mask] = month
+            self.Qreq[month_mask] = month
 
 
 class PropScenario(Scenario):
@@ -554,10 +554,10 @@ class PropScenario(Scenario):
         name: str,
         description: str,
         reach: "Reach",  # type: ignore
-        QRbase: float,
+        Qbase: float,
         c_Qin: float,
-        QRmin: float,
-        QRmax: float,
+        Qreq_min: float,
+        Qreq_max: float,
         **kwargs,
     ):
         """Proportional flow rate scenario.
@@ -570,20 +570,20 @@ class PropScenario(Scenario):
             Description of the scenario.
         reach : Reach
             The reach object associated with this scenario.
-        QRbase : float
+        Qbase : float
             Base flow rate.
         c_Qin : float
             Coefficient for inflow.
-        QRmin : float
+        Qreq_min : float
             Minimum value for the prescribed minimum released flow rate.
-        QRmax : float
+        Qreq_max : float
             Maximum value for the prescribed minimum released flow rate.
         """
         super().__init__(name, description, reach, **kwargs)
-        self.QRbase = QRbase
+        self.Qbase = Qbase
         self.c_Qin = c_Qin
-        self.QRmin = QRmin
-        self.QRmax = QRmax
-        self.QR = QRbase + c_Qin * self.Qnat
-        self.QR[self.QR < QRmin] = QRmin
-        self.QR[self.QR > QRmax] = QRmax
+        self.Qreq_min = Qreq_min
+        self.Qreq_max = Qreq_max
+        self.Qreq = Qbase + c_Qin * self.Qnat
+        self.Qreq[self.Qreq < Qreq_min] = Qreq_min
+        self.Qreq[self.Qreq > Qreq_max] = Qreq_max
