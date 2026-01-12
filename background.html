@@ -204,14 +204,28 @@
 <p>SARAwater is a Python package for analyzing different types of alterations in river reaches subject to flow abstraction, under different flow management scenarios. It is designed to help water resource managers and environmental scientists assess the ecological impacts of water abstractions and develop sustainable management strategies.</p>
 <section id="iha-index">
 <h2>IHA index<a class="headerlink" href="#iha-index" title="Permalink to this heading">#</a></h2>
-<p>IHA index that comes from the italian IARI
-Indexes of Hydrologic Alteration (IHA) is a widely used method for assessing the ecological impacts of flow alterations in rivers <a class="footnote-reference brackets" href="#id3" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>.</p>
-<p>Utilizzato come pre and post impact assessment, qui invece lo usiamo per valutare upstream e downstream di un punto di prelievo.</p>
-<p>tabella degli indici (valutare se linkarla a qualcosa)</p>
+<p>Indicators of Hydrologic Alteration (IHA) is a widely used method for assessing the degree of hydrologic change caused by human activities, such as the construction of water diversions <a class="footnote-reference brackets" href="#id5" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> <a class="footnote-reference brackets" href="#id6" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>.</p>
+<p>The IHA evaluates 32 or 33 ecologically relevant parameters derived from daily discharge data. These parameters are organized into five distinct groups, each characterizing a different aspect of the flow regime:
+1. Magnitude of Monthly Flow: Measures the average water conditions for each month, which impacts habitat availability for aquatic organisms.
+2. Magnitude and Duration of Annual Extremes: Examines the intensity and length of the highest and lowest flow events (e.g., 1-, 3-, 7-, 30-, and 90-day annual minima and maxima).
+3. Timing of Annual Extremes: Tracks the Julian dates of the annual 1-day maximum and minimum flows, which often serve as critical biological cues for spawning or migration.
+4. Frequency and Duration of Pulses: Analyzes how often high and low flow pulses occur and how long they last, which have many influences on ecosystems, for example, they are critical for nutrient exchange and floodplain connectivity.
+5. Rate and Frequency of Water Condition Changes: Measures how quickly flow rises or falls and the number of flow reversals.</p>
+<p>Usually, IHA has been used to assess pre and post impact conditions, here it is used to assess upstream and downstream of a withdrawal point, hypothezing that upstream is the reference -natural- condition. This assumption could be not exact in some cases, for example when there are multiple withdrawals or discharges along the river reach. In that case, the user should carefully choose the reference natural condition.</p>
+<p>In this work we try to assess the ecological impacts of flow alterations in rivers, through a parameter that comes from the IHA analysis and unifies all the 33 parameters. This parameter is called here IHA index, and it can be computed following two approaches.</p>
 </section>
 <section id="mesohabsim">
 <h2>MesoHABSIM<a class="headerlink" href="#mesohabsim" title="Permalink to this heading">#</a></h2>
-<p>The MESOHABSIM (Mesohabitat Simulation) model is a tool for simulating the physical habitat conditions in river systems. It allows users to assess the impacts of flow alterations on aquatic habitats by modeling the availability and quality of different habitat types under various flow scenarios. SARAwater provides functionalities for running MESOHABSIM simulations and analyzing the results.</p>
+<p>The MesoHABSIM (Mesohabitat Simulation) model is a tool for simulating the physical habitat conditions in river systems. It allows users to assess the impacts of flow alterations on aquatic habitats by modeling the availability and quality of different habitat types under various flow scenarios.</p>
+<p>MesoHABSIM assesses habitat availability for a specific species or life stage by using the mesoscale as the spatial reference. In this context, “mesoscale” refers to the spatial scale of hydro-morphological units <a class="footnote-reference brackets" href="#id7" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a>.
+The MesoHABSIM approach is based on three main components:</p>
+<ol class="arabic simple">
+<li><p>Description of the hydro-morphological and environmental characteristics of mesohabitats, representing how the spatial mosaic of habitat units varies as a function of discharge</p></li>
+<li><p>A statistical biological model describing target-species preferences with respect to the environmental characteristics of mesohabitats</p></li>
+<li><p>Coupling the hydro-morphological description (1) with the biological models (2), enabling the definition of a quantitative relationship between available habitat and discharge</p></li>
+</ol>
+<p>The resulting habitat–discharge relationship (component 3) forms the basis for quantifying release scenarios consistent with environmental flow requirements.</p>
+<p>SARAwater provides functionalities for running MesoHABSIM simulations and analyzing the results, starting from discharge time series and existing habitat–discharge relationships.</p>
 </section>
 <section id="sediment-transport">
 <h2>Sediment transport<a class="headerlink" href="#sediment-transport" title="Permalink to this heading">#</a></h2>
@@ -219,9 +233,17 @@ Indexes of Hydrologic Alteration (IHA) is a widely used method for assessing the
 <section id="references">
 <h2>References<a class="headerlink" href="#references" title="Permalink to this heading">#</a></h2>
 <aside class="footnote-list brackets">
-<aside class="footnote brackets" id="id3" role="doc-footnote">
+<aside class="footnote brackets" id="id5" role="doc-footnote">
 <span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">1</a><span class="fn-bracket">]</span></span>
 <p>Richter, B. D., Baumgartner, J. V., Powell, J., &amp; Braun, D. P. (1996). A method for assessing hydrologic alteration within ecosystems. Conservation Biology, 10(4), 1163-1174.</p>
+</aside>
+<aside class="footnote brackets" id="id6" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id3">2</a><span class="fn-bracket">]</span></span>
+<p>Richter, B., Baumgartner, J., Wigington, R., &amp; Braun, D. (1997). How much water does a river need?. Freshwater Biology, 37: 231-249.</p>
+</aside>
+<aside class="footnote brackets" id="id7" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">3</a><span class="fn-bracket">]</span></span>
+<p>Parasiewicz, P. (2007). The MesoHABSIM Model Revisited. River Research and Applications, 23, 893–903.</p>
 </aside>
 </aside>
 </section>
