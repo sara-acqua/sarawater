@@ -8,7 +8,7 @@ from sarawater.IHA import compute_IHA
 
 
 class Reach:
-    def __init__(self, name: str, dates: list, Qnat: ndarray, Qab_max: float):
+    def __init__(self, name: str, dates: list, Qnat: ndarray, Qabs_max: float):
         """Represents a river reach.
 
         Parameters
@@ -19,7 +19,7 @@ class Reach:
             List of dates for the time series.
         Qnat : ndarray
             Natural flow rate time series.
-        Qab_max : float
+        Qabs_max : float
             Maximum value for the water abstraction.
         """
         if len(dates) != len(Qnat):
@@ -28,12 +28,12 @@ class Reach:
         self.name = name
         self.dates = dates
         self.Qnat = Qnat
-        self.Qab_max = Qab_max
+        self.Qabs_max = Qabs_max
         self.scenarios: list[Scenario] = []
         self.IHA_nat = compute_IHA(Qnat, Qnat, dates)
 
     def __str__(self):
-        return f"{self.name} is a Reach object with a flow time series with {len(self.Qnat)} elements. The date range starts from {min(self.dates)} and has {len(self.dates)} elements. The maximum flow abstraction is Qab_max={self.Qab_max} m3/s. So far, {len(self.scenarios)} scenarios have been added."
+        return f"{self.name} is a Reach object with a flow time series with {len(self.Qnat)} elements. The date range starts from {min(self.dates)} and has {len(self.dates)} elements. The maximum flow abstraction is Qabs_max={self.Qabs_max} m3/s. So far, {len(self.scenarios)} scenarios have been added."
 
     def add_scenario(self, scenario: Scenario):
         """Add a scenario to the reach.
@@ -95,14 +95,14 @@ class Reach:
         Q97 = np.percentile(self.Qnat, 3)
 
         # Calculate DE for each month
-        QR_months = []
+        Qreq_months = []
         for Q_month in monthly_means:
             M1 = np.sqrt(Q_month / Q_mean)
             DE = k * p * M1 * Q_mean
-            QR_months.append(max(DE, Q97))
+            Qreq_months.append(max(DE, Q97))
 
         # Create and return constant scenario with computed monthly values
-        scenario = ConstScenario(name, description, self, QR_months)
+        scenario = ConstScenario(name, description, self, Qreq_months)
         self.add_scenario(scenario)
         return scenario
 
@@ -304,7 +304,7 @@ class Reach:
 
         This method generates a user-friendly table containing, for each scenario:
         - Scenario metadata (name, description)
-        - Scenario parameters (QR values, Qab_max)
+        - Scenario parameters (Qreq values, Qabs_max)
         - IHA/IARI indices (aggregated and by group)
         - Abstracted volumes (yearly totals, monthly averages)
         - Monthly released flows
@@ -331,7 +331,7 @@ class Reach:
 
         Examples
         --------
-        >>> reach = Reach("MyReach", dates, Qnat, Qab_max)
+        >>> reach = Reach("MyReach", dates, Qnat, Qabs_max)
         >>> # ... add scenarios and compute their metrics ...
         >>> df = reach.export_scenarios_summary("output.csv", format="csv")
         >>> df = reach.export_scenarios_summary("output.xlsx", format="excel")
@@ -352,29 +352,29 @@ class Reach:
             }
 
             # Add scenario parameters
-            row["Qab_max"] = scenario.Qab_max
+            row["Qabs_max"] = scenario.Qabs_max
 
             # Add scenario-specific parameters
-            if hasattr(scenario, "QR_months"):
-                row["scenario parameters"] = scenario.QR_months
-                # for i, qr in enumerate(scenario.QR_months):
-                #     row[f"QR_month_{i+1}"] = qr
-            elif hasattr(scenario, "QRbase"):
+            if hasattr(scenario, "Qreq_months"):
+                row["scenario parameters"] = scenario.Qreq_months
+                # for i, qr in enumerate(scenario.Qreq_months):
+                #     row[f"Qreq_month_{i+1}"] = qr
+            elif hasattr(scenario, "Qbase"):
                 row["scenario parameters"] = [
-                    scenario.QRbase,
+                    scenario.Qbase,
                     scenario.c_Qin,
-                    scenario.QRmin,
-                    scenario.QRmax,
+                    scenario.Qreq_min,
+                    scenario.Qreq_max,
                 ]
 
             # Add monthly released flows (average per month)
-            if scenario.QS is not None:
+            if scenario.Qrel is not None:
                 months = np.array([d.month for d in scenario.dates])
                 for month in range(1, 13):
                     month_mask = months == month
                     if np.any(month_mask):
-                        row[f"QS_mean_month_{month}_m3s"] = np.mean(
-                            scenario.QS[month_mask]
+                        row[f"Qrel_mean_month_{month}_m3s"] = np.mean(
+                            scenario.Qrel[month_mask]
                         )
 
             # Add volume statistics if available

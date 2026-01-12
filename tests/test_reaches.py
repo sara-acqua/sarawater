@@ -15,19 +15,19 @@ Qnat = np.random.randint(1, 100, len(dates))  # Natural flow rate time series
 
 
 def test_reach_basics():
-    # Create a reach with the natural flow rate time series and Qab_max as a positional argument
+    # Create a reach with the natural flow rate time series and Qabs_max as a positional argument
     r1 = rch.Reach("Reach 1", dates, Qnat, 50)
 
     # Verify the reach attributes
     assert r1.name == "Reach 1"
     assert np.array_equal(r1.dates, dates)  # Ensure dates are correctly set
     assert np.array_equal(r1.Qnat, Qnat)  # Ensure Qnat is correctly set
-    assert r1.Qab_max == 50  # Ensure Qab_max is correctly set
+    assert r1.Qabs_max == 50  # Ensure Qabs_max is correctly set
     assert len(r1.scenarios) == 0  # Ensure no scenarios are added initially
 
 
 def test_reach_with_prop_scenario():
-    # Create a reach with the natural flow rate time series and Qab_max as a positional argument
+    # Create a reach with the natural flow rate time series and Qabs_max as a positional argument
     r1 = rch.Reach(
         "Reach 1", dates, Qnat, 50
     )  # Create a proportional scenario and add it to the reach
@@ -43,16 +43,16 @@ def test_reach_with_prop_scenario():
     assert np.array_equal(
         r1.scenarios[0].Qnat, Qnat
     )  # Ensure Qnat is correctly fetched from the reach
-    assert r1.scenarios[0].QRbase == 1
+    assert r1.scenarios[0].Qbase == 1
     assert r1.scenarios[0].c_Qin == 0.3
-    assert r1.scenarios[0].QRmax == 50
+    assert r1.scenarios[0].Qreq_max == 50
     assert (
-        r1.scenarios[0].Qab_max == 50
-    )  # Ensure Qab_max is correctly fetched from the reach
+        r1.scenarios[0].Qabs_max == 50
+    )  # Ensure Qabs_max is correctly fetched from the reach
 
 
 def test_reach_with_const_scenario():
-    # Create a reach with the natural flow rate time series and Qab_max as a positional argument
+    # Create a reach with the natural flow rate time series and Qabs_max as a positional argument
     r1 = rch.Reach("Reach 1", dates, Qnat, 50)
 
     # Create a constant scenario and add it to the reach
@@ -66,15 +66,15 @@ def test_reach_with_const_scenario():
     assert np.array_equal(
         r1.scenarios[0].Qnat, Qnat
     )  # Ensure Qnat is correctly fetched from the reach
-    assert r1.scenarios[0].QR_months[0] == 1
-    assert len(r1.scenarios[0].QR_months) == 12
+    assert r1.scenarios[0].Qreq_months[0] == 1
+    assert len(r1.scenarios[0].Qreq_months) == 12
     assert (
-        r1.scenarios[0].Qab_max == 50
-    )  # Ensure Qab_max is correctly fetched from the reach
+        r1.scenarios[0].Qabs_max == 50
+    )  # Ensure Qabs_max is correctly fetched from the reach
 
 
 def test_reach_with_multiple_scenarios():
-    # Create a reach with the natural flow rate time series and Qab_max as a positional argument
+    # Create a reach with the natural flow rate time series and Qabs_max as a positional argument
     r1 = rch.Reach("Reach 1", dates, Qnat, 50)
 
     # Create multiple scenarios and add them to the reach
@@ -98,7 +98,7 @@ def test_reach_with_multiple_scenarios():
 
 
 def test_reach_with_ecological_scenario():
-    # Create a reach with the natural flow rate time series and Qab_max as a positional argument
+    # Create a reach with the natural flow rate time series and Qabs_max as a positional argument
     r1 = rch.Reach("Reach 1", dates, Qnat, 50)
 
     # Create an ecological scenario using the reach method
@@ -113,10 +113,10 @@ def test_reach_with_ecological_scenario():
     assert np.array_equal(
         r1.scenarios[0].Qnat, Qnat
     )  # Ensure Qnat is correctly fetched
-    assert len(r1.scenarios[0].QR_months) == 12  # Should have 12 monthly values
-    assert r1.scenarios[0].Qab_max == 50  # Ensure Qab_max is correctly set
+    assert len(r1.scenarios[0].Qreq_months) == 12  # Should have 12 monthly values
+    assert r1.scenarios[0].Qabs_max == 50  # Ensure Qabs_max is correctly set
     assert np.all(
-        r1.scenarios[0].QR_months >= np.percentile(Qnat, 3)
+        r1.scenarios[0].Qreq_months >= np.percentile(Qnat, 3)
     )  # Ensure DE is greater than Q97
 
 

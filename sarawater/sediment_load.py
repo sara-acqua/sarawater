@@ -265,7 +265,7 @@ def meyer_peter_mueller(
 
 
 def compute_sediment_load_mpm_total(
-    QS,
+    Qrel,
     dates: list,
     B,
     slope,
@@ -293,7 +293,7 @@ def compute_sediment_load_mpm_total(
 
     Parameters
     ----------
-    QS : array-like
+    Qrel : array-like
         Discharge time series (m³/s).
     dates : list
         List of datetime objects corresponding to flow rates.
@@ -334,7 +334,7 @@ def compute_sediment_load_mpm_total(
     Use `compute_sediment_load(..., method='mpm')` if you need fractional transport.
     """
     if dates is None:
-        dates = np.arange(len(QS))
+        dates = np.arange(len(Qrel))
 
     if D84 is None:
         D84 = D50  # fallback for flow solver roughness
@@ -342,7 +342,7 @@ def compute_sediment_load_mpm_total(
     s_minus_1 = rho_s / rho_w - 1.0
 
     results = []
-    for i, Q in enumerate(QS):
+    for i, Q in enumerate(Qrel):
         h, Omega, v = steady_flow_solver(B, slope, Q, D84)
 
         # Compute bed shear stress and Shields parameter
@@ -373,7 +373,7 @@ def compute_sediment_load_mpm_total(
 
 
 def compute_sediment_load(
-    QS,
+    Qrel,
     dates,
     B,
     slope,
@@ -387,7 +387,7 @@ def compute_sediment_load(
 
     Parameters
     ----------
-    QS : ndarray
+    Qrel : ndarray
         Scenario discharge time series.
     B : float
         Channel width (m).
@@ -413,7 +413,7 @@ def compute_sediment_load(
     """
     sed_range = np.arange(-9.5, 7.5 + 1, 1)
     if dates is None:
-        dates = np.arange(len(QS))
+        dates = np.arange(len(Qrel))
 
     # Fi is assumed to be fractions corresponding to sed_range
     cumsum = np.cumsum(Fi)
@@ -421,7 +421,7 @@ def compute_sediment_load(
     D84 = 2 ** (-np.interp(0.84, cumsum, sed_range)) / 1000
 
     results = []
-    for i, Q in enumerate(QS):
+    for i, Q in enumerate(Qrel):
         h, Omega, v = steady_flow_solver(B, slope, Q, D84)
 
         if method == "wilcock_crowe":
