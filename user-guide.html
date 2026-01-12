@@ -204,25 +204,158 @@
 <p>This section provides a comprehensive overview of the main classes and functions available in the <cite>SARAwater</cite> package.</p>
 <section id="reach-objects">
 <h2>Reach objects<a class="headerlink" href="#reach-objects" title="Permalink to this heading">#</a></h2>
-<p>The Reach class provides methods to compute various hydrological metrics, such as mean flow, median flow, and flow duration curves.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">Reach</span></code> class is the central object in SARAwater, representing a river reach with its natural flow time series. It serves as a container for scenarios and associated data.</p>
+<p><strong>Key Attributes:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: Name of the reach</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dates</span></code>: List of datetime objects for the time series</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qnat</span></code>: Natural flow rate time series (numpy array)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qabs_max</span></code>: Maximum water abstraction threshold (m³/s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scenarios</span></code>: List of scenarios added to the reach</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IHA_nat</span></code>: Natural flow IHA indicators (computed automatically)</p></li>
+</ul>
+<p><strong>Main Methods:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">add_scenario(scenario)</span></code>: Add a scenario to the reach</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">add_ecological_flow_scenario(name,</span> <span class="pre">description,</span> <span class="pre">k=0.2,</span> <span class="pre">p=2.0)</span></code>: Create and add an ecological flow scenario with monthly adjustments</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">add_HQ_curve(HQ_curve)</span></code>: Add habitat-discharge curves for different species/life stages</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_list_available_HQ_curves()</span></code>: Get list of available habitat curves</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_HQ_curve(curve_name)</span></code>: Retrieve a specific habitat-discharge curve</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">print_scenarios()</span></code>: Print a list of all scenarios added to the reach</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">export_scenario_summary()</span></code>: Export a comprehensive summary table of all scenarios with their parameters and indices</p></li>
+</ul>
 </section>
 <section id="scenario-objects">
 <h2>Scenario objects<a class="headerlink" href="#scenario-objects" title="Permalink to this heading">#</a></h2>
+<p>Scenarios represent different water management alternatives. SARAwater provides a base <code class="docutils literal notranslate"><span class="pre">Scenario</span></code> class and specialized subclasses:</p>
+<p><strong>Scenario (base class)</strong></p>
+<p>The parent class for all scenario types, containing shared functionality.</p>
+<p><strong>Key Attributes:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: Name of the scenario</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">description</span></code>: Description of the scenario</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reach</span></code>: Associated Reach object</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qabs_max</span></code>: Maximum water abstraction, if different from Reach (m³/s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qreq</span></code>: Minimum release flow time series (m³/s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qrel</span></code>: Released flow rate time series (m³/s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IHA</span></code>: Dictionary of IHA indicators</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IH</span></code>: Dictionary of habitat indices for different species</p></li>
+</ul>
+<p><strong>Main Methods:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_Qrel()</span></code>: Calculate the released flow time series based on Qnat, Qreq, and Qabs_max</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_scenario_discharge(start_date=None,</span> <span class="pre">end_date=None,</span> <span class="pre">**kwargs)</span></code>: Plot the released discharge time series</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_IHA(**kwargs)</span></code>: Compute Indicators of Hydrologic Alteration</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_IHA_index(index_metric,</span> <span class="pre">index_options={})</span></code>: Compute IHA indices (IARI or normalized_IHA)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_natural_abstracted_volumes(month_to_season=None)</span></code>: Calculate water volumes abstracted from the reach</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_IH_for_species(species=None,</span> <span class="pre">**kwargs)</span></code>: Compute habitat indices for one or more species</p></li>
+</ul>
+<p><strong>ConstScenario (constant release)</strong></p>
+<p>A scenario with constant monthly flow requirements.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Qreq_months</span></code>: List of 12 float values representing monthly constant flow rates (l/s)</p></li>
+</ul>
+<p><strong>PropScenario (proportional release)</strong></p>
+<p>A scenario with flow requirements proportional to natural flow plus a base flow.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Qbase</span></code>: Base flow rate (m³/s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">c_Qin</span></code>: Proportionality coefficient (dimensionless)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qreq_min</span></code>: Minimum release constraint (m³/s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Qreq_max</span></code>: Maximum release constraint (m³/s)</p></li>
+</ul>
 </section>
-<section id="quantifying-alterations">
-<h2>Quantifying alterations<a class="headerlink" href="#quantifying-alterations" title="Permalink to this heading">#</a></h2>
+<section id="assessing-alterations">
+<h2>Assessing alterations<a class="headerlink" href="#assessing-alterations" title="Permalink to this heading">#</a></h2>
+<p>SARAwater provides several methods to quantify hydrological, habitat, and sediment transport alterations.</p>
 <section id="hydrologic-alteration">
 <h3>Hydrologic alteration<a class="headerlink" href="#hydrologic-alteration" title="Permalink to this heading">#</a></h3>
+<p><strong>Indicators of Hydrologic Alteration (IHA)</strong></p>
+<p>The IHA framework quantifies changes in flow regime by analyzing 33 parameters grouped into 5 categories:</p>
+<ul class="simple">
+<li><p><strong>Group 1</strong>: Monthly flow statistics (mean flows for each month)</p></li>
+<li><p><strong>Group 2</strong>: Magnitude and duration of extreme conditions (min/max flows over 1, 3, 7, 30, 90-day windows; base flow; zero-flow days)</p></li>
+<li><p><strong>Group 3</strong>: Timing of extreme conditions (Julian dates of annual min/max flows)</p></li>
+<li><p><strong>Group 4</strong>: Frequency and duration of high/low pulses</p></li>
+<li><p><strong>Group 5</strong>: Rate and frequency of flow changes (rise/fall rates, number of reversals)</p></li>
+</ul>
+<p><strong>Computing IHA:</strong></p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">scenario.compute_IHA()</span></code> to calculate IHA indicators for a scenario. The method returns a dictionary with yearly values for each parameter.</p>
+<p><strong>IHA Indices:</strong></p>
+<p>Two aggregate indices are available:</p>
+<ul class="simple">
+<li><p><strong>IARI (Index of Alteration of Hydrologic Regime)</strong>: Measures overall deviation from the natural hydrologic regime. When equal to 0 indicates an unaltered condition, while above 0.15 indicates severe alteration.
+- Compute with: <code class="docutils literal notranslate"><span class="pre">scenario.compute_IHA_index('IARI')</span></code></p></li>
+<li><p><strong>Normalized IHA</strong>: Normalized deviations of IHA parameters.</p>
+<ul>
+<li><p>Compute with: <code class="docutils literal notranslate"><span class="pre">scenario.compute_IHA_index('normalized_IHA')</span></code></p></li>
+</ul>
+</li>
+</ul>
 </section>
 <section id="habitat-alteration">
 <h3>Habitat alteration<a class="headerlink" href="#habitat-alteration" title="Permalink to this heading">#</a></h3>
-</section>
-<section id="sediment-transport-alteration">
-<h3>Sediment transport alteration<a class="headerlink" href="#sediment-transport-alteration" title="Permalink to this heading">#</a></h3>
+<p>Habitat alteration is quantified using habitat-discharge (HQ) curves and the UCUT (Under-threshold Cumulative Curve) methodology.</p>
+<p><strong>Habitat Indices:</strong></p>
+<p>The following indices quantify habitat alteration for aquatic species:</p>
+<ul class="simple">
+<li><p><strong>H97</strong>: Habitat availability at Q97 (low flow threshold)</p></li>
+<li><p><strong>ISH (Index of Spatial Habitat)</strong>: Measures average habitat reduction (0 = severe loss, 1 = no change)</p></li>
+<li><p><strong>ITH (Index of Temporal Habitat)</strong>: Measures habitat stress duration (0 = severe stress, 1 = no stress)</p></li>
+<li><p><strong>IH (Habitat Index)</strong>: Overall habitat alteration index, minimum of ISH and ITH (0 = severe impact, 1 = no impact)</p></li>
+<li><p><strong>HSD (Habitat Stress Days)</strong>: Cumulative measure of habitat stress events</p></li>
+</ul>
+<p><strong>Computing Habitat Indices:</strong></p>
+<ol class="arabic simple">
+<li><p>Add HQ curves to the reach: <code class="docutils literal notranslate"><span class="pre">reach.add_HQ_curve(HQ_dataframe)</span></code></p></li>
+<li><p>Compute indices for a scenario: <code class="docutils literal notranslate"><span class="pre">scenario.compute_IH_for_species(species='species_name')</span></code></p></li>
+</ol>
+<p>The method accepts a single species name, a list of species, or <code class="docutils literal notranslate"><span class="pre">None</span></code> (computes for all available species).</p>
 </section>
 </section>
 <section id="visualizing-the-results">
 <h2>Visualizing the results<a class="headerlink" href="#visualizing-the-results" title="Permalink to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">ReachPlotter</span></code> class provides comprehensive visualization capabilities for comparing scenarios.</p>
+<p><strong>Creating a Plotter:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sarawater.visualization</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReachPlotter</span>
+
+<span class="n">plotter</span> <span class="o">=</span> <span class="n">ReachPlotter</span><span class="p">(</span><span class="n">reach</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s1">&#39;outputs&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Available Plots:</strong></p>
+<p><strong>Discharge and Flow Regime:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_scenarios_discharge(start_date,</span> <span class="pre">end_date,</span> <span class="pre">log_scale=True,</span> <span class="pre">save=False)</span></code>: Compare discharge time series across scenarios</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_cases_duration(save=False)</span></code>: Visualize flow regime case durations (Case 1: Qnat ≤ Qreq; Case 2: abstraction occurring; Case 3: excess flow)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_cases_duration_month(month,</span> <span class="pre">save=False)</span></code>: Monthly case duration comparison</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_monthly_abstraction(save=False)</span></code>: Compare monthly water abstraction volumes</p></li>
+</ul>
+<p><strong>Hydrologic Alteration:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_iha_parameters(save=False)</span></code>: Multi-panel plot of all IHA parameters across scenarios</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_iari_groups(save=False)</span></code>: IARI values by IHA group</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_iari_summary(save=False)</span></code>: Overall IARI comparison across scenarios</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_nIHA_summary(save=False)</span></code>: Normalized IHA comparison</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_iha_boxplots(save=False)</span></code>: Box plots of IHA parameters showing inter-annual variability</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_relative_deviations(save=False)</span></code>: Relative deviations of IHA parameters from natural conditions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_iari_vs_volume(save=False)</span></code>: Trade-off between hydrologic alteration (IARI) and water abstraction</p></li>
+</ul>
+<p><strong>Habitat Analysis:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_hq_curves(species,</span> <span class="pre">save=False)</span></code>: Display habitat-discharge curves for specified species</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_habitat_timeseries(species,</span> <span class="pre">start_date,</span> <span class="pre">end_date,</span> <span class="pre">save=False)</span></code>: Compare habitat availability time series</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_ucut_curves(species,</span> <span class="pre">save=False)</span></code>: UCUT curves showing duration of habitat stress events</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_ih_vs_volume(save=False)</span></code>: Trade-off between habitat alteration (IH) and water abstraction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plot_nIHA_vs_volume(save=False)</span></code>: Trade-off between normalized IHA and water abstraction</p></li>
+</ul>
+<p><strong>Plot Options:</strong></p>
+<p>All plotting methods support:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">save=False</span></code>: Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> to save plots to the output directory</p></li>
+<li><p>Date filtering with <code class="docutils literal notranslate"><span class="pre">start_date</span></code> and <code class="docutils literal notranslate"><span class="pre">end_date</span></code> parameters (where applicable)</p></li>
+<li><p>Additional matplotlib kwargs can be passed to customize appearance</p></li>
+</ul>
 </section>
 </section>
 
@@ -284,10 +417,9 @@
 <li><a class="reference internal" href="#">User Guide</a><ul>
 <li><a class="reference internal" href="#reach-objects">Reach objects</a></li>
 <li><a class="reference internal" href="#scenario-objects">Scenario objects</a></li>
-<li><a class="reference internal" href="#quantifying-alterations">Quantifying alterations</a><ul>
+<li><a class="reference internal" href="#assessing-alterations">Assessing alterations</a><ul>
 <li><a class="reference internal" href="#hydrologic-alteration">Hydrologic alteration</a></li>
 <li><a class="reference internal" href="#habitat-alteration">Habitat alteration</a></li>
-<li><a class="reference internal" href="#sediment-transport-alteration">Sediment transport alteration</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#visualizing-the-results">Visualizing the results</a></li>
