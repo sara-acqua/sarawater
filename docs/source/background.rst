@@ -9,7 +9,7 @@ IHA index
 ---------
 Indicators of Hydrologic Alteration (IHA) is a widely used method for assessing the degree of hydrologic change caused by human activities, such as the construction of water diversions [1]_ [2]_. 
 
-The IHA evaluates 32 or 33 ecologically relevant parameters derived from daily discharge data. These parameters are organized into five distinct groups, each characterizing a different aspect of the flow regime:
+The IHA evaluates 33 ecologically relevant parameters derived from daily discharge data. These parameters are organized into five distinct groups, each characterizing a different aspect of the flow regime:
 
 1. Magnitude of Monthly Flow: Measures the average water conditions for each month, which impacts habitat availability for aquatic organisms.
 
