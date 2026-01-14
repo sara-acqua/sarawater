@@ -257,7 +257,21 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">Qreq_months</span></code>: List of 12 float values representing monthly constant flow rates (l/s)</p></li>
 </ul>
 <p><strong>PropScenario (proportional release)</strong></p>
-<p>A scenario with flow requirements proportional to natural flow plus a base flow.</p>
+<p>Child class for scenarios with flow requirements proportional to the incoming flow. In scenarios with a proportional flow requirement, <span class="math notranslate nohighlight">\(Q_{req}\)</span> is computed as a fraction of the incoming flow discharge, <span class="math notranslate nohighlight">\(Q_{in}\)</span>, according to the formula:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[Q_{req} = Q_{base} + c_{in} \cdot Q_{in}\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\(Q_{base}\)</span> is a base flow requirement (e.g., to maintain minimum ecological conditions), and <span class="math notranslate nohighlight">\(c_{in}\)</span> is a coefficient that defines the proportion of the incoming flow to be included in the flow requirement.</p>
+<p>This formula is then adjusted to ensure that <span class="math notranslate nohighlight">\(Q_{req}\)</span> remains within user-specified minimum and maximum bounds, <span class="math notranslate nohighlight">\(Q_{req,min}\)</span> and <span class="math notranslate nohighlight">\(Q_{req,max}\)</span>, respectively. This step is needed because low flow requirements may cause severe alteration in the downstream reach, while high flow requirements may lead to a very low water abstraction, which might not be sufficient. The complete definition of <span class="math notranslate nohighlight">\(Q_{req}\)</span> in proportional scenarios is given by the piecewise function:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}Q_{req} = \begin{cases}
+Q_{req,min} &amp; \text{if } Q_{base} + c_{in} \cdot Q_{in} \leq Q_{req,min}\\
+Q_{base} + c_{in} \cdot Q_{in} &amp; \text{if } Q_{req,min} &lt; Q_{base} + c_{in} \cdot Q_{in} &lt; Q_{req,max}\\
+Q_{req,max} &amp; \text{if } Q_{base} + c_{in} \cdot Q_{in} &gt; Q_{req,max}
+\end{cases}\end{split}\]</div>
+</div>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">Qbase</span></code>: Base flow rate (m³/s)</p></li>
@@ -265,6 +279,29 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">Qreq_min</span></code>: Minimum release constraint (m³/s)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Qreq_max</span></code>: Maximum release constraint (m³/s)</p></li>
 </ul>
+</section>
+<section id="compute-the-released-flow-discharge-for-each-scenario">
+<h2>Compute the released flow discharge for each scenario<a class="headerlink" href="#compute-the-released-flow-discharge-for-each-scenario" title="Permalink to this heading">#</a></h2>
+<p>Given the incoming flow discharge <span class="math notranslate nohighlight">\(Q_{nat}\)</span>, the flow requirement <span class="math notranslate nohighlight">\(Q_{req}\)</span> and the maximum abstractable flow <span class="math notranslate nohighlight">\(Q_{abs,max}\)</span>, the released flow discharge <span class="math notranslate nohighlight">\(Q_{rel}\)</span> is computed as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}Q_{rel} = \begin{cases}
+Q_{nat} &amp; \text{if } Q_{nat} \leq Q_{req} &amp; \text{(4.1)}\\
+Q_{req} &amp; \text{if } Q_{req} &lt; Q_{nat} &lt; Q_{req} + Q_{abs,max} &amp; \text{(4.2)}\\
+Q_{nat} - Q_{abs,max} &amp; \text{if } Q_{nat} \geq Q_{req} + Q_{abs,max} &amp; \text{(4.3)}
+\end{cases}\end{split}\]</div>
+</div>
+<p>Where the three cases correspond to the following:</p>
+<ul class="simple">
+<li><p><strong>(4.1)</strong> The incoming flow <span class="math notranslate nohighlight">\(Q_{nat}\)</span> is lower than the flow requirement <span class="math notranslate nohighlight">\(Q_{req}\)</span>; therefore, no water is abstracted and the released flow discharge <span class="math notranslate nohighlight">\(Q_{rel}\)</span> equals the incoming flow. This usually happens in low-flow periods.</p></li>
+<li><p><strong>(4.2)</strong> There is enough incoming flow to satisfy the flow requirement, and the abstracted flow discharge <span class="math notranslate nohighlight">\(Q_{abs}\)</span> is lower than the maximum abstractable flow <span class="math notranslate nohighlight">\(Q_{abs,max}\)</span>. Recall that, according to Equation (1), <span class="math notranslate nohighlight">\(Q_{abs} = Q_{nat} - Q_{rel}\)</span> (where, in this case, <span class="math notranslate nohighlight">\(Q_{rel} = Q_{req}\)</span>). This is the most “common” case, where the flow requirement rule is applied straightforwardly.</p></li>
+<li><p><strong>(4.3)</strong> The incoming flow <span class="math notranslate nohighlight">\(Q_{nat}\)</span> is so large that the maximum abstractable flow can be diverted while still releasing a flow rate larger than the flow requirement. This usually happens during flood events.</p></li>
+</ul>
+<p>The piecewise function (4.1-4.3) is implemented in the <code class="docutils literal notranslate"><span class="pre">compute_Qrel</span></code> method of the class <code class="docutils literal notranslate"><span class="pre">Scenario</span></code>; therefore, to compute the released flow time series for each scenario we can simply write
+.. code-block:: python</p>
+<blockquote>
+<div><p>scenario.compute_Qrel()</p>
+</div></blockquote>
 </section>
 <section id="assessing-alterations">
 <h2>Assessing alterations<a class="headerlink" href="#assessing-alterations" title="Permalink to this heading">#</a></h2>
@@ -417,6 +454,7 @@
 <li><a class="reference internal" href="#">User Guide</a><ul>
 <li><a class="reference internal" href="#reach-objects">Reach objects</a></li>
 <li><a class="reference internal" href="#scenario-objects">Scenario objects</a></li>
+<li><a class="reference internal" href="#compute-the-released-flow-discharge-for-each-scenario">Compute the released flow discharge for each scenario</a></li>
 <li><a class="reference internal" href="#assessing-alterations">Assessing alterations</a><ul>
 <li><a class="reference internal" href="#hydrologic-alteration">Hydrologic alteration</a></li>
 <li><a class="reference internal" href="#habitat-alteration">Habitat alteration</a></li>
@@ -438,5 +476,6 @@
     <script src="_static/doctools.js?v=888ff710"></script>
     <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="_static/scripts/furo.js?v=32e29ea5"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>
