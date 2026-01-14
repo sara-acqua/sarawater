@@ -8,7 +8,45 @@ on:
 
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install black
+        run: pip install "black[jupyter]"
+      
+      - name: Check code formatting (PR from fork)
+        if: github.event.pull_request.head.repo.fork == true
+        run: |
+          black --check .
+          if [ $? -ne 0 ]; then
+            echo "❌ Code is not formatted with black. Please run 'black .' locally and push changes."
+            exit 1
+          fi
+      
+      - name: Run black formatter and commit (own repo)
+        if: github.event.pull_request.head.repo.fork == false || github.event_name == 'push'
+        run: |
+          black .
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "style: auto-format code with black"
+          git push
+
   test:
+    needs: format
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -32,6 +70,7 @@ jobs:
         python -m pytest tests/ -v
 
   docs:
+    needs: format
     runs-on: ubuntu-latest
     permissions:
       contents: write
