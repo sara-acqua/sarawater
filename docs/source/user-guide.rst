@@ -69,7 +69,23 @@ A scenario with constant monthly flow requirements.
 
 **PropScenario (proportional release)**
 
-A scenario with flow requirements proportional to natural flow plus a base flow.
+Child class for scenarios with flow requirements proportional to the incoming flow. In scenarios with a proportional flow requirement, :math:`Q_{req}` is computed as a fraction of the incoming flow discharge, :math:`Q_{in}`, according to the formula:
+
+.. math::
+
+   Q_{req} = Q_{base} + c_{in} \cdot Q_{in}
+
+where :math:`Q_{base}` is a base flow requirement (e.g., to maintain minimum ecological conditions), and :math:`c_{in}` is a coefficient that defines the proportion of the incoming flow to be included in the flow requirement.
+
+This formula is then adjusted to ensure that :math:`Q_{req}` remains within user-specified minimum and maximum bounds, :math:`Q_{req,min}` and :math:`Q_{req,max}`, respectively. This step is needed because low flow requirements may cause severe alteration in the downstream reach, while high flow requirements may lead to a very low water abstraction, which might not be sufficient. The complete definition of :math:`Q_{req}` in proportional scenarios is given by the piecewise function:
+
+.. math::
+
+   Q_{req} = \begin{cases}
+   Q_{req,min} & \text{if } Q_{base} + c_{in} \cdot Q_{in} \leq Q_{req,min}\\
+   Q_{base} + c_{in} \cdot Q_{in} & \text{if } Q_{req,min} < Q_{base} + c_{in} \cdot Q_{in} < Q_{req,max}\\
+   Q_{req,max} & \text{if } Q_{base} + c_{in} \cdot Q_{in} > Q_{req,max}
+   \end{cases}
 
 **Parameters:**
 
@@ -77,6 +93,30 @@ A scenario with flow requirements proportional to natural flow plus a base flow.
 - ``c_Qin``: Proportionality coefficient (dimensionless)
 - ``Qreq_min``: Minimum release constraint (m³/s)
 - ``Qreq_max``: Maximum release constraint (m³/s)
+
+Compute the released flow discharge for each scenario
+-----------------------------------------------------
+
+Given the incoming flow discharge :math:`Q_{nat}`, the flow requirement :math:`Q_{req}` and the maximum abstractable flow :math:`Q_{abs,max}`, the released flow discharge :math:`Q_{rel}` is computed as:
+
+.. math::
+
+   Q_{rel} = \begin{cases}
+   Q_{nat} & \text{if } Q_{nat} \leq Q_{req} & \text{(4.1)}\\
+   Q_{req} & \text{if } Q_{req} < Q_{nat} < Q_{req} + Q_{abs,max} & \text{(4.2)}\\
+   Q_{nat} - Q_{abs,max} & \text{if } Q_{nat} \geq Q_{req} + Q_{abs,max} & \text{(4.3)}
+   \end{cases}
+
+Where the three cases correspond to the following:
+
+* **(4.1)** The incoming flow :math:`Q_{nat}` is lower than the flow requirement :math:`Q_{req}`; therefore, no water is abstracted and the released flow discharge :math:`Q_{rel}` equals the incoming flow. This usually happens in low-flow periods.
+* **(4.2)** There is enough incoming flow to satisfy the flow requirement, and the abstracted flow discharge :math:`Q_{abs}` is lower than the maximum abstractable flow :math:`Q_{abs,max}`. Recall that, according to Equation (1), :math:`Q_{abs} = Q_{nat} - Q_{rel}` (where, in this case, :math:`Q_{rel} = Q_{req}`). This is the most "common" case, where the flow requirement rule is applied straightforwardly.
+* **(4.3)** The incoming flow :math:`Q_{nat}` is so large that the maximum abstractable flow can be diverted while still releasing a flow rate larger than the flow requirement. This usually happens during flood events.
+
+The piecewise function (4.1-4.3) is implemented in the ``compute_Qrel`` method of the class ``Scenario``; therefore, to compute the released flow time series for each scenario we can simply write
+.. code-block:: python
+
+   scenario.compute_Qrel()
 
 Assessing alterations
 -----------------------
