@@ -289,14 +289,15 @@ def compute_IHA_index(
                 nat_values = np.array(nat_group[indicator])
                 alt_values = np.array(alt_group[indicator])
 
-                # Check if there are any near-zero values in nat_values
-                if np.any(np.abs(nat_values) < epsilon):
+                avg_nat_value = np.mean(nat_values)
+                # Check if the average natural value is zero
+                if np.abs(avg_nat_value) < epsilon:
                     print(
-                        f"Warning: Near-zero values detected in natural flow series for indicator '{indicator}'. Using alternative calculation to avoid division by zero."
+                        f"Warning: Near-zero average value detected in natural flow series for indicator '{indicator}'. Using alternative calculation to avoid division by zero."
                     )
-                    p_ik = np.abs((alt_values + 1) / (nat_values + 1) - 1)
+                    p_ik = np.abs((alt_values + 1) / (avg_nat_value + 1) - 1)
                 else:
-                    p_ik = np.abs(alt_values / nat_values - 1)
+                    p_ik = np.abs(alt_values / avg_nat_value - 1)
 
                 # Add to group normalized IHA (mean of indicators)
                 normalized_IHA_groups[group_name] += p_ik / len(nat_group)

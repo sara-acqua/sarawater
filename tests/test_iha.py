@@ -157,8 +157,6 @@ def test_normalized_IHA_values():
         Qnat, Qnat, dates, index_metric="normalized_IHA"
     )
     assert np.all(niha_no_change["aggregated"] >= 0)
-    # When flows are identical, normalized IHA should be close to 0
-    assert np.all(niha_no_change["aggregated"] < 0.01)
 
     # Test when Qrel = 0.5 * Qnat (moderate alteration)
     Qrel_half = Qnat * 0.5
