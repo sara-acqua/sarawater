@@ -14,7 +14,7 @@ author = "Gabriele Barile, Matteo Dal Santo, Marta Crivellaro"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.mathjax',
+    "sphinx.ext.mathjax",
 ]
 
 templates_path = ["_templates"]
