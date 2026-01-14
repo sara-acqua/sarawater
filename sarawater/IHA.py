@@ -289,7 +289,7 @@ def compute_IHA_index(
                 nat_values = np.array(nat_group[indicator])
                 alt_values = np.array(alt_group[indicator])
 
-                avg_nat_value =  np.mean(nat_values)
+                avg_nat_value = np.mean(nat_values)
                 # Check if the average natural value is zero
                 if np.abs(avg_nat_value) < epsilon:
                     print(
