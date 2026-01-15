@@ -114,6 +114,7 @@ Where the three cases correspond to the following:
 * **(4.3)** The incoming flow :math:`Q_{nat}` is so large that the maximum abstractable flow can be diverted while still releasing a flow rate larger than the flow requirement. This usually happens during flood events.
 
 The piecewise function (4.1-4.3) is implemented in the ``compute_Qrel`` method of the class ``Scenario``; therefore, to compute the released flow time series for each scenario we can simply write
+
 .. code-block:: python
 
    scenario.compute_Qrel()

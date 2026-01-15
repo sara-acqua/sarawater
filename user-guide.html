@@ -297,11 +297,10 @@ Q_{nat} - Q_{abs,max} &amp; \text{if } Q_{nat} \geq Q_{req} + Q_{abs,max} &amp; 
 <li><p><strong>(4.2)</strong> There is enough incoming flow to satisfy the flow requirement, and the abstracted flow discharge <span class="math notranslate nohighlight">\(Q_{abs}\)</span> is lower than the maximum abstractable flow <span class="math notranslate nohighlight">\(Q_{abs,max}\)</span>. Recall that, according to Equation (1), <span class="math notranslate nohighlight">\(Q_{abs} = Q_{nat} - Q_{rel}\)</span> (where, in this case, <span class="math notranslate nohighlight">\(Q_{rel} = Q_{req}\)</span>). This is the most “common” case, where the flow requirement rule is applied straightforwardly.</p></li>
 <li><p><strong>(4.3)</strong> The incoming flow <span class="math notranslate nohighlight">\(Q_{nat}\)</span> is so large that the maximum abstractable flow can be diverted while still releasing a flow rate larger than the flow requirement. This usually happens during flood events.</p></li>
 </ul>
-<p>The piecewise function (4.1-4.3) is implemented in the <code class="docutils literal notranslate"><span class="pre">compute_Qrel</span></code> method of the class <code class="docutils literal notranslate"><span class="pre">Scenario</span></code>; therefore, to compute the released flow time series for each scenario we can simply write
-.. code-block:: python</p>
-<blockquote>
-<div><p>scenario.compute_Qrel()</p>
-</div></blockquote>
+<p>The piecewise function (4.1-4.3) is implemented in the <code class="docutils literal notranslate"><span class="pre">compute_Qrel</span></code> method of the class <code class="docutils literal notranslate"><span class="pre">Scenario</span></code>; therefore, to compute the released flow time series for each scenario we can simply write</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">scenario</span><span class="o">.</span><span class="n">compute_Qrel</span><span class="p">()</span>
+</pre></div>
+</div>
 </section>
 <section id="assessing-alterations">
 <h2>Assessing alterations<a class="headerlink" href="#assessing-alterations" title="Permalink to this heading">#</a></h2>
