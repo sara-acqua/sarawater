@@ -420,9 +420,9 @@ class ReachPlotter:
 
         n_scenarios = len(self.reach.scenarios)
         case_labels = [
-            "Case 1\n(Q ≤ Qreq)",
-            "Case 2\n(Qreq < Q < Qreq+Qabs_max)",
-            "Case 3\n(Q ≥ Qreq+Qabs_max)",
+            "Case 1\n(Qnat ≤ Qreq)",
+            "Case 2\n(Qreq < Qnat < Qreq+Qabs_max)",
+            "Case 3\n(Qnat ≥ Qreq+Qabs_max)",
         ]
 
         # Create a figure with appropriate size
