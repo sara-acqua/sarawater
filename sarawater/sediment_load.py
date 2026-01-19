@@ -68,51 +68,47 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
         """
         # Ensure positive depth
         h_eff = max(h[0], 1e-6)
-        
+
         # Hydraulic geometry
         Omega = B * h_eff
         Rh = Omega / (B + 2 * h_eff)
         ratio = max(h_eff / D84, 1e-6)
-        
+
         # Empirical friction coefficient
-        denom = (6.5)**2 + (2.5)**2 * ratio**(5/3)
+        denom = (6.5) ** 2 + (2.5) ** 2 * ratio ** (5 / 3)
         C = (6.5 * 2.5 * ratio) / np.sqrt(denom)
-        
+
         # Flow equation residual
-        residual = g * Rh * slope - (Q / (Omega * C))**2
-        
+        residual = g * Rh * slope - (Q / (Omega * C)) ** 2
+
         return residual
 
     # Initial guess for flow depth
     h0 = max(0.1 * D84, 1e-4)
-    
+
     # Solve using fsolve
     try:
         solution = fsolve(
-            flow_equation, 
-            [h0], 
-            xtol=tol, 
-            maxfev=max_iter,
-            full_output=False
+            flow_equation, [h0], xtol=tol, maxfev=max_iter, full_output=False
         )
         h = float(solution[0])
     except:
         # Fallback to zero if solver fails
         h = 0.0
-    
+
     # Ensure non-negative and finite result
     h = max(h, 0.0)
     if not np.isfinite(h):
         h = 0.0
-    
+
     # Final calculations
     Omega = B * h
     v = Q / Omega if Omega > 0 else 0.0
-    
+
     # Ensure finite numeric results
     if not np.isfinite(v):
         v = 0.0
-    
+
     return h, Omega, v
 
 
@@ -228,7 +224,7 @@ def meyer_peter_mueller(
         If Fi is None, returns a length-1 array with the total transport using D50.
     """
     # Handle degenerate flow
-    if h <= 0: # B <= 0:
+    if h <= 0:  # B <= 0:
         if Fi is None:
             return np.array([0.0])
         return np.zeros_like(np.asarray(Fi, dtype=float))
@@ -260,7 +256,6 @@ def meyer_peter_mueller(
     # Replace NaNs with zeros for numerical safety
     Qsi[~np.isfinite(Qsi)] = 0.0
     return Qsi
-
 
 
 def compute_sediment_load(

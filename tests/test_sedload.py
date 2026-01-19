@@ -12,7 +12,6 @@ from sarawater.sediment_load import (
     wilcock_crowe_2003,
 )
 
-
 # === Synthetic Test Data Setup ===
 np.random.seed(42)
 
