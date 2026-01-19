@@ -465,12 +465,6 @@ class Reach:
             if format == "csv":
                 df.to_csv(output_path, index=False)
             elif format == "excel":
-                try:
-                    df.to_excel(output_path, index=False, engine="openpyxl")
-                except ImportError:
-                    raise ImportError(
-                        "Excel export requires the 'openpyxl' package. "
-                        "Install it with: pip install openpyxl"
-                    )
+                df.to_excel(output_path, index=False, engine="openpyxl")
 
         return df
