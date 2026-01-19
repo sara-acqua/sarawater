@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.optimize import fsolve
 
 
 def shear_stress(rho_w, g, h, slope):
@@ -28,7 +29,7 @@ def shields_parameter(tau_b, rho_w, rho_s, g, D):
 
 def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
     """
-    Solves for steady flow depth, cross-section area, and velocity in a rectangular channel using an iterative Newton-Raphson method. A logarithmic formula is used to estimate the Chézy friction coefficient based on flow depth and sediment size.
+    Solves for steady flow depth, cross-section area, and velocity in a rectangular channel using scipy.optimize.fsolve. A logarithmic formula is used to estimate the Chézy friction coefficient based on flow depth and sediment size.
 
     Parameters
     ----------
@@ -43,7 +44,7 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
     g : float, optional
         Gravitational acceleration (meters per second squared, m/s^2). Default is 9.81.
     tol : float, optional
-        Convergence tolerance for Newton-Raphson iterations (meters). Default is 1e-6.
+        Convergence tolerance for fsolve (meters). Default is 1e-6.
     max_iter : int, optional
         Maximum number of iterations. Default is 1000.
 
@@ -57,64 +58,61 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
         Mean flow velocity (meters per second, m/s).
     """
     # Handle zero or negligible discharge explicitly
-    if Q <= 0 or slope <= 0:
+    if Q <= 0:
         return 0.0, 0.0, 0.0
 
-    # Initial guess for flow depth
-    h = max(0.1 * D84, 1e-4)  # ensure physically meaningful start
-
-    for _ in range(max_iter):
-        # Effective depth (avoid division by zero)
-        h_eff = max(h, 1e-6)
-
+    def flow_equation(h):
+        """
+        Residual function for steady uniform flow.
+        Returns: g * Rh * slope - (Q / (Omega * C))^2
+        """
+        # Ensure positive depth
+        h_eff = max(h[0], 1e-6)
+        
         # Hydraulic geometry
         Omega = B * h_eff
         Rh = Omega / (B + 2 * h_eff)
-        ratio = max(h_eff / D84, 1e-6)  # avoid zero or negative ratios
-
-        # Empirical friction coefficient (stabilized)
-        denom = (6.5) ** 2 + (2.5) ** 2 * ratio ** (5 / 3)
+        ratio = max(h_eff / D84, 1e-6)
+        
+        # Empirical friction coefficient
+        denom = (6.5)**2 + (2.5)**2 * ratio**(5/3)
         C = (6.5 * 2.5 * ratio) / np.sqrt(denom)
+        
+        # Flow equation residual
+        residual = g * Rh * slope - (Q / (Omega * C))**2
+        
+        return residual
 
-        # Main flow function
-        f = g * Rh * slope - (Q / (Omega * C)) ** 2
-
-        # Finite difference derivative
-        dh = 0.01 * h_eff
-        h_d = h_eff + dh
-        ratio_d = max(h_d / D84, 1e-6)
-        denom_d = (6.5) ** 2 + (2.5) ** 2 * ratio_d ** (5 / 3)
-        C_d = (6.5 * 2.5 * ratio_d) / np.sqrt(denom_d)
-        C_d = np.clip(C_d, 1e-3, 100)
-
-        Omega_d = B * h_d
-        Rh_d = Omega_d / (B + 2 * h_d)
-        f_d = g * Rh_d * slope - (Q / (Omega_d * C_d)) ** 2
-
-        df = (f_d - f) / dh if dh > 0 else 1e-6
-        if not np.isfinite(df) or abs(df) < 1e-12:
-            break
-
-        h_new = h - f / df
-
-        # Convergence and physical limits
-        if abs(h_new - h) < tol:
-            h = h_new
-            break
-
-        h = h_new
-
-    # Final calculations
-    h = float(max(h, 0.0))
-    Omega = B * h
-    v = Q / Omega if Omega > 0 else 0.0
-
-    # Ensure finite numeric results
+    # Initial guess for flow depth
+    h0 = max(0.1 * D84, 1e-4)
+    
+    # Solve using fsolve
+    try:
+        solution = fsolve(
+            flow_equation, 
+            [h0], 
+            xtol=tol, 
+            maxfev=max_iter,
+            full_output=False
+        )
+        h = float(solution[0])
+    except:
+        # Fallback to zero if solver fails
+        h = 0.0
+    
+    # Ensure non-negative and finite result
+    h = max(h, 0.0)
     if not np.isfinite(h):
         h = 0.0
+    
+    # Final calculations
+    Omega = B * h
+    v = Q / Omega if Omega > 0 else 0.0
+    
+    # Ensure finite numeric results
     if not np.isfinite(v):
         v = 0.0
-
+    
     return h, Omega, v
 
 
@@ -230,7 +228,7 @@ def meyer_peter_mueller(
         If Fi is None, returns a length-1 array with the total transport using D50.
     """
     # Handle degenerate flow
-    if h <= 0 or slope <= 0 or B <= 0:
+    if h <= 0: # B <= 0:
         if Fi is None:
             return np.array([0.0])
         return np.zeros_like(np.asarray(Fi, dtype=float))
@@ -263,113 +261,6 @@ def meyer_peter_mueller(
     Qsi[~np.isfinite(Qsi)] = 0.0
     return Qsi
 
-
-def compute_sediment_load_mpm_total(
-    Qrel,
-    dates: list,
-    B,
-    slope,
-    D50,
-    D84=None,
-    to_csv=None,
-    theta_c=0.047,
-    rho_w=1000.0,
-    rho_s=2650.0,
-    g=9.81,
-):
-    """
-    Compute total sediment load using the Meyer-Peter & Müller (1948) formula
-    with a representative grain size (typically D50), without phi-class breakdown.
-
-    This function is a simplified alternative to `compute_sediment_load(..., method='mpm')`
-    when you only need total transport and don't have a full grain size distribution.
-
-    The classic MPM formula computes unit-width bedload transport as:
-        qb = 8 * max(theta - theta_c, 0)^{3/2} * sqrt(g * (s-1) * D^3)
-    where theta = tau_b / ((rho_s - rho_w) * g * D), tau_b = rho_w * g * h * slope,
-    s = rho_s / rho_w, and D is the characteristic grain size (e.g., D50).
-
-    Total volumetric transport is Qs = qb * B.
-
-    Parameters
-    ----------
-    Qrel : array-like
-        Discharge time series (m³/s).
-    dates : list
-        List of datetime objects corresponding to flow rates.
-    B : float
-        Channel width (m).
-    slope : float
-        Channel bed slope (m/m).
-    D50 : float
-        Representative grain size diameter (m), typically the median (D50).
-    D84 : float, optional
-        84th percentile grain size (m). Used by steady_flow_solver for roughness.
-        If None, defaults to D50.
-    to_csv : str, optional
-        Path to save results as CSV. If None, does not save.
-    theta_c : float, default=0.047
-        Critical Shields parameter for initiation of motion.
-    rho_w : float, default=1000.0
-        Water density (kg/m³).
-    rho_s : float, default=2650.0
-        Sediment density (kg/m³).
-    g : float, default=9.81
-        Gravitational acceleration (m/s²).
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns:
-        - Datetime: time step identifier
-        - Q: discharge (m³/s)
-        - h: flow depth (m)
-        - Omega: cross-sectional area (m²)
-        - v: velocity (m/s)
-        - qS_total: total sediment transport (m³/s)
-
-    Notes
-    -----
-    Unlike the phi-class version, this function returns only the total transport.
-    Use `compute_sediment_load(..., method='mpm')` if you need fractional transport.
-    """
-    if dates is None:
-        dates = np.arange(len(Qrel))
-
-    if D84 is None:
-        D84 = D50  # fallback for flow solver roughness
-
-    s_minus_1 = rho_s / rho_w - 1.0
-
-    results = []
-    for i, Q in enumerate(Qrel):
-        h, Omega, v = steady_flow_solver(B, slope, Q, D84)
-
-        # Compute bed shear stress and Shields parameter
-        tau_b = shear_stress(rho_w, g, h, slope)
-        theta = shields_parameter(tau_b, rho_w, rho_s, g, D50)
-
-        # Meyer-Peter & Müller formula
-        phi = max(theta - theta_c, 0.0)
-        qb = 8.0 * (phi**1.5) * np.sqrt(g * s_minus_1 * D50**3)
-        qS_total = qb * B
-
-        row = {
-            "Datetime": dates[i],
-            "Q": Q,
-            "h": h,
-            "Omega": Omega,
-            "v": v,
-            "qS_total": qS_total,
-        }
-        results.append(row)
-
-    df = pd.DataFrame(results)
-
-    if to_csv is not None:
-        df.to_csv(to_csv, index=False)
-
-    return df
 
 
 def compute_sediment_load(

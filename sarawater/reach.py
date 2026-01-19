@@ -25,6 +25,10 @@ class Reach:
         if len(dates) != len(Qnat):
             raise ValueError("Dates and flow data length mismatch")
 
+        # Validate that all discharge values are non-negative
+        if np.any(Qnat < 0):
+            raise ValueError("Natural flow rate (Qnat) must be non-negative (>= 0)")
+        
         self.name = name
         self.dates = dates
         self.Qnat = Qnat
@@ -194,6 +198,9 @@ class Reach:
         # --- Handle slope ---
         if not isinstance(slope, (float, int)):
             raise ValueError("slope must be a numeric value (float)")
+        if slope <= 0:
+            raise ValueError("slope must be positive (> 0)")
+
 
         # Compute section width, area and equivalent rectangular geometry
         x = section_data["x [m]"].values
