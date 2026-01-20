@@ -120,7 +120,6 @@ def test_reach_with_ecological_scenario():
     )  # Ensure DE is greater than Q97
 
 
-
 if __name__ == "__main__":
     test_reach_basics()
     test_reach_with_prop_scenario()
