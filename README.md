@@ -33,7 +33,8 @@ If you use SARAwater in your research, please cite the release published on Zeno
 @software{Barile_2026_SARAwater,
   author       = {Barile, Gabriele and
                   Dal Santo, Matteo and
-                  Crivellaro, Marta},
+                  Crivellaro, Marta and
+                  Zolezzi, Guido},
   title        = {{SARAwater: Scenario-based Alteration of Rivers subject to water Abstraction}},
   month        = jan,
   year         = 2026,
