@@ -286,8 +286,22 @@ class Reach:
                 labels=phi_classes[:-1],
             )
             phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
-            if 7.5 not in phi_percentages.index:
-                phi_percentages.loc[7.5] = 0.0
+            
+            # Ensure all phi classes are present with zero values if missing
+            phi_percentages = phi_percentages.reindex(phi_classes[:-1], fill_value=0.0)
+            
+            # Normalize to ensure sum = 100% (or 1.0 if already in fractions)
+            total = phi_percentages.sum()
+            if total > 0:
+                phi_percentages = phi_percentages / total * 100.0
+                
+            # Verify length matches expected sediment range
+            expected_length = len(np.arange(-9.5, 7.5 + 1, 1))
+            if len(phi_percentages) != expected_length:
+                raise ValueError(
+                    f"Phi percentages has {len(phi_percentages)} classes, "
+                    f"but expected {expected_length} classes for range [-9.5, 7.5]"
+                )
         else:
             dfphi, phi_percentages = None, None
 
