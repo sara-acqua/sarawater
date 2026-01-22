@@ -388,6 +388,13 @@ class Scenario:
             B = self.reach.width
             slope = self.reach.slope
             Fi = self.reach.phi_percentages.values
+            
+            # Check if Engelund-Gauss subdivisions are available
+            if hasattr(self.reach, 'rectangular_section') and self.reach.rectangular_section is not None:
+                subdivisions = self.reach.rectangular_section
+            else:
+                subdivisions = None
+                
         except AttributeError:
             raise ValueError(
                 "Reach properties (width, slope, grain size distribution) must be set before computing sediment load. Run Reach.add_cross_section_info() first."
@@ -400,6 +407,7 @@ class Scenario:
             slope,
             Fi,
             to_csv=to_csv,
+            subdivisions=subdivisions,
         )
 
     def plot_scenario_sediment_transport(
