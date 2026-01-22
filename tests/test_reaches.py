@@ -121,122 +121,134 @@ def test_reach_with_ecological_scenario():
     )  # Ensure DE is greater than Q97
 
 
-
 def test_reach_with_irregular_cross_section():
     """Test reach with irregular cross-section and grain size distribution"""
     # Create a reach
     reach = rch.Reach("Test Reach", dates, Qnat, 50)
-    
+
     # Create an irregular cross-section (trapezoidal-like)
-    section_data = pd.DataFrame({
-        'x [m]': [0.0, 2.0, 5.0, 8.0, 10.0],
-        'y [m]': [0.0, 1.5, 2.0, 1.5, 0.0]
-    })
-    
+    section_data = pd.DataFrame(
+        {"x [m]": [0.0, 2.0, 5.0, 8.0, 10.0], "y [m]": [0.0, 1.5, 2.0, 1.5, 0.0]}
+    )
+
     # Create grain size distribution data
     # Simple distribution with a few points
-    grain_data = pd.DataFrame({
-        'di[mm]': [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0],
-        'i(di)': [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
-    })
-    
+    grain_data = pd.DataFrame(
+        {
+            "di[mm]": [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0],
+            "i(di)": [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+        }
+    )
+
     slope = 0.002
-    
+
     # Add cross-section info
     reach.add_cross_section_info(section_data, slope, grain_data)
-    
+
     # Verify reach properties are set
     assert reach.width > 0, "Width should be positive"
     assert reach.area > 0, "Area should be positive"
     assert reach.slope == slope, "Slope should match input"
     assert reach.height_avg > 0, "Average height should be positive"
-    
+
     # Verify phi percentages
-    assert hasattr(reach, 'phi_percentages'), "Phi percentages should be set"
+    assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
     assert reach.phi_percentages is not None, "Phi percentages should not be None"
-    assert len(reach.phi_percentages) == 18, f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
-    
+    assert (
+        len(reach.phi_percentages) == 18
+    ), f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
+
     # Verify phi percentages sum to approximately 1.0
     total_fraction = reach.phi_percentages.sum()
-    assert abs(total_fraction - 1.0) < 0.01, f"Phi percentages should sum to 1.0, got {total_fraction}"
-    
+    assert (
+        abs(total_fraction - 1.0) < 0.01
+    ), f"Phi percentages should sum to 1.0, got {total_fraction}"
+
     # Verify subdivision data
-    assert hasattr(reach, 'rectangular_section'), "Rectangular section should be set"
-    assert reach.rectangular_section is not None, "Rectangular section should not be None"
-    assert len(reach.rectangular_section) == 4, "Should have 4 subdivisions for 5 points"
-    
+    assert hasattr(reach, "rectangular_section"), "Rectangular section should be set"
+    assert (
+        reach.rectangular_section is not None
+    ), "Rectangular section should not be None"
+    assert (
+        len(reach.rectangular_section) == 4
+    ), "Should have 4 subdivisions for 5 points"
+
     # Verify each subdivision has required fields
     for i, subdiv in reach.rectangular_section.iterrows():
-        assert 'width' in subdiv, "Subdivision should have width"
-        assert 'height' in subdiv, "Subdivision should have height"
-        assert 'area' in subdiv, "Subdivision should have area"
-        assert subdiv['width'] > 0, f"Subdivision {i} width should be positive"
-        assert subdiv['area'] >= 0, f"Subdivision {i} area should be non-negative"
+        assert "width" in subdiv, "Subdivision should have width"
+        assert "height" in subdiv, "Subdivision should have height"
+        assert "area" in subdiv, "Subdivision should have area"
+        assert subdiv["width"] > 0, f"Subdivision {i} width should be positive"
+        assert subdiv["area"] >= 0, f"Subdivision {i} area should be non-negative"
 
 
 def test_reach_with_simple_d50():
     """Test reach with simple D50 grain size specification"""
     # Create a reach
     reach = rch.Reach("Test Reach", dates, Qnat, 50)
-    
+
     # Simple rectangular cross-section
-    section_data = pd.DataFrame({
-        'x [m]': [0.0, 10.0],
-        'y [m]': [2.0, 2.0]
-    })
-    
+    section_data = pd.DataFrame({"x [m]": [0.0, 10.0], "y [m]": [2.0, 2.0]})
+
     # Simple D50 value in mm
     D50 = 10.0  # mm
     slope = 0.001
-    
+
     # Add cross-section info
     reach.add_cross_section_info(section_data, slope, D50)
-    
+
     # Verify reach properties
     assert reach.width == 10.0, "Width should be 10m"
     assert reach.slope == slope, "Slope should match input"
-    
+
     # Verify phi percentages are created correctly
-    assert hasattr(reach, 'phi_percentages'), "Phi percentages should be set"
+    assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
     assert reach.phi_percentages is not None, "Phi percentages should not be None"
-    assert len(reach.phi_percentages) == 18, f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
-    
+    assert (
+        len(reach.phi_percentages) == 18
+    ), f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
+
     # For simple D50, most of the distribution should be concentrated
     # around the corresponding phi class
     total_fraction = reach.phi_percentages.sum()
-    assert abs(total_fraction - 1.0) < 0.01, f"Phi percentages should sum to 1.0, got {total_fraction}"
+    assert (
+        abs(total_fraction - 1.0) < 0.01
+    ), f"Phi percentages should sum to 1.0, got {total_fraction}"
 
 
 def test_reach_with_grain_array():
     """Test reach with grain size as 2D array"""
     import numpy as np
-    
+
     # Create a reach
     reach = rch.Reach("Test Reach", dates, Qnat, 50)
-    
+
     # Simple cross-section
-    section_data = pd.DataFrame({
-        'x [m]': [0.0, 5.0, 10.0],
-        'y [m]': [0.0, 1.5, 0.0]
-    })
-    
+    section_data = pd.DataFrame({"x [m]": [0.0, 5.0, 10.0], "y [m]": [0.0, 1.5, 0.0]})
+
     # Grain data as 2D numpy array
-    grain_array = np.array([
-        [0.0, 0.2, 0.5, 0.8, 1.0],  # i(di) - cumulative fractions
-        [1.0, 5.0, 10.0, 20.0, 50.0]  # di[mm] - grain sizes
-    ])
-    
+    grain_array = np.array(
+        [
+            [0.0, 0.2, 0.5, 0.8, 1.0],  # i(di) - cumulative fractions
+            [1.0, 5.0, 10.0, 20.0, 50.0],  # di[mm] - grain sizes
+        ]
+    )
+
     slope = 0.002
-    
+
     # Add cross-section info
     reach.add_cross_section_info(section_data, slope, grain_array)
-    
+
     # Verify phi percentages
-    assert hasattr(reach, 'phi_percentages'), "Phi percentages should be set"
-    assert len(reach.phi_percentages) == 18, f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
-    
+    assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
+    assert (
+        len(reach.phi_percentages) == 18
+    ), f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
+
     total_fraction = reach.phi_percentages.sum()
-    assert abs(total_fraction - 1.0) < 0.01, f"Phi percentages should sum to 1.0, got {total_fraction}"
+    assert (
+        abs(total_fraction - 1.0) < 0.01
+    ), f"Phi percentages should sum to 1.0, got {total_fraction}"
 
 
 if __name__ == "__main__":

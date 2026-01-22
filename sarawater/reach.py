@@ -214,27 +214,29 @@ class Reach:
         # Subdivide into vertical strips, preserving trapezoidal geometry
         num_subdivisions = len(section_data) - 1
         subdivisions = []
-        
+
         for i in range(num_subdivisions):
             x_left, x_right = x[i], x[i + 1]
             y_left, y_right = y[i], y[i + 1]
-            
+
             strip_width = x_right - x_left
             # Trapezoidal area: A = (y_left + y_right) / 2 * width
             strip_area = (y_left + y_right) / 2 * strip_width
             # Average height (for reference, but actual trapezoid shape is preserved via y_left, y_right)
             strip_height = strip_area / strip_width if strip_width > 0 else 0
-            
-            subdivisions.append({
-            'x_left': x_left,
-            'x_right': x_right,
-            'width': strip_width,
-            'height': strip_height,  # Average height for convenience
-            'area': strip_area,
-            'y_left': y_left,  # Left depth - preserves trapezoidal shape
-            'y_right': y_right  # Right depth - preserves trapezoidal shape
-            })
-        
+
+            subdivisions.append(
+                {
+                    "x_left": x_left,
+                    "x_right": x_right,
+                    "width": strip_width,
+                    "height": strip_height,  # Average height for convenience
+                    "area": strip_area,
+                    "y_left": y_left,  # Left depth - preserves trapezoidal shape
+                    "y_right": y_right,  # Right depth - preserves trapezoidal shape
+                }
+            )
+
         # Create subdivision DataFrame for storage
         rectangular_section = pd.DataFrame(subdivisions)
 
@@ -300,13 +302,13 @@ class Reach:
             dfphi["Percent"] = (
                 dfphi["i(di)"].diff().fillna(dfphi["i(di)"].iloc[0]) * 100
             )
-            
+
             # Define phi classes (centers) from -9.5 to 7.5 (18 classes)
             phi_class_centers = np.arange(-9.5, 7.5 + 1, 1)
             # Create bin edges: 18 classes need 19 edges
             # Edges at: -10, -9, -8, ..., 7, 8
             phi_bin_edges = np.concatenate([[-10], phi_class_centers + 0.5])
-            
+
             dfphi["Phi Interval"] = pd.cut(
                 dfphi["Phi Scale"],
                 bins=phi_bin_edges,
@@ -325,10 +327,10 @@ class Reach:
 
             # Verify length matches expected sediment range
             expected_length = len(np.arange(-9.5, 7.5 + 1, 1))
-                
+
             # Convert to fractions (0-1) for transport calculations
             phi_percentages = phi_percentages / 100.0
-            
+
             # Verify length matches expected sediment range (18 classes)
             expected_length = 18  # From -9.5 to 7.5 with step 1
             if len(phi_percentages) != expected_length:
@@ -343,17 +345,17 @@ class Reach:
         # Store results
         self.section_data = section_data  # Original irregular cross-section
         self.rectangular_section = rectangular_section  # Engelund-Gauss subdivisions
-        
+
         # Overall reach properties (for reference)
         self.width = width  # Total width
-        self.area = area    # Total area
+        self.area = area  # Total area
         self.height_avg = height_avg  # Average depth
-        
+
         # For sediment transport, we'll use the subdivisions
         # Each subdivision has its own width, height, and area
         # The sediment transport should be computed per subdivision and summed
         self.num_subdivisions = len(rectangular_section)
-        
+
         # Store slope and grain size data
         self.slope = slope
         self.grain_size_data = dfphi

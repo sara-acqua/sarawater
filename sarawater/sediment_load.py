@@ -6,13 +6,13 @@ from scipy.optimize import fsolve
 def distribute_discharge_by_conveyance(subdivisions, Q_total, manning_n=0.03):
     """
     Distribute total discharge among Engelund-Gauss strips based on conveyance.
-    
+
     Uses Manning's equation to compute conveyance for each trapezoidal strip:
     K_i = (1/n) * A_i * R_i^(2/3)
-    
+
     where R_i is the hydraulic radius (A_i / P_i) for strip i.
     Each strip is treated as a trapezoid with depths y_left and y_right.
-    
+
     Parameters
     ----------
     subdivisions : DataFrame
@@ -21,7 +21,7 @@ def distribute_discharge_by_conveyance(subdivisions, Q_total, manning_n=0.03):
         Total discharge (m³/s)
     manning_n : float, optional
         Manning's roughness coefficient (default: 0.03)
-        
+
     Returns
     -------
     ndarray
@@ -29,35 +29,35 @@ def distribute_discharge_by_conveyance(subdivisions, Q_total, manning_n=0.03):
     """
     if Q_total <= 0:
         return np.zeros(len(subdivisions))
-    
+
     conveyances = []
     for strip in subdivisions.itertuples(index=False):
         strip_area = strip.area
         strip_width = strip.width
         y_left = strip.y_left
         y_right = strip.y_right
-        
+
         if A > 0:
             # Wetted perimeter for trapezoidal strip
             # P = strip_width + left_side + right_side
             # For vertical strips: left and right sides are y_left and y_right
             P = strip_width + y_left + y_right
             hydraulic_radius = A / P  # Hydraulic radius
-            
+
             # Conveyance: (1/n) * A * R^(2/3)
-            conveyance = (1 / manning_n) * A * (R ** (2/3))
+            conveyance = (1 / manning_n) * A * (R ** (2 / 3))
             conveyances.append(conveyance)
         else:
             conveyances.append(0.0)
-    
+
     conveyances = np.array(conveyances)
     total_conveyance = np.sum(conveyances)
-    
+
     if total_conveyance > 0:
         Q_per_strip = Q_total * (conveyances / total_conveyance)
     else:
         Q_per_strip = np.zeros(len(conveyances))
-    
+
     return Q_per_strip
 
 
@@ -74,13 +74,13 @@ def compute_sediment_load_engelund_gauss(
 ):
     """
     Compute sediment load using Engelund-Gauss subdivision method.
-    
+
     For each time step:
     1. Distribute discharge among vertical strips based on conveyance using Manning's equation
     2. Compute flow depth and velocity for each strip
     3. Calculate sediment transport for each strip
     4. Sum contributions from all strips
-    
+
     Parameters
     ----------
     subdivisions : DataFrame
@@ -101,7 +101,7 @@ def compute_sediment_load_engelund_gauss(
         Sediment transport formula (default: "wilcock_crowe")
     mpm_theta_c : float, optional
         Critical Shields parameter for MPM (default: 0.047)
-        
+
     Returns
     -------
     pd.DataFrame
@@ -110,33 +110,33 @@ def compute_sediment_load_engelund_gauss(
     sed_range = np.arange(-9.5, 7.5 + 1, 1)
     if dates is None:
         dates = np.arange(len(Qrel))
-    
+
     # Compute D50 and D84 from grain size distribution
     cumsum = np.cumsum(Fi)
     D50 = 2 ** (-np.interp(0.5, cumsum, sed_range)) / 1000
     D84 = 2 ** (-np.interp(0.84, cumsum, sed_range)) / 1000
-    
+
     results = []
-    
+
     for time_idx, Q_total in enumerate(Qrel):
         # Distribute discharge among strips
         Q_strips = distribute_discharge_by_conveyance(subdivisions, Q_total, manning_n)
-        
+
         # Initialize arrays to accumulate sediment transport
         qS_total_strips = np.zeros(len(sed_range))
         h_weighted = 0.0
         v_weighted = 0.0
         total_area = 0.0
-        
+
         # Compute sediment transport for each strip
         for strip_idx, strip in subdivisions.iterrows():
             Q_strip = Q_strips[strip_idx]
-            B_strip = strip['width']
-            
+            B_strip = strip["width"]
+
             # Skip strips with zero discharge
             if Q_strip <= 0 or B_strip <= 0:
                 continue
-            
+
             # Solve for flow depth in this strip
             try:
                 h_strip, Omega_strip, v_strip = steady_flow_solver(
@@ -147,10 +147,10 @@ def compute_sediment_load_engelund_gauss(
                 h_strip = 0.0
                 v_strip = 0.0
                 continue
-            
+
             if h_strip <= 0:
                 continue
-            
+
             # Compute sediment transport for this strip
             if method == "wilcock_crowe":
                 qS_strip = wilcock_crowe_2003(Fi, slope, B_strip, h_strip, D50, D84)
@@ -162,16 +162,16 @@ def compute_sediment_load_engelund_gauss(
                 raise ValueError(
                     f"Unknown method '{method}'. Supported: 'wilcock_crowe', 'mpm'."
                 )
-            
+
             # Accumulate sediment transport from this strip
             qS_total_strips += qS_strip
-            
+
             # Weighted averages for flow properties
-            strip_area = strip['area']
+            strip_area = strip["area"]
             h_weighted += h_strip * strip_area
             v_weighted += v_strip * strip_area
             total_area += strip_area
-        
+
         # Compute weighted average flow properties
         if total_area > 0:
             h_avg = h_weighted / total_area
@@ -179,7 +179,7 @@ def compute_sediment_load_engelund_gauss(
         else:
             h_avg = 0.0
             v_avg = 0.0
-        
+
         # Store results for this time step
         row = {
             "Datetime": dates[time_idx],
@@ -188,15 +188,17 @@ def compute_sediment_load_engelund_gauss(
             "Omega": total_area,
             "v": v_avg,
         }
-        row.update({f"qS_phi_{phi}": qS_total_strips[j] for j, phi in enumerate(sed_range)})
+        row.update(
+            {f"qS_phi_{phi}": qS_total_strips[j] for j, phi in enumerate(sed_range)}
+        )
         row["qS_total"] = np.sum(qS_total_strips)
         results.append(row)
-    
+
     df = pd.DataFrame(results)
-    
+
     if to_csv is not None:
         df.to_csv(to_csv, index=False)
-    
+
     return df
 
 
@@ -474,7 +476,7 @@ def compute_sediment_load(
 ):
     """
     Compute sediment load per size class and total using the selected transport formula.
-    
+
     Supports both simple rectangular channel and Engelund-Gauss subdivision approaches.
 
     Parameters
@@ -520,7 +522,7 @@ def compute_sediment_load(
             method=method,
             mpm_theta_c=mpm_theta_c,
         )
-    
+
     # Otherwise, use simple rectangular channel approach
     sed_range = np.arange(-9.5, 7.5 + 1, 1)
     if dates is None:
