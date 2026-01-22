@@ -314,14 +314,17 @@ class Reach:
                 labels=phi_class_centers,
             )
             phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
-            
-            # Ensure all 18 phi classes are present with zero values if missing
-            phi_percentages = phi_percentages.reindex(phi_class_centers, fill_value=0.0)
-            
-            # Normalize to ensure sum = 100%
+
+            # Ensure all phi classes are present with zero values if missing
+            phi_percentages = phi_percentages.reindex(phi_classes[:-1], fill_value=0.0)
+
+            # Normalize to ensure sum = 100% (or 1.0 if already in fractions)
             total = phi_percentages.sum()
             if total > 0:
                 phi_percentages = phi_percentages / total * 100.0
+
+            # Verify length matches expected sediment range
+            expected_length = len(np.arange(-9.5, 7.5 + 1, 1))
                 
             # Convert to fractions (0-1) for transport calculations
             phi_percentages = phi_percentages / 100.0

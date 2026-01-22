@@ -255,7 +255,6 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
         Mean flow velocity (meters per second, m/s).
     """
 
-
     def flow_equation(h):
         """
         Residual function for steady uniform flow.
@@ -267,49 +266,43 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
                 f"Negative or zero flow depth encountered during iteration: h={h[0]:.2e}. "
                 "This indicates numerical instability in the flow solver."
             )
-        
+
         h_eff = h[0]
-        
+
         # Hydraulic geometry
         Omega = B * h_eff
         Rh = Omega / (B + 2 * h_eff)
         ratio = max(h_eff / D84, 1e-6)
-        
+
         # Empirical friction coefficient
-        denom = (6.5)**2 + (2.5)**2 * ratio**(5/3)
+        denom = (6.5) ** 2 + (2.5) ** 2 * ratio ** (5 / 3)
         C = (6.5 * 2.5 * ratio) / np.sqrt(denom)
-        
+
         # Flow equation residual
-        residual = g * Rh * slope - (Q / (Omega * C))**2
-        
+        residual = g * Rh * slope - (Q / (Omega * C)) ** 2
+
         return residual
 
     # Initial guess for flow depth
     h0 = max(0.1 * D84, 1e-4)
-    
+
     # Solve using fsolve
-    solution = fsolve(
-        flow_equation, 
-        [h0], 
-        xtol=tol, 
-        maxfev=max_iter,
-        full_output=False
-    )
+    solution = fsolve(flow_equation, [h0], xtol=tol, maxfev=max_iter, full_output=False)
     h = float(solution[0])
-    
+
     # Ensure non-negative and finite result
     h = max(h, 0.0)
     if not np.isfinite(h):
         h = 0.0
-    
+
     # Final calculations
     Omega = B * h
     v = Q / Omega if Omega > 0 else 0.0
-    
+
     # Ensure finite numeric results
     if not np.isfinite(v):
         v = 0.0
-    
+
     return h, Omega, v
 
 
@@ -445,9 +438,9 @@ def meyer_peter_mueller(
     # Fractional computation over phi classes
     sed_range = np.arange(-9.5, 7.5 + 1, 1)
     dmi = 2 ** (-sed_range) / 1000.0
-    
+
     Fi = np.asarray(Fi, dtype=float)
-    
+
     # Validate Fi length matches phi class range
     if Fi.shape[0] != dmi.shape[0]:
         raise ValueError(
@@ -456,7 +449,7 @@ def meyer_peter_mueller(
             f"Ensure grain size distribution from Reach.add_cross_section_info() "
             f"produces correct number of phi classes."
         )
-    
+
     theta_i = tau_b / ((rho_s - rho_w) * g * dmi)
     phi_i = np.maximum(theta_i - theta_c, 0.0)
     qb_i = 8.0 * (phi_i**1.5) * np.sqrt(g * s_minus_1 * dmi**3)
@@ -465,7 +458,6 @@ def meyer_peter_mueller(
     # Replace NaNs with zeros for numerical safety
     Qsi[~np.isfinite(Qsi)] = 0.0
     return Qsi
-
 
 
 def compute_sediment_load(
