@@ -227,27 +227,29 @@ class Reach:
         # Subdivide into vertical strips, preserving trapezoidal geometry
         num_subdivisions = len(section_data) - 1
         subdivisions = []
-        
+
         for i in range(num_subdivisions):
             x_left, x_right = x[i], x[i + 1]
             y_left, y_right = y[i], y[i + 1]
-            
+
             strip_width = x_right - x_left
             # Trapezoidal area: A = (y_left + y_right) / 2 * width
             strip_area = (y_left + y_right) / 2 * strip_width
             # Average height (for reference, but actual trapezoid shape is preserved via y_left, y_right)
             strip_height = strip_area / strip_width if strip_width > 0 else 0
-            
-            subdivisions.append({
-            'x_left': x_left,
-            'x_right': x_right,
-            'width': strip_width,
-            'height': strip_height,  # Average height for convenience
-            'area': strip_area,
-            'y_left': y_left,  # Left depth - preserves trapezoidal shape
-            'y_right': y_right  # Right depth - preserves trapezoidal shape
-            })
-        
+
+            subdivisions.append(
+                {
+                    "x_left": x_left,
+                    "x_right": x_right,
+                    "width": strip_width,
+                    "height": strip_height,  # Average height for convenience
+                    "area": strip_area,
+                    "y_left": y_left,  # Left depth - preserves trapezoidal shape
+                    "y_right": y_right,  # Right depth - preserves trapezoidal shape
+                }
+            )
+
         # Create subdivision DataFrame for storage
         rectangular_section = pd.DataFrame(subdivisions)
 
@@ -297,12 +299,47 @@ class Reach:
                     "grain_data must be float (D50), a 2D array/list with [i(di), di[mm]], "
                     "a DataFrame, or a path to a CSV file"
                 )
-            
-            # --- Process grain size distribution ---
-            # Only process dfphi if it's not None (i.e., not from D50 float input)
-            if dfphi is not None:
-                if "i(di)" not in dfphi.columns or "di[mm]" not in dfphi.columns:
-                    raise ValueError("grain_data must provide columns 'i(di)' and 'di[mm]'")
+
+            # Ensure numeric columns and sensible ordering
+            dfphi = dfphi.copy()
+            if "i(di)" not in dfphi.columns or "di[mm]" not in dfphi.columns:
+                raise ValueError("grain_data must provide columns 'i(di)' and 'di[mm]'")
+
+            dfphi["i(di)"] = pd.to_numeric(dfphi["i(di)"], errors="coerce")
+            dfphi["di[mm]"] = pd.to_numeric(dfphi["di[mm]"], errors="coerce")
+
+            if dfphi["i(di)"].isnull().any() or dfphi["di[mm]"].isnull().any():
+                raise ValueError("grain_data contains non-numeric values")
+
+            # If i(di) appears to be percentages (0-100), convert to fractions (0-1)
+            if dfphi["i(di)"].max() > 1.0:
+                dfphi["i(di)"] = dfphi["i(di)"] / 100.0
+
+            # Force cumulative behavior: sort by di and ensure monotonic cumulative values
+            dfphi = dfphi.sort_values("di[mm]").reset_index(drop=True)
+            # Clip cumulative to [0,1] and enforce non-decreasing
+            dfphi["i(di)"] = dfphi["i(di)"].clip(0.0, 1.0)
+            dfphi["i(di)"] = np.maximum.accumulate(dfphi["i(di)"])
+
+            dfphi["di(Fehr) [mm]"] = dfphi["di[mm]"].interpolate()
+            dfphi["Phi Scale"] = -np.log2(dfphi["di(Fehr) [mm]"])
+            dfphi["Percent"] = (
+                dfphi["i(di)"].diff().fillna(dfphi["i(di)"].iloc[0]) * 100
+            )
+
+            # Define phi classes (centers) from -9.5 to 7.5 (18 classes)
+            phi_class_centers = np.arange(-9.5, 7.5 + 1, 1)
+            # Create bin edges: 18 classes need 19 edges
+            # Edges at: -10, -9, -8, ..., 7, 8
+            phi_bin_edges = np.concatenate([[-10], phi_class_centers + 0.5])
+
+            dfphi["Phi Interval"] = pd.cut(
+                dfphi["Phi Scale"],
+                bins=phi_bin_edges,
+                right=False,
+                labels=phi_class_centers,
+            )
+            phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
 
                 dfphi["i(di)"] = pd.to_numeric(dfphi["i(di)"], errors="raise")
                 dfphi["di[mm]"] = pd.to_numeric(dfphi["di[mm]"], errors="raise")
