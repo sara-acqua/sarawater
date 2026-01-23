@@ -107,7 +107,7 @@ def test_no_transport_when_zero_flow():
 
 def test_numerical_stability_small_h():
     """Check that the solver does not crash for very small flow or roughness."""
-    h, A, v = steady_flow_solver(B, slope, 0.001, D84)
+    h, strip_area, v = steady_flow_solver(B, slope, 0.001, D84)
     assert h >= 0, "Depth should never be negative"
     assert np.isfinite(h), "Depth should be finite"
     assert np.isfinite(v), "Velocity should be finite"

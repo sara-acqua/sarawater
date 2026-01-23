@@ -239,6 +239,37 @@ def test_reach_with_grain_array():
     assert abs(total_fraction - 1.0) < 0.01, f"Phi percentages should sum to 1.0, got {total_fraction}"
 
 
+def test_d50_creates_all_phi_classes():
+    """Test that D50 input creates all 18 phi classes"""
+    reach = rch.Reach("Test Reach", dates, Qnat, 50)
+    
+    section_data = pd.DataFrame({
+        'x [m]': [0.0, 10.0],
+        'y [m]': [2.0, 2.0]
+    })
+    
+    # Test with various D50 values
+    for d50 in [1.0, 5.0, 10.0, 20.0, 50.0]:
+        reach.add_cross_section_info(section_data, 0.001, d50)
+        
+        # Verify exactly 18 classes
+        assert len(reach.phi_percentages) == 18, \
+            f"D50={d50}mm should produce 18 phi classes, got {len(reach.phi_percentages)}"
+        
+        # Verify all expected phi values are present
+        expected_phi = np.arange(-9.5, 7.5 + 1, 1)
+        assert all(phi in reach.phi_percentages.index for phi in expected_phi), \
+            f"D50={d50}mm missing expected phi classes"
+        
+        # Verify normalization
+        total = reach.phi_percentages.sum()
+        assert abs(total - 1.0) < 0.01, \
+            f"D50={d50}mm phi percentages sum to {total}, expected 1.0"
+        
+        # Verify no NaN values
+        assert not reach.phi_percentages.isnull().any(), \
+            f"D50={d50}mm produced NaN values in phi_percentages"
+
 if __name__ == "__main__":
     test_reach_basics()
     test_reach_with_prop_scenario()

@@ -166,7 +166,7 @@ class Reach:
     def add_cross_section_info(self, section, slope, grain_data):
         """Add cross-section information to the reach, including geometry, slope,
         and optionally grain size distribution.
-
+    
         Parameters
         ----------
         section : str or DataFrame
@@ -174,15 +174,18 @@ class Reach:
             or a pandas DataFrame with those columns.
         slope : float
             Channel bed slope (m/m).
-        grain_data : str, DataFrame, float
-            Path to CSV file or DataFrame. Must contain 'i(di)' and 'di[mm]' columns
+        grain_data : str, DataFrame, float, or array-like
+            - float: D50 value in mm (creates a log-normal distribution)
+            - DataFrame or str (path): Must contain 'i(di)' and 'di[mm]' columns
+            - array-like: 2D array with [i(di), di[mm]] columns, with numeric values
 
         Returns
         -------
         Reach
             The current reach instance.
         """
-        # --- Load section geometry ---
+        #  --- Input validation ---
+        # --- Section geometry ---
         if isinstance(section, str):
             section_data = pd.read_csv(section, delimiter=None, engine="python")
         elif isinstance(section, pd.DataFrame):
@@ -194,12 +197,22 @@ class Reach:
         required_cols = ["x [m]", "y [m]"]
         if not all(col in section_data.columns for col in required_cols):
             raise ValueError(f"Section data must contain columns {required_cols}")
+        
+            # Validate numeric values in section
+        if not np.all(np.isfinite(section_data["x [m]"])):
+            raise ValueError("Section x coordinates must be finite numbers")
+        if not np.all(np.isfinite(section_data["y [m]"])):
+            raise ValueError("Section y coordinates must be finite numbers")
+        if np.any(section_data["y [m]"] < 0):
+            raise ValueError("Section y coordinates (depths) must be non-negative")
 
         # --- Handle slope ---
         if not isinstance(slope, (float, int)):
             raise ValueError("slope must be a numeric value (float)")
         if slope <= 0:
             raise ValueError("slope must be positive (> 0)")
+        if not np.isfinite(slope):
+            raise ValueError("slope must be a finite number")
 
         # Compute section width, area using Engelund-Gauss subdivision
         x = section_data["x [m]"].values
@@ -239,29 +252,39 @@ class Reach:
         rectangular_section = pd.DataFrame(subdivisions)
 
         # --- Handle grain size data ---
-        if grain_data is not None:
-            # If a path or DataFrame was passed earlier it's already handled above.
-            # Here we accept a float (D50), or a 2D array/list/ndarray with two columns:
-            # [i(di), di[mm]] or shape (2, n) with first row i(di) and second row di[mm]).
-            if isinstance(grain_data, (float, int)):
-                # Treat as D50 in mm — construct a minimal, reasonable distribution
-                d50 = float(grain_data)
 
-                dfphi = pd.DataFrame(
-                    {
-                        "i(di)": [0.0, 1.0],  # cumulative fractions (0..1)
-                        "di[mm]": [d50, d50],  # grain sizes in mm
-                    }
-                )
+        # Define standard phi classes: -9.5 to 7.5 with step 1 (18 classes total)
+        phi_class_centers = np.arange(-9.5, 7.5 + 1, 1)
+        expected_phi_length = len(phi_class_centers)  # Should be 18
+        if grain_data is not None:
+            if isinstance(grain_data, (float, int)):
+                # Single D50 value provided - assign 100% to the corresponding phi class
+                d50 = float(grain_data)
+                if d50 <= 0:
+                    raise ValueError("D50 must be positive")
+                
+                # Convert D50 to phi scale
+                phi_d50 = -np.log2(d50)
+                
+                # Find the closest phi class center
+                # phi_class_centers = [-9.5, -8.5, -7.5, ..., 6.5, 7.5]
+                closest_phi_idx = np.argmin(np.abs(phi_class_centers - phi_d50))
+                closest_phi = phi_class_centers[closest_phi_idx]
+                
+                # Create phi_percentages with 100% in the closest class, 0% elsewhere
+                phi_percentages = pd.Series(0.0, index=phi_class_centers)
+                phi_percentages.loc[closest_phi] = 1.0
+                
+                # Skip the detailed dfphi creation for D50 input
+                dfphi = None
+                
             elif isinstance(grain_data, pd.DataFrame):
-                # DataFrame provided directly
                 dfphi = grain_data.copy()
             elif isinstance(grain_data, (list, tuple, np.ndarray)):
                 arr = np.asarray(grain_data)
                 if arr.ndim == 2 and arr.shape[1] == 2:
                     dfphi = pd.DataFrame(arr, columns=["i(di)", "di[mm]"])
                 elif arr.ndim == 2 and arr.shape[0] == 2:
-                    # transposed form: first row i(di), second row di[mm]
                     dfphi = pd.DataFrame({"i(di)": arr[0, :], "di[mm]": arr[1, :]})
                 else:
                     raise ValueError(
@@ -271,90 +294,100 @@ class Reach:
                 dfphi = pd.read_csv(grain_data)
             else:
                 raise ValueError(
-                    "grain_data must be float (D50), a 2D array/list with [i(di), di[mm]], a DataFrame, or a path to a CSV file"
+                    "grain_data must be float (D50), a 2D array/list with [i(di), di[mm]], "
+                    "a DataFrame, or a path to a CSV file"
                 )
-
-            # Ensure numeric columns and sensible ordering
-            dfphi = dfphi.copy()
-            if "i(di)" not in dfphi.columns or "di[mm]" not in dfphi.columns:
-                raise ValueError("grain_data must provide columns 'i(di)' and 'di[mm]'")
-
-            dfphi["i(di)"] = pd.to_numeric(dfphi["i(di)"], errors="coerce")
-            dfphi["di[mm]"] = pd.to_numeric(dfphi["di[mm]"], errors="coerce")
-
-            if dfphi["i(di)"].isnull().any() or dfphi["di[mm]"].isnull().any():
-                raise ValueError("grain_data contains non-numeric values")
-
-            # If i(di) appears to be percentages (0-100), convert to fractions (0-1)
-            if dfphi["i(di)"].max() > 1.0:
-                dfphi["i(di)"] = dfphi["i(di)"] / 100.0
-
-            # Force cumulative behavior: sort by di and ensure monotonic cumulative values
-            dfphi = dfphi.sort_values("di[mm]").reset_index(drop=True)
-            # Clip cumulative to [0,1] and enforce non-decreasing
-            dfphi["i(di)"] = dfphi["i(di)"].clip(0.0, 1.0)
-            dfphi["i(di)"] = np.maximum.accumulate(dfphi["i(di)"])
-
-            dfphi["di(Fehr) [mm]"] = dfphi["di[mm]"].interpolate()
-            dfphi["Phi Scale"] = -np.log2(dfphi["di(Fehr) [mm]"])
-            dfphi["Percent"] = (
-                dfphi["i(di)"].diff().fillna(dfphi["i(di)"].iloc[0]) * 100
-            )
             
-            # Define phi classes (centers) from -9.5 to 7.5 (18 classes)
-            phi_class_centers = np.arange(-9.5, 7.5 + 1, 1)
-            # Create bin edges: 18 classes need 19 edges
-            # Edges at: -10, -9, -8, ..., 7, 8
-            phi_bin_edges = np.concatenate([[-10], phi_class_centers + 0.5])
-            
-            dfphi["Phi Interval"] = pd.cut(
-                dfphi["Phi Scale"],
-                bins=phi_bin_edges,
-                right=False,
-                labels=phi_class_centers,
-            )
-            phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
+            # --- Process grain size distribution ---
+            # Only process dfphi if it's not None (i.e., not from D50 float input)
+            if dfphi is not None:
+                if "i(di)" not in dfphi.columns or "di[mm]" not in dfphi.columns:
+                    raise ValueError("grain_data must provide columns 'i(di)' and 'di[mm]'")
 
-            # Ensure all phi classes are present with zero values if missing
-            phi_percentages = phi_percentages.reindex(phi_classes[:-1], fill_value=0.0)
+                dfphi["i(di)"] = pd.to_numeric(dfphi["i(di)"], errors="raise")
+                dfphi["di[mm]"] = pd.to_numeric(dfphi["di[mm]"], errors="raise")
 
-            # Normalize to ensure sum = 100% (or 1.0 if already in fractions)
-            total = phi_percentages.sum()
-            if total > 0:
-                phi_percentages = phi_percentages / total * 100.0
+                if dfphi["i(di)"].isnull().any() or dfphi["di[mm]"].isnull().any():
+                    raise ValueError("grain_data contains non-numeric values")
 
-            # Verify length matches expected sediment range
-            expected_length = len(np.arange(-9.5, 7.5 + 1, 1))
+                # If i(di) appears to be percentages (0-100), convert to fractions (0-1)
+                if dfphi["i(di)"].max() > 1.0:
+                    dfphi["i(di)"] = dfphi["i(di)"] / 100.0
+
+                # Force cumulative behavior: sort by di and ensure monotonic cumulative values
+                dfphi = dfphi.sort_values("di[mm]").reset_index(drop=True)
+                # Clip cumulative to [0,1] and enforce non-decreasing
+                dfphi["i(di)"] = dfphi["i(di)"].clip(0.0, 1.0)
+                dfphi["i(di)"] = np.maximum.accumulate(dfphi["i(di)"])
+
+                dfphi["di(Fehr) [mm]"] = dfphi["di[mm]"].interpolate()
+                dfphi["Phi Scale"] = -np.log2(dfphi["di(Fehr) [mm]"])
+                # Compute incremental percentages
+                dfphi["Percent"] = (
+                    dfphi["i(di)"].diff().fillna(dfphi["i(di)"].iloc[0]) * 100
+                )
                 
-            # Convert to fractions (0-1) for transport calculations
-            phi_percentages = phi_percentages / 100.0
-            
-            # Verify length matches expected sediment range (18 classes)
-            expected_length = 18  # From -9.5 to 7.5 with step 1
-            if len(phi_percentages) != expected_length:
+                # Create bin edges for phi classes
+                # For 18 classes from -9.5 to 7.5, we need 19 edges
+                phi_bin_edges = np.concatenate([
+                    [phi_class_centers[0] - 0.5],  # Lower edge of first class
+                    phi_class_centers + 0.5          # Upper edges
+                ])
+                
+                # Assign phi intervals
+                dfphi["Phi Interval"] = pd.cut(
+                    dfphi["Phi Scale"],
+                    bins=phi_bin_edges,
+                    right=False,
+                    labels=phi_class_centers,
+                    include_lowest=True  # Include leftmost edge
+                )
+                
+                # Group by phi class and sum percentages
+                phi_percentages = dfphi.groupby("Phi Interval", observed=False)["Percent"].sum()
+
+                # Ensure ALL phi classes are present (fill missing with zeros)
+                phi_percentages = phi_percentages.reindex(phi_class_centers, fill_value=0.0)
+
+                # Normalize to ensure sum = 100%
+                total = phi_percentages.sum()
+                if total > 0:
+                    phi_percentages = phi_percentages / total * 100.0
+                else:
+                    raise ValueError(
+                        "Grain size distribution resulted in zero total percentage. "
+                        "Check that grain_data covers a reasonable size range."
+                    )
+
+                # Convert to fractions (0-1)
+                phi_percentages = phi_percentages / 100.0
+
+            # **VALIDATION: Verify length**
+            if len(phi_percentages) != expected_phi_length:
                 raise ValueError(
-                    f"Phi percentages has {len(phi_percentages)} classes, "
-                    f"but expected {expected_length} classes for range [-9.5, 7.5]. "
-                    f"Check grain size distribution data."
+                    f"Grain size distribution produced {len(phi_percentages)} phi classes, "
+                    f"but expected {expected_phi_length} classes for range [-9.5, 7.5]. "
+                    f"This is an internal error - please report this issue."
+                )
+            
+            # **VALIDATION: Verify sum**
+            total_fraction = phi_percentages.sum()
+            if not np.isclose(total_fraction, 1.0, atol=0.01):
+                raise ValueError(
+                    f"Phi percentages must sum to 1.0, got {total_fraction:.4f}. "
+                    f"Check grain size distribution normalization."
                 )
         else:
-            dfphi, phi_percentages = None, None
+            dfphi = None
+            phi_percentages = None
 
-        # Store results
-        self.section_data = section_data  # Original irregular cross-section
-        self.rectangular_section = rectangular_section  # Engelund-Gauss subdivisions
-        
-        # Overall reach properties (for reference)
-        self.width = width  # Total width
-        self.area = area    # Total area
-        self.height_avg = height_avg  # Average depth
-        
-        # For sediment transport, we'll use the subdivisions
-        # Each subdivision has its own width, height, and area
-        # The sediment transport should be computed per subdivision and summed
+        # --- Store results ---
+        self.section_data = section_data
+        self.rectangular_section = rectangular_section
+        self.width = width
+        self.area = area
+        self.height_avg = height_avg
         self.num_subdivisions = len(rectangular_section)
-        
-        # Store slope and grain size data
         self.slope = slope
         self.grain_size_data = dfphi
         self.phi_percentages = phi_percentages
