@@ -333,71 +333,21 @@ class Reach:
             # Edges at: -10, -9, -8, ..., 7, 8
             phi_bin_edges = np.concatenate([[-10], phi_class_centers + 0.5])
 
-            dfphi["Phi Interval"] = pd.cut(
-                dfphi["Phi Scale"],
-                bins=phi_bin_edges,
-                right=False,
-                labels=phi_class_centers,
-            )
-            phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
+            # Ensure ALL phi classes are present (fill missing with zeros)
+            phi_percentages = phi_percentages.reindex(phi_class_centers, fill_value=0.0)
 
-                dfphi["i(di)"] = pd.to_numeric(dfphi["i(di)"], errors="raise")
-                dfphi["di[mm]"] = pd.to_numeric(dfphi["di[mm]"], errors="raise")
-
-                if dfphi["i(di)"].isnull().any() or dfphi["di[mm]"].isnull().any():
-                    raise ValueError("grain_data contains non-numeric values")
-
-                # If i(di) appears to be percentages (0-100), convert to fractions (0-1)
-                if dfphi["i(di)"].max() > 1.0:
-                    dfphi["i(di)"] = dfphi["i(di)"] / 100.0
-
-                # Force cumulative behavior: sort by di and ensure monotonic cumulative values
-                dfphi = dfphi.sort_values("di[mm]").reset_index(drop=True)
-                # Clip cumulative to [0,1] and enforce non-decreasing
-                dfphi["i(di)"] = dfphi["i(di)"].clip(0.0, 1.0)
-                dfphi["i(di)"] = np.maximum.accumulate(dfphi["i(di)"])
-
-                dfphi["di(Fehr) [mm]"] = dfphi["di[mm]"].interpolate()
-                dfphi["Phi Scale"] = -np.log2(dfphi["di(Fehr) [mm]"])
-                # Compute incremental percentages
-                dfphi["Percent"] = (
-                    dfphi["i(di)"].diff().fillna(dfphi["i(di)"].iloc[0]) * 100
+            # Normalize to ensure sum = 100%
+            total = phi_percentages.sum()
+            if total > 0:
+                phi_percentages = phi_percentages / total * 100.0
+            else:
+                raise ValueError(
+                    "Grain size distribution resulted in zero total percentage. "
+                    "Check that grain_data covers a reasonable size range."
                 )
-                
-                # Create bin edges for phi classes
-                # For 18 classes from -9.5 to 7.5, we need 19 edges
-                phi_bin_edges = np.concatenate([
-                    [phi_class_centers[0] - 0.5],  # Lower edge of first class
-                    phi_class_centers + 0.5          # Upper edges
-                ])
-                
-                # Assign phi intervals
-                dfphi["Phi Interval"] = pd.cut(
-                    dfphi["Phi Scale"],
-                    bins=phi_bin_edges,
-                    right=False,
-                    labels=phi_class_centers,
-                    include_lowest=True  # Include leftmost edge
-                )
-                
-                # Group by phi class and sum percentages
-                phi_percentages = dfphi.groupby("Phi Interval", observed=False)["Percent"].sum()
 
-                # Ensure ALL phi classes are present (fill missing with zeros)
-                phi_percentages = phi_percentages.reindex(phi_class_centers, fill_value=0.0)
-
-                # Normalize to ensure sum = 100%
-                total = phi_percentages.sum()
-                if total > 0:
-                    phi_percentages = phi_percentages / total * 100.0
-                else:
-                    raise ValueError(
-                        "Grain size distribution resulted in zero total percentage. "
-                        "Check that grain_data covers a reasonable size range."
-                    )
-
-                # Convert to fractions (0-1)
-                phi_percentages = phi_percentages / 100.0
+            # Convert to fractions (0-1)
+            phi_percentages = phi_percentages / 100.0
 
             # **VALIDATION: Verify length**
             if len(phi_percentages) != expected_phi_length:
