@@ -185,22 +185,38 @@ class ReachPlotter:
             Whether to save the plots to files
         """
         min_year = self.reach.dates[0].year
-        years = range(
-            min_year, min_year + len(self.reach.IHA_nat["Group1"]["mean_january"])
-        )
+        num_years = len(self.reach.IHA_nat["Group1"]["mean_january"])
+        years_nat = range(min_year, min_year + num_years)
+        years_alt = range(years_nat[-1] + 1, years_nat[-1] + 1 + num_years)
+        years = list(years_nat) + list(years_alt)
 
         for IHA_group_name, IHA_group in self.reach.scenarios[0].IHA.items():
             for indicator in IHA_group:
+                natural_values = self.reach.IHA_nat[IHA_group_name][indicator]
+
                 plt.figure()
                 plt.plot(
-                    years,
-                    self.reach.IHA_nat[IHA_group_name][indicator],
+                    years_nat,
+                    natural_values,
+                    color="tab:blue",
                     label="Natural",
                 )
 
+                # Calculate and plot percentiles for natural flow
+                p25 = np.percentile(natural_values, 25)
+                p75 = np.percentile(natural_values, 75)
+
+                # Plot percentile lines across the entire time range
+                plt.axhline(
+                    y=p25,
+                    color="tab:blue",
+                    linestyle="--",
+                )
+                plt.axhline(y=p75, color="tab:blue", linestyle="--")
+
                 for j, scenario in enumerate(self.reach.scenarios):
                     plt.plot(
-                        years,
+                        years_alt,
                         scenario.IHA[IHA_group_name][indicator],
                         label=scenario.name,
                         color=self.scenario_colors[j],
