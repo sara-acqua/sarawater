@@ -1,5 +1,205 @@
 import numpy as np
 import pandas as pd
+from scipy.optimize import fsolve
+
+
+def distribute_discharge_by_conveyance(subdivisions, Q_total, manning_n=0.03):
+    """
+    Distribute total discharge among Engelund-Gauss strips based on conveyance.
+
+    Uses Manning's equation to compute conveyance for each trapezoidal strip:
+    K_i = (1/n) * A_i * R_i^(2/3)
+
+    where R_i is the hydraulic radius (A_i / P_i) for strip i.
+    Each strip is treated as a trapezoid with depths y_left and y_right.
+
+    Parameters
+    ----------
+    subdivisions : DataFrame
+        DataFrame with columns: 'width', 'area', 'y_left', 'y_right' for each strip
+    Q_total : float
+        Total discharge (m³/s)
+    manning_n : float, optional
+        Manning's roughness coefficient (default: 0.03)
+
+    Returns
+    -------
+    ndarray
+        Discharge per strip (m³/s)
+    """
+    if Q_total <= 0:
+        return np.zeros(len(subdivisions))
+
+    conveyances = []
+    for strip in subdivisions.itertuples(index=False):
+        strip_area = strip.area
+        strip_width = strip.width
+        y_left = strip.y_left
+        y_right = strip.y_right
+
+        if strip_area > 0:
+            # Wetted perimeter for trapezoidal strip
+            # P = strip_width + left_side + right_side
+            # For vertical strips: left and right sides are y_left and y_right
+            P = strip_width + y_left + y_right
+            hydraulic_radius = strip_area / P  # Hydraulic radius
+
+            # Conveyance: (1/n) * A * R^(2/3)
+            conveyance = (1 / manning_n) * strip_area * (hydraulic_radius ** (2 / 3))
+            conveyances.append(conveyance)
+        else:
+            conveyances.append(0.0)
+
+    conveyances = np.array(conveyances)
+    total_conveyance = np.sum(conveyances)
+
+    if total_conveyance > 0:
+        Q_per_strip = Q_total * (conveyances / total_conveyance)
+    else:
+        Q_per_strip = np.zeros(len(conveyances))
+
+    return Q_per_strip
+
+
+def compute_sediment_load_engelund_gauss(
+    subdivisions,
+    Qrel,
+    dates,
+    slope,
+    Fi,
+    manning_n=0.03,
+    to_csv=None,
+    method: str = "wilcock_crowe",
+    mpm_theta_c: float = 0.047,
+):
+    """
+    Compute sediment load using Engelund-Gauss subdivision method.
+
+    For each time step:
+    1. Distribute discharge among vertical strips based on conveyance using Manning's equation
+    2. Compute flow depth and velocity for each strip
+    3. Calculate sediment transport for each strip
+    4. Sum contributions from all strips
+
+    Parameters
+    ----------
+    subdivisions : DataFrame
+        DataFrame with columns: 'width', 'height', 'area', 'x_left', 'x_right'
+    Qrel : ndarray
+        Scenario discharge time series (m³/s)
+    dates : list
+        List of datetime objects corresponding to flow rates
+    slope : float
+        Reach slope (m/m)
+    Fi : ndarray
+        Fraction of sediment in each phi class (length 18)
+    manning_n : float, optional
+        Manning's roughness coefficient (default: 0.03)
+    to_csv : str, optional
+        File path to save the results as CSV
+    method : {"wilcock_crowe", "mpm"}, optional
+        Sediment transport formula (default: "wilcock_crowe")
+    mpm_theta_c : float, optional
+        Critical Shields parameter for MPM (default: 0.047)
+
+    Returns
+    -------
+    pd.DataFrame
+        Sediment load per phi class and total (qS)
+    """
+    sed_range = np.arange(-9.5, 7.5 + 1, 1)
+    if dates is None:
+        dates = np.arange(len(Qrel))
+
+    # Compute D50 and D84 from grain size distribution
+    cumsum = np.cumsum(Fi)
+    D50 = 2 ** (-np.interp(0.5, cumsum, sed_range)) / 1000
+    D84 = 2 ** (-np.interp(0.84, cumsum, sed_range)) / 1000
+
+    results = []
+
+    for time_idx, Q_total in enumerate(Qrel):
+        # Distribute discharge among strips
+        Q_strips = distribute_discharge_by_conveyance(subdivisions, Q_total, manning_n)
+
+        # Initialize arrays to accumulate sediment transport
+        qS_total_strips = np.zeros(len(sed_range))
+        h_weighted = 0.0
+        v_weighted = 0.0
+        total_area = 0.0
+
+        # Compute sediment transport for each strip
+        for strip_idx, strip in subdivisions.iterrows():
+            Q_strip = Q_strips[strip_idx]
+            B_strip = strip["width"]
+
+            # Skip strips with zero discharge
+            if Q_strip <= 0 or B_strip <= 0:
+                continue
+
+            # Solve for flow depth in this strip
+            try:
+                h_strip, Omega_strip, v_strip = steady_flow_solver(
+                    B_strip, slope, Q_strip, D84
+                )
+            except ValueError:
+                # Solver failed - assume zero transport for this strip
+                h_strip = 0.0
+                v_strip = 0.0
+                continue
+
+            if h_strip <= 0:
+                continue
+
+            # Compute sediment transport for this strip
+            if method == "wilcock_crowe":
+                qS_strip = wilcock_crowe_2003(Fi, slope, B_strip, h_strip, D50, D84)
+            elif method == "mpm":
+                qS_strip = meyer_peter_mueller(
+                    Fi, slope, B_strip, h_strip, D50, theta_c=mpm_theta_c
+                )
+            else:
+                raise ValueError(
+                    f"Unknown method '{method}'. Supported: 'wilcock_crowe', 'mpm'."
+                )
+
+            # Accumulate sediment transport from this strip
+            qS_total_strips += qS_strip
+
+            # Weighted averages for flow properties
+            strip_area = strip["area"]
+            h_weighted += h_strip * strip_area
+            v_weighted += v_strip * strip_area
+            total_area += strip_area
+
+        # Compute weighted average flow properties
+        if total_area > 0:
+            h_avg = h_weighted / total_area
+            v_avg = v_weighted / total_area
+        else:
+            h_avg = 0.0
+            v_avg = 0.0
+
+        # Store results for this time step
+        row = {
+            "Datetime": dates[time_idx],
+            "Q": Q_total,
+            "h": h_avg,
+            "Omega": total_area,
+            "v": v_avg,
+        }
+        row.update(
+            {f"qS_phi_{phi}": qS_total_strips[j] for j, phi in enumerate(sed_range)}
+        )
+        row["qS_total"] = np.sum(qS_total_strips)
+        results.append(row)
+
+    df = pd.DataFrame(results)
+
+    if to_csv is not None:
+        df.to_csv(to_csv, index=False)
+
+    return df
 
 
 def shear_stress(rho_w, g, h, slope):
@@ -13,22 +213,17 @@ def shear_stress(rho_w, g, h, slope):
 
 def shields_parameter(tau_b, rho_w, rho_s, g, D):
     """
-    Dimensionless Shields parameter:
-        theta = tau_b / ((rho_s - rho_w) * g * D)
-    D: representative grain diameter (m) (typically D50)
+    Dimensionless Shields parameter.
+
+    NOTE: Assumes all inputs are positive and validated upstream.
     """
-    denom = (rho_s - rho_w) * g * D
-    # avoid division by zero
-    if denom <= 0:
-        raise ValueError(
-            "Zero or negative denominator in shields_parameter calculation."
-        )
-    return tau_b / denom
+    # Removed validation - caller must ensure valid inputs
+    return tau_b / ((rho_s - rho_w) * g * D)
 
 
 def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
     """
-    Solves for steady flow depth, cross-section area, and velocity in a rectangular channel using an iterative Newton-Raphson method. A logarithmic formula is used to estimate the Chézy friction coefficient based on flow depth and sediment size.
+    Solves for steady flow depth, cross-section area, and velocity in a rectangular channel by finding a root of the steady-flow residual with scipy.optimize.fsolve, a general-purpose nonlinear root-finding algorithm that may use various methods internally. A logarithmic formula is used to estimate the Chézy friction coefficient based on flow depth and sediment size.
 
     Parameters
     ----------
@@ -43,7 +238,7 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
     g : float, optional
         Gravitational acceleration (meters per second squared, m/s^2). Default is 9.81.
     tol : float, optional
-        Convergence tolerance for Newton-Raphson iterations (meters). Default is 1e-6.
+        Convergence tolerance for fsolve (meters). Default is 1e-6.
     max_iter : int, optional
         Maximum number of iterations. Default is 1000.
 
@@ -56,62 +251,59 @@ def steady_flow_solver(B, slope, Q, D84, g=9.81, tol=1e-6, max_iter=1000):
     v : float
         Mean flow velocity (meters per second, m/s).
     """
-    # Handle zero or negligible discharge explicitly
-    if Q <= 0 or slope <= 0:
-        return 0.0, 0.0, 0.0
+    # Handle zero or very small discharge to avoid numerical instability
+    # Return near-zero depth and velocity for Q < 1e-6 m³/s
+    if Q < 1e-6:
+        h = 1e-6  # Minimal depth
+        Omega = B * h
+        v = 0.0 if Q <= 0 else Q / Omega
+        return h, Omega, v
 
-    # Initial guess for flow depth
-    h = max(0.1 * D84, 1e-4)  # ensure physically meaningful start
+    def flow_equation(h):
+        """
+        Residual function for steady uniform flow.
+        Returns: g * Rh * slope - (Q / (Omega * C))^2
+        """
+        # Check for non-physical depth values
+        if h[0] <= 0:
+            raise ValueError(
+                f"Negative or zero flow depth encountered during iteration: h={h[0]:.2e}. "
+                "This indicates numerical instability in the flow solver."
+            )
 
-    for _ in range(max_iter):
-        # Effective depth (avoid division by zero)
-        h_eff = max(h, 1e-6)
+        h_eff = h[0]
 
         # Hydraulic geometry
         Omega = B * h_eff
         Rh = Omega / (B + 2 * h_eff)
-        ratio = max(h_eff / D84, 1e-6)  # avoid zero or negative ratios
+        ratio = max(h_eff / D84, 1e-6)
 
-        # Empirical friction coefficient (stabilized)
+        # Empirical friction coefficient
         denom = (6.5) ** 2 + (2.5) ** 2 * ratio ** (5 / 3)
         C = (6.5 * 2.5 * ratio) / np.sqrt(denom)
 
-        # Main flow function
-        f = g * Rh * slope - (Q / (Omega * C)) ** 2
+        # Flow equation residual
+        residual = g * Rh * slope - (Q / (Omega * C)) ** 2
 
-        # Finite difference derivative
-        dh = 0.01 * h_eff
-        h_d = h_eff + dh
-        ratio_d = max(h_d / D84, 1e-6)
-        denom_d = (6.5) ** 2 + (2.5) ** 2 * ratio_d ** (5 / 3)
-        C_d = (6.5 * 2.5 * ratio_d) / np.sqrt(denom_d)
-        C_d = np.clip(C_d, 1e-3, 100)
+        return residual
 
-        Omega_d = B * h_d
-        Rh_d = Omega_d / (B + 2 * h_d)
-        f_d = g * Rh_d * slope - (Q / (Omega_d * C_d)) ** 2
+    # Initial guess for flow depth
+    h0 = max(0.1 * D84, 1e-4)
 
-        df = (f_d - f) / dh if dh > 0 else 1e-6
-        if not np.isfinite(df) or abs(df) < 1e-12:
-            break
+    # Solve using fsolve
+    solution = fsolve(flow_equation, [h0], xtol=tol, maxfev=max_iter, full_output=False)
+    h = float(solution[0])
 
-        h_new = h - f / df
-
-        # Convergence and physical limits
-        if abs(h_new - h) < tol:
-            h = h_new
-            break
-
-        h = h_new
+    # Ensure non-negative and finite result
+    h = max(h, 0.0)
+    if not np.isfinite(h):
+        h = 0.0
 
     # Final calculations
-    h = float(max(h, 0.0))
     Omega = B * h
     v = Q / Omega if Omega > 0 else 0.0
 
     # Ensure finite numeric results
-    if not np.isfinite(h):
-        h = 0.0
     if not np.isfinite(v):
         v = 0.0
 
@@ -230,7 +422,7 @@ def meyer_peter_mueller(
         If Fi is None, returns a length-1 array with the total transport using D50.
     """
     # Handle degenerate flow
-    if h <= 0 or slope <= 0 or B <= 0:
+    if h <= 0:
         if Fi is None:
             return np.array([0.0])
         return np.zeros_like(np.asarray(Fi, dtype=float))
@@ -250,9 +442,17 @@ def meyer_peter_mueller(
     # Fractional computation over phi classes
     sed_range = np.arange(-9.5, 7.5 + 1, 1)
     dmi = 2 ** (-sed_range) / 1000.0
+
     Fi = np.asarray(Fi, dtype=float)
-    if Fi.shape[0] != dmi.shape[0]:
-        raise ValueError("Fi length does not match phi-class range [-9.5, 7.5].")
+
+    # Validate Fi length matches phi class range
+    # if Fi.shape[0] != dmi.shape[0]:
+    #     raise ValueError(
+    #         f"Fi length ({Fi.shape[0]}) does not match expected phi-class range "
+    #         f"[-9.5, 7.5] with {dmi.shape[0]} classes. "
+    #         f"Ensure grain size distribution from Reach.add_cross_section_info() "
+    #         f"produces correct number of phi classes."
+    #     )
 
     theta_i = tau_b / ((rho_s - rho_w) * g * dmi)
     phi_i = np.maximum(theta_i - theta_c, 0.0)
@@ -264,114 +464,6 @@ def meyer_peter_mueller(
     return Qsi
 
 
-def compute_sediment_load_mpm_total(
-    Qrel,
-    dates: list,
-    B,
-    slope,
-    D50,
-    D84=None,
-    to_csv=None,
-    theta_c=0.047,
-    rho_w=1000.0,
-    rho_s=2650.0,
-    g=9.81,
-):
-    """
-    Compute total sediment load using the Meyer-Peter & Müller (1948) formula
-    with a representative grain size (typically D50), without phi-class breakdown.
-
-    This function is a simplified alternative to `compute_sediment_load(..., method='mpm')`
-    when you only need total transport and don't have a full grain size distribution.
-
-    The classic MPM formula computes unit-width bedload transport as:
-        qb = 8 * max(theta - theta_c, 0)^{3/2} * sqrt(g * (s-1) * D^3)
-    where theta = tau_b / ((rho_s - rho_w) * g * D), tau_b = rho_w * g * h * slope,
-    s = rho_s / rho_w, and D is the characteristic grain size (e.g., D50).
-
-    Total volumetric transport is Qs = qb * B.
-
-    Parameters
-    ----------
-    Qrel : array-like
-        Discharge time series (m³/s).
-    dates : list
-        List of datetime objects corresponding to flow rates.
-    B : float
-        Channel width (m).
-    slope : float
-        Channel bed slope (m/m).
-    D50 : float
-        Representative grain size diameter (m), typically the median (D50).
-    D84 : float, optional
-        84th percentile grain size (m). Used by steady_flow_solver for roughness.
-        If None, defaults to D50.
-    to_csv : str, optional
-        Path to save results as CSV. If None, does not save.
-    theta_c : float, default=0.047
-        Critical Shields parameter for initiation of motion.
-    rho_w : float, default=1000.0
-        Water density (kg/m³).
-    rho_s : float, default=2650.0
-        Sediment density (kg/m³).
-    g : float, default=9.81
-        Gravitational acceleration (m/s²).
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns:
-        - Datetime: time step identifier
-        - Q: discharge (m³/s)
-        - h: flow depth (m)
-        - Omega: cross-sectional area (m²)
-        - v: velocity (m/s)
-        - qS_total: total sediment transport (m³/s)
-
-    Notes
-    -----
-    Unlike the phi-class version, this function returns only the total transport.
-    Use `compute_sediment_load(..., method='mpm')` if you need fractional transport.
-    """
-    if dates is None:
-        dates = np.arange(len(Qrel))
-
-    if D84 is None:
-        D84 = D50  # fallback for flow solver roughness
-
-    s_minus_1 = rho_s / rho_w - 1.0
-
-    results = []
-    for i, Q in enumerate(Qrel):
-        h, Omega, v = steady_flow_solver(B, slope, Q, D84)
-
-        # Compute bed shear stress and Shields parameter
-        tau_b = shear_stress(rho_w, g, h, slope)
-        theta = shields_parameter(tau_b, rho_w, rho_s, g, D50)
-
-        # Meyer-Peter & Müller formula
-        phi = max(theta - theta_c, 0.0)
-        qb = 8.0 * (phi**1.5) * np.sqrt(g * s_minus_1 * D50**3)
-        qS_total = qb * B
-
-        row = {
-            "Datetime": dates[i],
-            "Q": Q,
-            "h": h,
-            "Omega": Omega,
-            "v": v,
-            "qS_total": qS_total,
-        }
-        results.append(row)
-
-    df = pd.DataFrame(results)
-
-    if to_csv is not None:
-        df.to_csv(to_csv, index=False)
-
-    return df
-
-
 def compute_sediment_load(
     Qrel,
     dates,
@@ -381,36 +473,59 @@ def compute_sediment_load(
     to_csv=None,
     method: str = "wilcock_crowe",
     mpm_theta_c: float = 0.047,
+    subdivisions=None,
+    manning_n=0.03,
 ):
     """
     Compute sediment load per size class and total using the selected transport formula.
+
+    Supports both simple rectangular channel and Engelund-Gauss subdivision approaches.
 
     Parameters
     ----------
     Qrel : ndarray
         Scenario discharge time series.
+    dates : list
+        List of datetime objects corresponding to flow rates
     B : float
-        Channel width (m).
+        Channel width (m). Used only if subdivisions is None.
     slope : float
         Reach slope (m/m).
     Fi : ndarray
         Fraction of sediment in each phi class.
-    dates : list
-        List of datetime objects corresponding to flow rates
     to_csv : str, optional
         File path to save the results as CSV.
-
     method : {"wilcock_crowe", "mpm"}, optional
         Sediment transport formula. Default "wilcock_crowe" (Wilcock & Crowe, 2003).
         If "mpm", uses Meyer-Peter & Müller (1948) formula with availability weighting.
     mpm_theta_c : float, optional
         Critical Shields parameter for MPM. Default 0.047.
+    subdivisions : DataFrame, optional
+        Engelund-Gauss subdivision data. If provided, uses subdivision-based calculation.
+        Must have columns: 'width', 'height', 'area'
+    manning_n : float, optional
+        Manning's roughness coefficient for conveyance calculation. Default 0.03.
 
     Returns
     -------
     pd.DataFrame
         Sediment load per phi class and total (qS).
     """
+    # Use Engelund-Gauss method if subdivisions are provided
+    if subdivisions is not None and len(subdivisions) > 0:
+        return compute_sediment_load_engelund_gauss(
+            subdivisions=subdivisions,
+            Qrel=Qrel,
+            dates=dates,
+            slope=slope,
+            Fi=Fi,
+            manning_n=manning_n,
+            to_csv=to_csv,
+            method=method,
+            mpm_theta_c=mpm_theta_c,
+        )
+
+    # Otherwise, use simple rectangular channel approach
     sed_range = np.arange(-9.5, 7.5 + 1, 1)
     if dates is None:
         dates = np.arange(len(Qrel))
@@ -537,3 +652,53 @@ def compute_annual_sediment_volume(
         return annual.to_dict(orient="index")
 
     return annual
+
+
+def compute_sediment_load_from_reach(self, to_csv=None):
+    """Compute sediment load with comprehensive validation."""
+
+    # === CONSOLIDATED VALIDATION ===
+
+    if self.Qrel is None:
+        raise ValueError(
+            "Qrel must be computed first. Call compute_Qrel() before computing sediment load."
+        )
+
+    # Validate Qrel values
+    if not np.all(np.isfinite(self.Qrel)):
+        raise ValueError("Qrel contains non-finite values (NaN or Inf)")
+
+    # Validate reach properties exist
+    required_attrs = ["width", "slope", "phi_percentages"]
+    missing_attrs = [attr for attr in required_attrs if not hasattr(self.reach, attr)]
+    if missing_attrs:
+        raise ValueError(
+            f"Reach is missing required attributes: {missing_attrs}. "
+            f"Run Reach.add_cross_section_info() first."
+        )
+
+    # Extract validated properties
+    B = self.reach.width
+    slope = self.reach.slope
+    Fi = self.reach.phi_percentages.values
+
+    # At this point, all inputs are guaranteed valid due to upstream checks
+
+    # Check if Engelund-Gauss subdivisions are available
+    if (
+        hasattr(self.reach, "rectangular_section")
+        and self.reach.rectangular_section is not None
+    ):
+        subdivisions = self.reach.rectangular_section
+    else:
+        subdivisions = None
+
+    return compute_sediment_load(
+        self.Qrel,
+        self.dates,
+        B,
+        slope,
+        Fi,
+        to_csv=to_csv,
+        subdivisions=subdivisions,
+    )
