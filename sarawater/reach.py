@@ -166,7 +166,7 @@ class Reach:
     def add_cross_section_info(self, section, slope, grain_data):
         """Add cross-section information to the reach, including geometry, slope,
         and optionally grain size distribution.
-    
+
         Parameters
         ----------
         section : str or DataFrame
@@ -197,7 +197,7 @@ class Reach:
         required_cols = ["x [m]", "y [m]"]
         if not all(col in section_data.columns for col in required_cols):
             raise ValueError(f"Section data must contain columns {required_cols}")
-        
+
             # Validate numeric values in section
         if not np.all(np.isfinite(section_data["x [m]"])):
             raise ValueError("Section x coordinates must be finite numbers")
@@ -264,22 +264,22 @@ class Reach:
                 d50 = float(grain_data)
                 if d50 <= 0:
                     raise ValueError("D50 must be positive")
-                
+
                 # Convert D50 to phi scale
                 phi_d50 = -np.log2(d50)
-                
+
                 # Find the closest phi class center
                 # phi_class_centers = [-9.5, -8.5, -7.5, ..., 6.5, 7.5]
                 closest_phi_idx = np.argmin(np.abs(phi_class_centers - phi_d50))
                 closest_phi = phi_class_centers[closest_phi_idx]
-                
+
                 # Create phi_percentages with 100% in the closest class, 0% elsewhere
                 phi_percentages = pd.Series(0.0, index=phi_class_centers)
                 phi_percentages.loc[closest_phi] = 1.0
-                
+
                 # Skip the detailed dfphi creation for D50 input
                 dfphi = None
-                
+
             elif isinstance(grain_data, pd.DataFrame):
                 dfphi = grain_data.copy()
             elif isinstance(grain_data, (list, tuple, np.ndarray)):
@@ -356,7 +356,7 @@ class Reach:
                     f"but expected {expected_phi_length} classes for range [-9.5, 7.5]. "
                     f"This is an internal error - please report this issue."
                 )
-            
+
             # **VALIDATION: Verify sum**
             total_fraction = phi_percentages.sum()
             if not np.isclose(total_fraction, 1.0, atol=0.01):
