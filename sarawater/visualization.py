@@ -202,7 +202,9 @@ class ReachPlotter:
                     label="Natural",
                 )
 
-                # Calculate and plot percentiles for natural flow
+                # Calculate and plot percentiles for natural flow.
+                # The 25th and 75th percentiles define a band that represents the
+                # natural inter-annual variability of this indicator, which is used in the computation of the IARI index and serves as reference range when visually comparing scenario results.
                 p25 = np.percentile(natural_values, 25)
                 p75 = np.percentile(natural_values, 75)
 
