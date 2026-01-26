@@ -384,6 +384,12 @@ class Scenario:
         if self.Qrel is None:
             raise ValueError("Qrel must be computed first.")
 
+            # Check for grain size data specifically
+        if not hasattr(self.reach, 'phi_percentages') or self.reach.phi_percentages is None:
+            raise ValueError(
+                "Grain size distribution is required for sediment load computation. "
+                "Call Reach.add_cross_section_info() with grain_data parameter."
+            )
         try:
             B = self.reach.width
             slope = self.reach.slope
