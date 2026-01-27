@@ -258,11 +258,11 @@ class Reach:
         # Define standard phi classes: -9.5 to 7.5 with step 1 (18 classes total)
         phi_class_centers = np.arange(-9.5, 7.5 + 1, 1)
         expected_phi_length = len(phi_class_centers)  # Should be 18
-        
+
         # Initialize variables that will be set in all branches
         dfphi = None
         phi_percentages = None
-        
+
         if grain_data is not None:
             if isinstance(grain_data, (float, int)):
                 # Single D50 value provided - assign 100% to the corresponding phi class
@@ -308,7 +308,9 @@ class Reach:
 
                 # Ensure numeric columns and sensible ordering
                 if "i(di)" not in dfphi.columns or "di[mm]" not in dfphi.columns:
-                    raise ValueError("grain_data must provide columns 'i(di)' and 'di[mm]'")
+                    raise ValueError(
+                        "grain_data must provide columns 'i(di)' and 'di[mm]'"
+                    )
 
                 dfphi["i(di)"] = pd.to_numeric(dfphi["i(di)"], errors="coerce")
                 dfphi["di[mm]"] = pd.to_numeric(dfphi["di[mm]"], errors="coerce")
@@ -342,14 +344,18 @@ class Reach:
                     dfphi["Phi Scale"],
                     bins=phi_bin_edges,
                     labels=phi_class_centers,
-                    include_lowest=True
+                    include_lowest=True,
                 )
 
                 # Group by phi class and sum the percentages
-                phi_percentages = dfphi.groupby("Phi Class", observed=False)["Percent"].sum()
+                phi_percentages = dfphi.groupby("Phi Class", observed=False)[
+                    "Percent"
+                ].sum()
 
                 # Ensure ALL phi classes are present (fill missing with zeros)
-                phi_percentages = phi_percentages.reindex(phi_class_centers, fill_value=0.0)
+                phi_percentages = phi_percentages.reindex(
+                    phi_class_centers, fill_value=0.0
+                )
 
                 # Normalize to ensure sum = 100%
                 total = phi_percentages.sum()
