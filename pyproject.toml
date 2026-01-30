@@ -9,7 +9,7 @@ dependencies = ["numpy", "matplotlib", "pandas", "openpyxl", "scipy"]
 
 [project.optional-dependencies]
 dev = ["pytest", "black"]
-docs = ["ipykernel", "sphinx", "furo", "nbsphinx", "pandoc"]
+docs = ["ipykernel", "sphinx", "furo", "nbsphinx"]
 
 [tool.setuptools]
 packages = ["sarawater"]
