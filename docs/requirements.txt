@@ -1,1 +1,3 @@
-furo==2023.8.19
+sphinx
+nbsphinx
+furo
