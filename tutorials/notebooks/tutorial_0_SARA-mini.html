@@ -1,0 +1,794 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="Tutorial 1 - Indicators of Hydrologic Alteration (IHA)" href="tutorial_1_IHA.html"><link rel="prev" title="Tutorials" href="../index.html">
+
+    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
+        <title>Tutorial 0 - SARA-mini - SARAwater documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css?v=2aa19091" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">SARAwater  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">SARAwater  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../background.html">Background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">User Guide</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Tutorials</a><input aria-label="Toggle navigation of Tutorials" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Tutorial 0 - SARA-mini</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_1_IHA.html">Tutorial 1 - Indicators of Hydrologic Alteration (IHA)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_2_habitat.html">Tutorial 2 - Fish Habitat Assessment using the MesoHABSIM Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorial_3_sedtrans.html">Tutorial 3: Sediment Transport</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/tutorials/notebooks/tutorial_0_SARA-mini.ipynb.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="Tutorial-0---SARA-mini">
+<h1>Tutorial 0 - SARA-mini<a class="headerlink" href="#Tutorial-0---SARA-mini" title="Link to this heading">¶</a></h1>
+<p>This tutorial introduces the basic classes and methods of the SARAwater package.</p>
+<p>The figure below illustrates the workflow of the sarawater package, highlighting its components. In this tutorial, we will focus on the incoming flow time series (<span class="math notranslate nohighlight">\(Q_{nat}\)</span>), the flow requirement (<span class="math notranslate nohighlight">\(Q_{req}\)</span>), and the released flow time series (<span class="math notranslate nohighlight">\(Q_{rel}\)</span>). These three quantities contribute to the mass balance at the diversion, which reads</p>
+<p><span class="math">\begin{equation*}
+Q_{nat} = Q_{abs} + Q_{rel}
+\tag{1}
+\end{equation*}</span></p>
+<p><img alt="a51246ad92f24c07975a2191bf21485b" class="no-scaled-link" src="../../_images/SARA_overview.png" width="800" /></p>
+<section id="Importing-external-libraries">
+<h2>Importing external libraries<a class="headerlink" href="#Importing-external-libraries" title="Link to this heading">¶</a></h2>
+<p>Let’s start by importing the necessary external libraries.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from numpy import ndarray
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Defining-SARA-classes">
+<h2>Defining SARA classes<a class="headerlink" href="#Defining-SARA-classes" title="Link to this heading">¶</a></h2>
+<p>The classes defined below are a shrinked version of those implemented in the package. However, they are sufficient to get the basics off how SARA works!</p>
+<section id="The-Scenario-class-and-its-child-classes">
+<h3>The <code class="docutils literal notranslate"><span class="pre">Scenario</span></code> class and its child classes<a class="headerlink" href="#The-Scenario-class-and-its-child-classes" title="Link to this heading">¶</a></h3>
+<p>The parent class <code class="docutils literal notranslate"><span class="pre">Scenario</span></code> and its child classes <code class="docutils literal notranslate"><span class="pre">ConstScenario</span></code> and <code class="docutils literal notranslate"><span class="pre">PropScenario</span></code> are used to define different water management scenarios for a river reach. Each scenario specifies how much water is required to be released from the reach (i.e., the “flow requirement”) based on different criteria.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>class Scenario:
+    def __init__(self, name: str, description: str, reach, Qabs_max=None):
+        &quot;&quot;&quot;Parent class for all types of scenarios. Contains the name and description of the scenario.
+
+        Parameters
+        ----------
+        name : str
+            Name of the scenario.
+        description : str
+            Description of the scenario.
+        reach : Reach
+            The reach object associated with this scenario.
+        Qabs_max : float, optional
+            Maximum value for the water abstraction, by default None (which takes the value from the reach object).
+        &quot;&quot;&quot;
+        self.name = name
+        self.description = description
+        self.reach = reach
+        self.Qreq = None  # Flow requirement time series
+        self.Qrel = None  # Released flow rate time series
+        if Qabs_max is None:  # Maximum abstraction
+            self.Qabs_max = reach.Qabs_max
+        else:
+            self.Qabs_max = Qabs_max
+
+    @property
+    def Qnat(self) -&gt; ndarray:
+        &quot;&quot;&quot;Get the natural flow rate time series from the associated Reach.&quot;&quot;&quot;
+        return self.reach.Qnat
+
+    @property
+    def dates(self) -&gt; list:
+        &quot;&quot;&quot;Get the dates from the associated Reach.&quot;&quot;&quot;
+        return self.reach.dates
+
+    def compute_Qrel(self) -&gt; ndarray:
+        &quot;&quot;&quot;Compute the released flow rate time series for the scenario.
+
+        Returns
+        -------
+        ndarray
+            Released flow rate time series.
+        &quot;&quot;&quot;
+        if self.Qreq is None:
+            raise ValueError(&quot;Qreq must be set before computing Qrel.&quot;)
+
+        Qrel = np.zeros_like(self.Qnat)
+        case1 = self.Qnat &lt;= self.Qreq
+        case2 = (self.Qnat &gt; self.Qreq) &amp; (self.Qnat &lt; self.Qabs_max + self.Qreq)
+        case3 = self.Qnat &gt;= self.Qabs_max + self.Qreq
+        Qrel[case1] = self.Qnat[case1]
+        Qrel[case2] = self.Qreq[case2]
+        Qrel[case3] = self.Qnat[case3] - self.Qabs_max
+        self.Qrel = Qrel
+        return Qrel
+</pre></div>
+</div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">ConstScenario</span></code>: the child class for scenarios with fixed monthly flow requirements</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>class ConstScenario(Scenario):
+    def __init__(
+        self, name: str, description: str, reach, Qreq_months: list[float], **kwargs
+    ):
+        &quot;&quot;&quot;Constant flow rate scenario.
+
+        Parameters
+        ----------
+        name : str
+            Name of the scenario.
+        description : str
+            Description of the scenario.
+        reach : Reach
+            The reach object associated with this scenario.
+        Qreq_months : list[float]
+            Monthly constant flow rates.
+        &quot;&quot;&quot;
+        super().__init__(name, description, reach, **kwargs)
+
+        if len(Qreq_months) != 12:
+            raise ValueError(&quot;Qreq_months must have 12 elements.&quot;)
+        self.Qreq_months = Qreq_months
+
+        # Map the monthly flow rates to the dates of the reach
+        self.Qreq = np.zeros_like(self.Qnat)
+        for i, month in enumerate(self.Qreq_months):
+            month_mask = np.array([date.month == i + 1 for date in self.dates])
+            self.Qreq[month_mask] = month
+</pre></div>
+</div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">PropScenario</span></code>: the child class for scenarios with flow requirements proportional to the incoming flow. In scenarios with a proportional flow requirement, <span class="math notranslate nohighlight">\(Q_{req}\)</span> is computed as a fraction of the incoming flow discharge, <span class="math notranslate nohighlight">\(Q_{in}\)</span>, according to the formula:</p>
+<p><span class="math">\begin{equation*}
+Q_{req} = Q_{base} + c_{in} \cdot Q_{in} \tag{2},
+\end{equation*}</span></p>
+<p>where <span class="math notranslate nohighlight">\(Q_{base}\)</span> is a base flow requirement (e.g., to maintain minimum ecological conditions), and <span class="math notranslate nohighlight">\(c_{in}\)</span> is a coefficient that defines the proportion of the incoming flow to be included in the flow requirement.</p>
+<p>This formula is then adjusted to ensure that <span class="math notranslate nohighlight">\(Q_{req}\)</span> remains within user-specified minimum and maximum bounds, <span class="math notranslate nohighlight">\(Q_{req,min}\)</span> and <span class="math notranslate nohighlight">\(Q_{req,max}\)</span>, respectively. This step is needed because low flow requirements may cause severe alteration in the downstream reach, while high flow requirements may lead to a very low water abstraction, which might not be sufficient. The complete definition of <span class="math notranslate nohighlight">\(Q_{req}\)</span> in proportional scenarios is given by the piecewise function:</p>
+<p><span class="math">\begin{equation*}
+Q_{req}=
+\left\{
+\begin{array}{lll}
+Q_{req,min} & \text{if} & Q_{base} + c_{in} \cdot Q_{in} \leq Q_{req,min}\\[1ex]
+Q_{base} + c_{in} \cdot Q_{in} & \text{if} & Q_{req,min} < Q_{base} + c_{in} \cdot Q_{in} < Q_{req,max}\\[1ex]
+Q_{req,max} & \text{if} & Q_{base} + c_{in} \cdot Q_{in} > Q_{req,max}\\
+\end{array}
+\right.
+\tag{3}
+\end{equation*}</span></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>class PropScenario(Scenario):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        reach,
+        Qbase: float,
+        c_in: float,
+        Qreq_min: float,
+        Qreq_max: float,
+        **kwargs,
+    ):
+        &quot;&quot;&quot;Proportional flow rate scenario.
+
+        Parameters
+        ----------
+        name : str
+            Name of the scenario.
+        description : str
+            Description of the scenario.
+        reach : Reach
+            The reach object associated with this scenario.
+        Qbase : float
+            Base flow rate.
+        c_in : float
+            Coefficient for inflow.
+        Qreq_min : float
+            Minimum value for the prescribed minimum released flow rate.
+        Qreq_max : float
+            Maximum value for the prescribed minimum released flow rate.
+        &quot;&quot;&quot;
+        super().__init__(name, description, reach, **kwargs)
+        self.Qbase = Qbase
+        self.c_in = c_in
+        self.Qreq_min = Qreq_min
+        self.Qreq_max = Qreq_max
+        self.Qreq = Qbase + c_in * self.Qnat
+        self.Qreq[self.Qreq &lt; Qreq_min] = Qreq_min
+        self.Qreq[self.Qreq &gt; Qreq_max] = Qreq_max
+</pre></div>
+</div>
+</div>
+</section>
+<section id="The-Reach-class">
+<h3>The <code class="docutils literal notranslate"><span class="pre">Reach</span></code> class<a class="headerlink" href="#The-Reach-class" title="Link to this heading">¶</a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>class Reach:
+    def __init__(self, name: str, dates: list, Qnat: ndarray, Qabs_max: float):
+        &quot;&quot;&quot;Represents a river reach.
+
+        Parameters
+        ----------
+        name : str
+            Name of the reach.
+        dates : list[datetime]
+            List of dates for the time series.
+        Qnat : ndarray
+            Natural flow rate time series.
+        Qabs_max : float
+            Maximum value for the water abstraction.
+        &quot;&quot;&quot;
+        self.name = name
+        self.dates = dates
+        self.Qnat = Qnat
+        self.Qabs_max = Qabs_max
+        self.scenarios: list[Scenario] = []
+
+    def __str__(
+        self,
+    ):  # This method defines what is returned when we print() a Reach object
+        return f&quot;{self.name} is a Reach object with a flow time series with {len(self.Qnat)} elements. The date range starts from {min(self.dates)} and has {len(self.dates)} elements. The maximum flow abstraction is Qabs_max={self.Qabs_max} m3/s. So far, {len(self.scenarios)} scenarios have been added.&quot;
+
+    def add_scenario(self, scenario: Scenario):
+        &quot;&quot;&quot;Add a scenario to the reach.
+
+        Parameters
+        ----------
+        scenario : Scenario
+            The scenario to add.
+
+        Returns
+        -------
+        Reach
+            The current reach instance.
+        &quot;&quot;&quot;
+        self.scenarios.append(scenario)
+        return self
+
+    def print_scenarios(self):
+        &quot;&quot;&quot;Print the list of scenarios added to the reach.&quot;&quot;&quot;
+        for i, scenario in enumerate(self.scenarios):
+            print(f&quot;scenarios[{i}]: {scenario.name} | {scenario.description}&quot;)
+        return None
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="Let's-create-a-Reach!">
+<h2>Let’s create a Reach!<a class="headerlink" href="#Let's-create-a-Reach!" title="Link to this heading">¶</a></h2>
+<p>First, let’s specify the path to the input CSV file containing the flow discharge time series for the reach.</p>
+<p><strong>NOTE</strong>: the CSV file should have at least two columns: “Date” and “Q”, where “Date” contains the timestamps and “Q” contains the flow discharge values in cubic meters per second (m³/s).</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>csv_filepath = &quot;daily_discharge_30y.csv&quot;  # The csv file must be in the same folder as this notebook
+</pre></div>
+</div>
+</div>
+<p>Then, let’s extract the timestamps and discharge data from the CSV file. To create a <code class="docutils literal notranslate"><span class="pre">Reach</span></code> object, we need to convert the “Date” column to a list of datetime objects and the “Q” (flow discharge) column into a numpy array.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span># Read CSV with automatic date parsing
+input_df = pd.read_csv(csv_filepath, parse_dates=[&quot;Date&quot;])
+
+# Convert the &quot;Date&quot; column to a list of datetime objects
+datetime_list = input_df[&quot;Date&quot;].dt.to_pydatetime().tolist()
+
+# Convert the &quot;Q&quot; (flow discharge) column into a numpy array
+discharge_data = np.array(input_df[&quot;Q&quot;].to_list())
+</pre></div>
+</div>
+</div>
+<section id="Initialize-a-reach-object">
+<h3>Initialize a reach object<a class="headerlink" href="#Initialize-a-reach-object" title="Link to this heading">¶</a></h3>
+<p>The only ingredient left to create a <code class="docutils literal notranslate"><span class="pre">Reach</span></code> is the maximum flow discharge that can be abstracted from the reach.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>Qabs_max = 3
+</pre></div>
+</div>
+</div>
+<p>Finally, let’s create our <code class="docutils literal notranslate"><span class="pre">Reach</span></code> object!</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>my_reach = Reach(&quot;My Reach&quot;, datetime_list, discharge_data, Qabs_max)
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="Adding-scenarios-to-the-reach-object">
+<h2>Adding scenarios to the reach object<a class="headerlink" href="#Adding-scenarios-to-the-reach-object" title="Link to this heading">¶</a></h2>
+<section id="Minimum-Flow-Requirement-(MFR)-scenario-with-fixed-monthly-requirements">
+<h3>Minimum Flow Requirement (MFR) scenario with fixed monthly requirements<a class="headerlink" href="#Minimum-Flow-Requirement-(MFR)-scenario-with-fixed-monthly-requirements" title="Link to this heading">¶</a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>Qreq_months = np.array(
+    [0.1, 0.1, 0.1, 0.12, 0.12, 0.12, 0.12, 0.1, 0.1, 0.12, 0.12, 0.1]
+)  # values are in m3/s, representing minimum release for each month
+
+# Create a constant scenario with these values
+const_scenario = ConstScenario(
+    name=&quot;Constant Scenario&quot;,
+    description=&quot;Minimum release scenario with constant monthly values&quot;,
+    reach=my_reach,
+    Qreq_months=Qreq_months,
+)
+
+# Add the scenario to the reach
+my_reach.add_scenario(const_scenario)
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Proportional-release-scenario">
+<h3>Proportional release scenario<a class="headerlink" href="#Proportional-release-scenario" title="Link to this heading">¶</a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>prop_scenario = PropScenario(
+    name=&quot;Proportional Scenario&quot;,
+    description=&quot;Proportional scenario with arbitrary parameters&quot;,
+    reach=my_reach,
+    Qbase=0.06,
+    c_in=0.3,
+    Qreq_min=np.min(Qreq_months),
+    Qreq_max=1.3 * np.max(Qreq_months),
+)
+my_reach.add_scenario(prop_scenario)
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Let's-check-we-added-the-scenarios-correctly">
+<h3>Let’s check we added the scenarios correctly<a class="headerlink" href="#Let's-check-we-added-the-scenarios-correctly" title="Link to this heading">¶</a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>my_reach.print_scenarios()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+scenarios[0]: Constant Scenario | Minimum release scenario with constant monthly values
+scenarios[1]: Proportional Scenario | Proportional scenario with arbitrary parameters
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="Compute-the-released-flow-discharge-for-each-scenario">
+<h2>Compute the released flow discharge for each scenario<a class="headerlink" href="#Compute-the-released-flow-discharge-for-each-scenario" title="Link to this heading">¶</a></h2>
+<p>Given the incoming flow discharge <span class="math notranslate nohighlight">\(Q_{nat}\)</span>, the flow requirement <span class="math notranslate nohighlight">\(Q_{req}\)</span> and the maximum abstractable flow <span class="math notranslate nohighlight">\(Q_{max}\)</span>, the released flow discharge <span class="math notranslate nohighlight">\(Q_{rel}\)</span> is computed as:</p>
+<p><span class="math">\begin{equation*}
+Q_{rel}=
+\left\{
+\begin{array}{lll}
+Q_{nat} & \text { if } & Q_{nat} \leq Q_{req} & (4.1)\\[1ex]
+Q_{req} & \text { if } & Q_{req} < Q_{nat} < Q_{req}+Q_{abs,max}& (4.2)\\[1ex]
+Q_{nat}-Q_{abs,max} & \text { if } & Q_{nat} \geq Q_{req}+ Q_{abs,max} & (4.3)\\[1ex]
+\end{array}
+\right.
+\end{equation*}</span></p>
+<p>Where the three cases correspond to the following:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\((4.1)\)</span> The incoming flow <span class="math notranslate nohighlight">\(Q_{nat}\)</span> is lower than the flow requirement <span class="math notranslate nohighlight">\(Q_{req}\)</span>; therefore, no water is abstracted and the released flow discharge <span class="math notranslate nohighlight">\(Q_{rel}\)</span> equals the incoming flow. This usually happens in low-flow periods.</p></li>
+<li><p><span class="math notranslate nohighlight">\((4.2)\)</span> There is enough incoming flow to satisfy the flow requirement, and the abstracted flow discharge <span class="math notranslate nohighlight">\(Q_{abs}\)</span> is lower than the maximum abstractable flow <span class="math notranslate nohighlight">\(Q_{abs,max}\)</span>. Recall that, according to Equation <span class="math notranslate nohighlight">\((1)\)</span>, <span class="math notranslate nohighlight">\(Q_{abs} = Q_{nat}-Q_{rel}\)</span> (where, in this case, <span class="math notranslate nohighlight">\(Q_{rel}=Q_{req}\)</span>). This is the most “common” case, where the flow requirement rule is applied straightforwardly.</p></li>
+<li><p><span class="math notranslate nohighlight">\((4.3)\)</span> The incoming flow <span class="math notranslate nohighlight">\(Q_{nat}\)</span> is so large that the maximum abstractable flow can be diverted while still releasing a flow rate larger than the flow requirement. This usually happens during flood events.</p></li>
+</ul>
+<p>The piecewise function <span class="math notranslate nohighlight">\((4.1-4.3)\)</span> is implemented in the <code class="docutils literal notranslate"><span class="pre">compute_Qrel</span></code> method of the class <code class="docutils literal notranslate"><span class="pre">Scenario</span></code>; therefore, to compute the released flow time series for each scenario we can simply write</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>for scenario in my_reach.scenarios:
+    scenario.compute_Qrel()
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Plot-the-released-flow-discharge-time-series-for-each-scenario">
+<h2>Plot the released flow discharge time series for each scenario<a class="headerlink" href="#Plot-the-released-flow-discharge-time-series-for-each-scenario" title="Link to this heading">¶</a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>plt.plot(my_reach.dates, my_reach.Qnat, label=&quot;Natural Flow&quot;)
+for scenario in my_reach.scenarios:
+    plt.plot(scenario.dates, scenario.Qrel, label=scenario.name)
+plt.xticks(rotation=45)
+plt.legend()
+plt.ylim(0, 0.5)
+plt.tight_layout()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/tutorials_notebooks_tutorial_0_SARA-mini_33_0.png" src="../../_images/tutorials_notebooks_tutorial_0_SARA-mini_33_0.png" />
+</div>
+</div>
+<p>What a messy plot! Lets focus on one year only. First, let’s create a Boolean array (a <code class="docutils literal notranslate"><span class="pre">mask</span></code>) to filter the dates within the year 2018.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>start_date = pd.to_datetime(&quot;2018-01-01&quot;)
+end_date = pd.to_datetime(&quot;2018-12-31&quot;)
+mask = [(dt &gt;= start_date) and (dt &lt;= end_date) for dt in my_reach.dates]
+</pre></div>
+</div>
+</div>
+<p>Then, let’s plot the released flow discharge for each scenario in the time interval we specified</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>plt.plot(np.array(my_reach.dates)[mask], my_reach.Qnat[mask], label=&quot;Natural Flow&quot;)
+for scenario in my_reach.scenarios:
+    plt.plot(np.array(scenario.dates)[mask], scenario.Qrel[mask], label=scenario.name)
+plt.xticks(rotation=45)
+plt.legend()
+plt.yscale(&quot;log&quot;)
+plt.grid()
+plt.tight_layout()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/tutorials_notebooks_tutorial_0_SARA-mini_37_0.png" src="../../_images/tutorials_notebooks_tutorial_0_SARA-mini_37_0.png" />
+</div>
+</div>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="tutorial_1_IHA.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Tutorial 1 - Indicators of Hydrologic Alteration (IHA)</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Tutorials</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, Gabriele Barile, Matteo Dal Santo, Marta Crivellaro
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Tutorial 0 - SARA-mini</a><ul>
+<li><a class="reference internal" href="#Importing-external-libraries">Importing external libraries</a></li>
+<li><a class="reference internal" href="#Defining-SARA-classes">Defining SARA classes</a><ul>
+<li><a class="reference internal" href="#The-Scenario-class-and-its-child-classes">The <code class="docutils literal notranslate"><span class="pre">Scenario</span></code> class and its child classes</a></li>
+<li><a class="reference internal" href="#The-Reach-class">The <code class="docutils literal notranslate"><span class="pre">Reach</span></code> class</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#Let's-create-a-Reach!">Let’s create a Reach!</a><ul>
+<li><a class="reference internal" href="#Initialize-a-reach-object">Initialize a reach object</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#Adding-scenarios-to-the-reach-object">Adding scenarios to the reach object</a><ul>
+<li><a class="reference internal" href="#Minimum-Flow-Requirement-(MFR)-scenario-with-fixed-monthly-requirements">Minimum Flow Requirement (MFR) scenario with fixed monthly requirements</a></li>
+<li><a class="reference internal" href="#Proportional-release-scenario">Proportional release scenario</a></li>
+<li><a class="reference internal" href="#Let's-check-we-added-the-scenarios-correctly">Let’s check we added the scenarios correctly</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#Compute-the-released-flow-discharge-for-each-scenario">Compute the released flow discharge for each scenario</a></li>
+<li><a class="reference internal" href="#Plot-the-released-flow-discharge-time-series-for-each-scenario">Plot the released flow discharge time series for each scenario</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    </body>
+</html>
