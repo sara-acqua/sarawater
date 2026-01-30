@@ -11,4 +11,4 @@ This section contains a series of tutorials that will guide you through various 
    notebooks/tutorial_0_SARA-mini
    notebooks/tutorial_1_IHA
    notebooks/tutorial_2_habitat
-   tutorial_3_sedtrans.rst
+   tutorial_3_sedtrans

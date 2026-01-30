@@ -21,7 +21,7 @@ The IHA evaluates 33 ecologically relevant parameters derived from daily dischar
 
 5. Rate and Frequency of Water Condition Changes: Measures how quickly flow rises or falls and the number of flow reversals.
 
-Usually, IHA has been used to assess pre and post impact conditions, here it is used to assess upstream and downstream of a withdrawal point, hypothezing that upstream is the reference -natural- condition. This assumption could be not exact in some cases, for example when there are multiple withdrawals or discharges along the river reach. In that case, the user should carefully choose the reference natural condition.
+Usually, IHA has been used to assess pre and post impact conditions, here it is used to assess upstream and downstream of a withdrawal point, hypothesizing that upstream is the reference -natural- condition. This assumption could be not exact in some cases, for example when there are multiple withdrawals or discharges along the river reach. In that case, the user should carefully choose the reference natural condition.
 
 In this work we try to assess the ecological impacts of flow alterations in rivers, through a parameter that comes from the IHA analysis and unifies all the 33 parameters. This parameter is called here IHA index, and it can be computed following two approaches.
 
