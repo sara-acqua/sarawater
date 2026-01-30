@@ -48,6 +48,9 @@ To install the package for development and documentation building, clone the rep
 ```cmd
 pip install -e .[dev,docs]
 ```
+
+Pandoc is required to build the documentation. Install from https://pandoc.org/installing.html.
+
 During development, tests can be run locally with:
 ```cmd
 pytest
