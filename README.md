@@ -3,7 +3,7 @@
 [![DOI](https://zenodo.org/badge/1130288528.svg)](https://doi.org/10.5281/zenodo.18183767)
 
 <div class="nav3" style="height:705px;">
-    <img src="tutorial/images/SARA_overview.png" alt="Overview of the SARAwater package" width="100%"></a>
+    <img src="tutorial\tutorial_0_SARA-mini\images\SARA_overview.png" alt="Overview of the SARAwater package" width="100%"></a>
 </div>
 
 Analysis of different types of alterations in river reaches subject to flow abstractions according to different water withdrawal and release scenarios.
