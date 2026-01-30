@@ -2,7 +2,7 @@
 
 Quickstart
 ==========
-This quickstart guide will help you get started with `SARAwater` by walking you through a simple example of how to use the package. This guide will show you how to retrieve these two variables and use them to create a :code:`Reach` object. Then, we will consider one "scenario", that is, a minimum flow requirement, to our reach and evaluate its alteration. A more complete example is provided in the :ref:`Tutorial 1<tutorial_1_IHA>`.
+This quickstart guide will help you get started with `SARAwater` by walking you through a simple example of how to use the package. This guide will show you how to retrieve these two variables and use them to create a :code:`Reach` object. Then, we will consider one "scenario", that is, a minimum flow requirement, to our reach and evaluate its alteration. A more complete example is provided in the `Tutorial 1 <tutorials/notebooks/tutorial_1_IHA.ipynb>`_.
 
 The first step in using `SARA` will (almost always) be to import the package and create a :code:`Reach` object. To initialize a :code:`Reach`, we need a flow discharge time series. Specifically, we have to provide the list of dates, provided as a list of :code:`datetime` objects, and a numpy array of discharge values. Moreover, we need to provide a name for the reach and the maximum flow discharge that can be abstracted from our reach. If the latter is not known, we can set it to a large number.
 
