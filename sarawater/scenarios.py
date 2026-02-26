@@ -382,35 +382,40 @@ class Scenario:
             If self.Qrel is None (discharge must be computed before calling this method).
         """
         if self.Qrel is None:
-            raise ValueError("Qrel must be computed first.")
+            raise ValueError(
+                "Qrel must be computed first. Call compute_Qrel() before computing sediment load."
+            )
 
-            # Check for grain size data specifically
+        # Validate Qrel values
+        if not np.all(np.isfinite(self.Qrel)):
+            raise ValueError("Qrel contains non-finite values (NaN or Inf)")
+
+        # Validate reach properties exist
+        required_attrs = ["width", "slope", "phi_percentages"]
+        missing_attrs = [
+            attr for attr in required_attrs if not hasattr(self.reach, attr)
+        ]
+        if missing_attrs:
+            raise ValueError(
+                f"Reach is missing required attributes: {missing_attrs}. "
+                f"Run Reach.add_cross_section_info() first."
+            )
+
+        # Extract validated properties
+        B = self.reach.width
+        slope = self.reach.slope
+        Fi = self.reach.phi_percentages.values
+
+        # At this point, all inputs are guaranteed valid due to upstream checks
+
+        # Check if Engelund-Gauss subdivisions are available
         if (
-            not hasattr(self.reach, "phi_percentages")
-            or self.reach.phi_percentages is None
+            hasattr(self.reach, "rectangular_section")
+            and self.reach.rectangular_section is not None
         ):
-            raise ValueError(
-                "Grain size distribution is required for sediment load computation. "
-                "Call Reach.add_cross_section_info() with grain_data parameter."
-            )
-        try:
-            B = self.reach.width
-            slope = self.reach.slope
-            Fi = self.reach.phi_percentages.values
-
-            # Check if Engelund-Gauss subdivisions are available
-            if (
-                hasattr(self.reach, "rectangular_section")
-                and self.reach.rectangular_section is not None
-            ):
-                subdivisions = self.reach.rectangular_section
-            else:
-                subdivisions = None
-
-        except AttributeError:
-            raise ValueError(
-                "Reach properties (width, slope, grain size distribution) must be set before computing sediment load. Run Reach.add_cross_section_info() first."
-            )
+            subdivisions = self.reach.rectangular_section
+        else:
+            subdivisions = None
 
         return compute_sediment_load(
             self.Qrel,
