@@ -210,6 +210,35 @@ def test_export_scenarios_summary_csv():
             os.remove(temp_path)
 
 
+def test_export_scenarios_summary_excel():
+    """Test Excel export"""
+    reach = create_test_reach()
+
+    scenario = sc.ConstScenario("Excel Test", "Excel test", reach, [5.0] * 12)
+    reach.add_scenario(scenario)
+    scenario.compute_Qrel()
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".xlsx", delete=False) as f:
+        temp_path = f.name
+
+    try:
+        df = reach.export_scenarios_summary(output_path=temp_path, format="excel")
+
+        # Verify file was created
+        assert os.path.exists(temp_path)
+
+        # Read it back and verify
+        df_read = pd.read_excel(temp_path, engine="openpyxl")
+        assert len(df_read) == 1
+        assert df_read.loc[0, "scenario_name"] == "Excel Test"
+    except ImportError:
+        # Skip test if openpyxl is not available
+        print("Skipping Excel test - openpyxl not installed")
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
 def test_export_scenarios_summary_invalid_format():
     """Test that invalid format raises error"""
     reach = create_test_reach()
@@ -292,31 +321,3 @@ def test_export_scenarios_summary_with_annual_sediment_budget():
     assert not pd.isna(df.loc[0, "annual_sediment_budget_total_mean"])
     # There should be a value (could be zero if flow is too small)
     assert df.loc[0, "annual_sediment_budget_total_mean"] >= 0
-
-
-def test_export_scenarios_summary_excel_missing_openpyxl():
-    """Test that Excel export gives helpful error when openpyxl is not installed"""
-    reach = create_test_reach()
-
-    scenario = sc.ConstScenario("Excel Test", "Excel test", reach, [5.0] * 12)
-    reach.add_scenario(scenario)
-    scenario.compute_Qrel()
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".xlsx", delete=False) as f:
-        temp_path = f.name
-
-    try:
-        # This test assumes openpyxl might not be installed
-        # If it is installed, the export will succeed, which is also fine
-        try:
-            reach.export_scenarios_summary(output_path=temp_path, format="excel")
-            # If we get here, openpyxl is installed, so cleanup and pass
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-        except ImportError as e:
-            # This is the expected behavior when openpyxl is not installed
-            assert "openpyxl" in str(e)
-            assert "pip install" in str(e)
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)

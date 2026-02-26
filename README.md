@@ -3,7 +3,7 @@
 [![DOI](https://zenodo.org/badge/1130288528.svg)](https://doi.org/10.5281/zenodo.18183767)
 
 <div class="nav3" style="height:705px;">
-    <img src="tutorial/images/SARA_overview.png" alt="Overview of the SARAwater package" width="100%"></a>
+    <img src="tutorial\tutorial_0_SARA-mini\images\SARA_overview.png" alt="Overview of the SARAwater package" width="100%"></a>
 </div>
 
 Analysis of different types of alterations in river reaches subject to flow abstractions according to different water withdrawal and release scenarios.
@@ -33,7 +33,8 @@ If you use SARAwater in your research, please cite the release published on Zeno
 @software{Barile_2026_SARAwater,
   author       = {Barile, Gabriele and
                   Dal Santo, Matteo and
-                  Crivellaro, Marta},
+                  Crivellaro, Marta and
+                  Zolezzi, Guido},
   title        = {{SARAwater: Scenario-based Alteration of Rivers subject to water Abstraction}},
   month        = jan,
   year         = 2026,
@@ -47,6 +48,9 @@ To install the package for development and documentation building, clone the rep
 ```cmd
 pip install -e .[dev,docs]
 ```
+
+Pandoc is required to build the documentation. Install from https://pandoc.org/installing.html.
+
 During development, tests can be run locally with:
 ```cmd
 pytest
