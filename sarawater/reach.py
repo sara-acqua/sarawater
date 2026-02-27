@@ -48,6 +48,9 @@ class Reach:
         if np.any(Qnat < 0):
             raise ValueError("Natural flow rate (Qnat) must be non-negative (>= 0)")
 
+        # Validate Qabs_max is positive
+        _validate_positive_numeric(Qabs_max, "Qabs_max")
+
         self.name = name
         self.dates = dates
         self.Qnat = Qnat
@@ -136,6 +139,11 @@ class Reach:
         ----------
         HQ_curve : DataFrame
             Habitat-flow curve as a pandas DataFrame where columns represent different species/stages.
+
+        Returns
+        -------
+        Reach
+            The current reach instance.
         """
         self.HQ_curve = HQ_curve
         self.HQ_curve_columns = list(HQ_curve.columns)
@@ -143,7 +151,7 @@ class Reach:
         self.available_HQ_curves = [
             col for col in self.HQ_curve_columns if col not in ["DIS", "WET"]
         ]
-        return HQ_curve
+        return self
 
     def get_list_available_HQ_curves(self) -> list:
         """Get the list of available HQ curve names.
