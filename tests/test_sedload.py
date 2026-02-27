@@ -8,9 +8,9 @@ sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sarawater.sediment_load import (
     compute_sediment_load,
-    steady_flow_solver,
     wilcock_crowe_2003,
 )
+from sarawater.hydraulics import steady_flow_solver
 
 # === Synthetic Test Data Setup ===
 np.random.seed(42)
@@ -27,8 +27,11 @@ Fi /= Fi.sum()  # Normalize to 1
 # Channel parameters
 B = 15.0  # channel width [m]
 slope = 0.002  # bed slope
-D50 = 0.002  # m
-D84 = 0.005  # m
+ks = 20.0  # Strickler coefficient [m^(1/3)/s]
+
+# Create simple rectangular cross-section
+y_coords = np.array([0, B])
+z_coords = np.array([0, 0])  # Flat bed
 
 
 # === Tests ===
@@ -37,15 +40,19 @@ D84 = 0.005  # m
 def test_steady_flow_solver_monotonicity():
     """Test that computed flow depth increases with discharge."""
     Q_values = [0.1, 1, 10, 100]
-    h_values = [steady_flow_solver(B, slope, Q, D84)[0] for Q in Q_values]
+    h_values = [
+        steady_flow_solver(Q, slope, ks, y_coords, z_coords)[0] for Q in Q_values
+    ]
 
     assert all(np.diff(h_values) > 0), "Flow depth should increase monotonically with Q"
 
 
 def test_wilcock_crowe_behavior():
     """Test basic behavior of Wilcock & Crowe 2003 sediment transport model."""
-    h = 1.2  # m
-    Qsi = wilcock_crowe_2003(Fi, slope, B, h, D50, D84)
+    # Create some test theta values
+    theta_i = np.full(len(sed_range), 0.05)  # Shields parameter for each grain class
+
+    Qsi = wilcock_crowe_2003(theta_i, Fi)
 
     # Ensure outputs are positive or zero
     assert np.all(Qsi >= 0), "Sediment transport should be non-negative"
@@ -56,16 +63,18 @@ def test_wilcock_crowe_behavior():
 
 def test_compute_sediment_load_output_shape():
     """Test DataFrame output has expected columns and shape."""
-    df = compute_sediment_load(Q_series[:10], dates[:10], B, slope, Fi)
+    df = compute_sediment_load(
+        Q_series[:10], dates[:10], y_coords, z_coords, slope, ks, Fi
+    )
 
     # Check structure
     assert "Datetime" in df.columns
     assert "Q" in df.columns
     assert "h" in df.columns
-    assert "qS_total" in df.columns
+    assert "Qs_total" in df.columns
 
     # Check phi columns
-    expected_cols = [f"qS_phi_{phi}" for phi in sed_range]
+    expected_cols = [f"Qs_phi_{phi}" for phi in sed_range]
     for col in expected_cols:
         assert col in df.columns
 
@@ -75,13 +84,15 @@ def test_compute_sediment_load_output_shape():
 
 def test_sediment_load_sensitivity():
     """Test sediment load increases with discharge (approximate monotonicity)."""
-    Q_small = [0.1, 1, 10]
+    Q_small = np.array([0.1, 1, 10])
     dates_small = [
         datetime.datetime(2025, 1, 1) + datetime.timedelta(days=i) for i in range(3)
     ]
-    df_small = compute_sediment_load(Q_small, dates_small, B, slope, Fi)
+    df_small = compute_sediment_load(
+        Q_small, dates_small, y_coords, z_coords, slope, ks, Fi
+    )
 
-    qS_totals = df_small["qS_total"].values
+    qS_totals = df_small["Qs_total"].values
     assert all(
         np.diff(qS_totals) > 0
     ), "Total sediment load should increase with discharge"
@@ -89,10 +100,14 @@ def test_sediment_load_sensitivity():
 
 def test_consistency_between_runs():
     """Test deterministic behavior given same input and random seed."""
-    df1 = compute_sediment_load(Q_series[:5], dates[:5], B, slope, Fi)
-    df2 = compute_sediment_load(Q_series[:5], dates[:5], B, slope, Fi)
+    df1 = compute_sediment_load(
+        Q_series[:5], dates[:5], y_coords, z_coords, slope, ks, Fi
+    )
+    df2 = compute_sediment_load(
+        Q_series[:5], dates[:5], y_coords, z_coords, slope, ks, Fi
+    )
 
-    np.testing.assert_allclose(df1["qS_total"], df2["qS_total"], rtol=1e-10)
+    np.testing.assert_allclose(df1["Qs_total"], df2["Qs_total"], rtol=1e-10)
 
 
 def test_no_transport_when_zero_flow():
@@ -101,13 +116,13 @@ def test_no_transport_when_zero_flow():
     dates_zero = [
         datetime.datetime(2025, 1, 1) + datetime.timedelta(days=i) for i in range(3)
     ]
-    df = compute_sediment_load(Q_zero, dates_zero, B, slope, Fi)
-    assert np.allclose(df["qS_total"], 0), "Sediment transport must be zero for Q=0"
+    df = compute_sediment_load(Q_zero, dates_zero, y_coords, z_coords, slope, ks, Fi)
+    assert np.allclose(df["Qs_total"], 0), "Sediment transport must be zero for Q=0"
 
 
 def test_numerical_stability_small_h():
     """Check that the solver does not crash for very small flow or roughness."""
-    h, strip_area, v = steady_flow_solver(B, slope, 0.001, D84)
+    h, strip_area, v = steady_flow_solver(0.001, slope, ks, y_coords, z_coords)
     assert h >= 0, "Depth should never be negative"
     assert np.isfinite(h), "Depth should be finite"
     assert np.isfinite(v), "Velocity should be finite"
@@ -118,16 +133,11 @@ def test_solver_low_Q_stability_range():
     Ensure that the steady flow solver remains stable and finite for very small discharges.
     """
 
-    # Typical channel parameters
-    B = 15.0  # width [m]
-    slope = 0.002  # slope [-]
-    D84 = 0.005  # sediment size [m]
-
     # Test a wide range of small discharges (including zero)
     discharges = [0.0, 1e-4, 1e-3, 1e-2, 0.1, 1.0]
 
     for Q in discharges:
-        h, A, v = steady_flow_solver(B, slope, Q, D84)
+        h, A, v = steady_flow_solver(Q, slope, ks, y_coords, z_coords)
 
         # Assert non-negative and finite outputs
         assert np.isfinite(h), f"Depth not finite for Q={Q}"
@@ -149,16 +159,11 @@ def test_solver_high_Q_stability_range():
     Ensure that the steady flow solver remains stable and finite for very large discharges.
     """
 
-    # Channel geometry and slope representative of mountain and lowland rivers
-    B = 15.0  # channel width [m]
-    slope = 0.002  # slope [-]
-    D84 = 0.005  # characteristic grain size [m]
-
     # Large discharges to test hydraulic realism
     discharges = [10, 20, 50, 100]
 
     for Q in discharges:
-        h, A, v = steady_flow_solver(B, slope, Q, D84)
+        h, A, v = steady_flow_solver(Q, slope, ks, y_coords, z_coords)
 
         # Must remain finite and positive
         assert np.isfinite(h), f"Depth not finite for Q={Q}"
