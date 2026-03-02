@@ -170,7 +170,7 @@ def integrate_transport_across_section(
 
     Parameters
     ----------
-    qs : ndarray, shape (N, number of grain classes)
+    qs : ndarray, shape (number of grain classes, N)
         Unit transport rate at each point for each grain class (m²/s)
     y_coords : ndarray, shape (N,)
         Horizontal coordinates
@@ -207,8 +207,8 @@ def integrate_transport_across_section(
 
         # Trapezoidal rule for each grain class
         for j in range(n_classes):
-            qs_L = qs[i, j]
-            qs_R = qs[i + 1, j]
+            qs_L = qs[j, i]
+            qs_R = qs[j, i + 1]
             Qsi[j] += 0.5 * (qs_L + qs_R) * dy
 
     return Qsi
