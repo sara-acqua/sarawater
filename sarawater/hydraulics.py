@@ -50,7 +50,10 @@ def residual_invEngelund_cs(
     float
         Residual: Q_Engelund/Q - 1
     """
-    Q_Eng = 0.0
+    tau_int = 0.0
+    Omega = 0.0
+    P = 0.0
+
     num_points = y.size
     wet_points = z < h
 
@@ -67,13 +70,26 @@ def residual_invEngelund_cs(
         # Handle partial submersion
         if depth_L == 0 and depth_R == 0:
             dy = 0
+            dP = 0
         elif depth_L == 0 and depth_R > 0:
             dy = dy * (depth_R / (-dz))
+            dP = (dy**2 + depth_R**2) ** 0.5
         elif depth_L > 0 and depth_R == 0:
             dy = dy * (depth_L / dz)
+            dP = (dy**2 + depth_L**2) ** 0.5
+        else:
+            dP = (dy**2 + dz**2) ** 0.5
 
         depth_avg = 0.5 * (depth_L + depth_R)
-        Q_Eng += dy * slope**0.5 * ks * depth_avg ** (5 / 3)
+        dOmega = depth_avg * dy
+        rh = dOmega / dP if dP > 0 else 0
+        U = ks * rh ** (2 / 3) * slope**0.5
+
+        Omega += dOmega
+        P += dP
+        tau_int += U**2 * dP
+
+    Q_Eng = (Omega**2 / P * tau_int) ** 0.5
 
     return Q_Eng / Q - 1
 
@@ -86,9 +102,9 @@ def steady_flow_solver(
     z_coords: np.ndarray,
     tol: float = 1e-6,
     Qmin: float = 1e-6,
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     """
-    Solves for steady flow depth, cross-section area, and velocity.
+    Solves for steady flow depth, cross-section area, velocity, and wetted perimeter.
 
     Uses scipy.optimize.fsolve to find the flow depth that satisfies the Engelund method integrating over cross-section geometry, using Strickler formula for local flow resistance.
 
@@ -117,6 +133,8 @@ def steady_flow_solver(
         Cross-sectional wetted area (m^2).
     U : float
         Mean flow velocity (m/s).
+    P : float
+        Wetted perimeter (m).
 
     Raises
     ------
@@ -132,7 +150,8 @@ def steady_flow_solver(
         h = float(np.min(z_coords))
         Omega = 0.0
         U = 0.0
-        return h, Omega, U
+        P = 0.0
+        return h, Omega, U, P
 
     # Find water surface elevation using Engelund method
     h0 = np.min(z_coords) + 1.0  # Initial guess
@@ -168,6 +187,7 @@ def steady_flow_solver(
     depth = np.zeros_like(y_coords)
     depth[wet] = h - z_coords[wet]
 
+    P = 0.0  # wetted perimeter
     Omega = 0.0  # wetted area
 
     for i in range(N - 1):
@@ -180,12 +200,18 @@ def steady_flow_solver(
         # Handle partial submersion
         if depth_L == 0 and depth_R == 0:
             dy = 0
+            dP = 0
         elif depth_L == 0 and depth_R > 0:
             dy = dy * (depth_R / (-dz))
+            dP = (dy**2 + depth_R**2) ** 0.5
         elif depth_L > 0 and depth_R == 0:
             dy = dy * (depth_L / dz)
+            dP = (dy**2 + depth_L**2) ** 0.5
+        else:
+            dP = (dy**2 + dz**2) ** 0.5
 
+        P += dP
         Omega += 0.5 * (depth_L + depth_R) * dy
 
     U = Q / Omega
-    return h, Omega, U
+    return h, Omega, U, P

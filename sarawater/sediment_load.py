@@ -282,7 +282,7 @@ def compute_sediment_load(
 
     results = []
     for i, Q in enumerate(Qseries):
-        h, Omega, U = steady_flow_solver(Q, slope, ks, y_coords, z_coords)
+        h, Omega, U, P = steady_flow_solver(Q, slope, ks, y_coords, z_coords)
         depth = h - z_coords
         theta_i = np.zeros((len(DMI), len(depth)))
         qs = np.zeros_like(theta_i)
