@@ -998,7 +998,7 @@ class ReachPlotter:
         save: bool = False,
     ) -> None:
         """
-        Plot total sediment load (qS_total) over time for all scenarios.
+        Plot total sediment load (Qs_total) over time for all scenarios.
 
         Parameters
         ----------
@@ -1027,7 +1027,7 @@ class ReachPlotter:
                 continue
             plt.plot(
                 np.array(self.reach.dates)[mask],
-                scenario.sediment_load["qS_total"].values[mask],
+                scenario.sediment_load["Qs_total"].values[mask],
                 label=scenario.name,
                 color=self.scenario_colors[i],
             )
@@ -1081,7 +1081,7 @@ class ReachPlotter:
             mask = (df["Datetime"] >= start_date) & (df["Datetime"] <= end_date)
             df = df.loc[mask]
 
-        phi_cols = [c for c in df.columns if c.startswith("qS_phi_")]
+        phi_cols = [c for c in df.columns if c.startswith("Qs_phi_")]
         plt.figure(figsize=(12, 6))
         plt.stackplot(df["Datetime"], df[phi_cols].T, labels=phi_cols, alpha=0.8)
         plt.xlabel("Date")

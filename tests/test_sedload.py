@@ -74,7 +74,7 @@ def test_compute_sediment_load_output_shape():
     assert "Qs_total" in df.columns
 
     # Check phi columns
-    expected_cols = [f"Qs_phi_{phi}" for phi in sed_range]
+    expected_cols = [f"Qs_phi_{phi}" for phi in PHI_RANGE]
     for col in expected_cols:
         assert col in df.columns
 
@@ -92,9 +92,9 @@ def test_sediment_load_sensitivity():
         Q_small, dates_small, y_coords, z_coords, slope, ks, Fi
     )
 
-    qS_totals = df_small["Qs_total"].values
+    Qs_totals = df_small["Qs_total"].values
     assert all(
-        np.diff(qS_totals) > 0
+        np.diff(Qs_totals) > 0
     ), "Total sediment load should increase with discharge"
 
 

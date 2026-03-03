@@ -565,9 +565,9 @@ class Reach:
                 # If it's a DataFrame, compute mean values
                 if isinstance(budget, pd.DataFrame):
                     # Add mean total sediment budget
-                    if "qS_total" in budget.columns:
+                    if "Qs_total" in budget.columns:
                         row["annual_sediment_budget_total_mean"] = budget[
-                            "qS_total"
+                            "Qs_total"
                         ].mean()
 
                 # If it's a dict, compute mean from yearly values
@@ -575,8 +575,8 @@ class Reach:
                     # Structure is {year: {phi_class: value, ...}}
                     all_years = list(budget.keys())
                     first_year_data = budget[all_years[0]]
-                    if "qS_total" in first_year_data:
-                        total_values = [budget[year]["qS_total"] for year in all_years]
+                    if "Qs_total" in first_year_data:
+                        total_values = [budget[year]["Qs_total"] for year in all_years]
                         row["annual_sediment_budget_total_mean"] = np.mean(total_values)
 
             data_rows.append(row)
