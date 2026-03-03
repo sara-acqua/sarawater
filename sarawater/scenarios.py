@@ -355,12 +355,13 @@ class Scenario:
         # Return the last computed values for backwards compatibility
         return self.IH
 
-    def compute_sediment_load_from_reach(self, to_csv=None):
+    def compute_sediment_load(self, to_csv=None, **kwargs):
         """
-        Compute the sediment load time series for the current reach using stored discharge and reach properties.
-        This method wraps the lower-level compute_sediment_load function by pulling the required
-        parameters from the object's stored state (discharge series and reach geometry/grain-size
-        information) and delegating the actual computation.
+        Compute the sediment load time series using the scenario's released flow discharge time series
+        and the cross-section geometry stored in the Reach associated with the scenario.
+        This method uses the lower-level compute_sediment_load function.
+
+        The computed sediment load time series is stored as a DataFrame in self.sediment_load_df.
 
         Parameters
         ----------
@@ -368,13 +369,14 @@ class Scenario:
             If a path-like string or file-like object is provided, the computed results will be
             written to CSV at that location or using that file handle. If None or False, no CSV
             file is written. The exact accepted values are forwarded to compute_sediment_load.
+        **kwargs : dict
+            Additional keyword arguments to pass to compute_sediment_load (see compute_sediment_load documentation).
 
         Returns
         -------
-        object
-            The return value from compute_sediment_load (typically a time series or table of
-            sediment loads indexed by the provided datetime_series). The concrete type and
-            structure depend on the implementation of compute_sediment_load.
+        pandas.DataFrame
+            DataFrame with sediment transport rates per phi class and total, along with hydraulic
+            parameters. Also stored in self.sediment_load_df.
 
         Raises
         ------
@@ -382,25 +384,32 @@ class Scenario:
             If self.Qrel is None (discharge must be computed before calling this method).
         """
         if self.Qrel is None:
-            raise ValueError("Qrel must be computed first.")
-
-        try:
-            B = self.reach.width
-            slope = self.reach.slope
-            Fi = self.reach.phi_percentages.values
-        except AttributeError:
             raise ValueError(
-                "Reach properties (width, slope, grain size distribution) must be set before computing sediment load. Run Reach.add_cross_section_info() first."
+                "Qrel must be computed first. Call compute_Qrel() before computing sediment load."
             )
 
-        return compute_sediment_load(
+        if not hasattr(self.reach, "cross_section_coordinates"):
+            raise ValueError(
+                "Reach is missing 'cross_section_coordinates' attribute. Run Reach.add_cross_section_geometry() first."
+            )
+
+        if not hasattr(self.reach, "phi_percentages"):
+            raise ValueError(
+                "Reach is missing grain size information. Run Reach.add_grain_size_distribution() first."
+            )
+
+        self.sediment_load_df = compute_sediment_load(
             self.Qrel,
             self.dates,
-            B,
-            slope,
-            Fi,
+            self.reach.cross_section_coordinates["y [m]"].values,
+            self.reach.cross_section_coordinates["z [m]"].values,
+            self.reach.slope,
+            self.reach.ks,
+            self.reach.phi_percentages.values,
             to_csv=to_csv,
+            **kwargs,
         )
+        return self.sediment_load_df
 
     def plot_scenario_sediment_transport(
         self, start_date=None, end_date=None, unit="m3_per_day", rho_s=2650, **kwargs
@@ -428,7 +437,7 @@ class Scenario:
         # Check if sediment transport has been computed
         if not hasattr(self, "sediment_load_df") or self.sediment_load_df is None:
             # Compute it if not available
-            self.sediment_load_df = self.compute_sediment_load_from_reach()
+            self.compute_sediment_load()
 
         # Convert string dates to datetime if provided
         if isinstance(start_date, str):
@@ -444,17 +453,17 @@ class Scenario:
         mask = np.array(mask, dtype=bool)
 
         # Extract sediment transport data and convert units
-        qS_total = np.asarray(self.sediment_load_df["qS_total"].values)
+        Qs_total = np.asarray(self.sediment_load_df["Qs_total"].values)
 
         if unit == "m3_per_day":
-            qS_plot = qS_total * 86400  # Convert m³/s to m³/day
+            Qs_plot = Qs_total * 86400  # Convert m³/s to m³/day
             ylabel = "Sediment transport [m³/day]"
         elif unit in ("m3_per_s", "m3/s", "m3_per_second"):
-            qS_plot = qS_total
+            Qs_plot = Qs_total
             ylabel = "Sediment transport [m³/s]"
         elif unit == "ton_per_day":
             # Convert m³/s -> m³/day -> kg/day (rho_s kg/m³) -> ton/day (divide by 1000)
-            qS_plot = qS_total * 86400 * rho_s / 1000.0
+            Qs_plot = Qs_total * 86400 * rho_s / 1000.0
             ylabel = "Sediment transport [ton/day]"
         else:
             raise ValueError(
@@ -468,7 +477,7 @@ class Scenario:
             kwargs["label"] = self.name
 
         # Plot the data with any additional keyword arguments
-        plt.plot(np.array(self.dates)[mask], qS_plot[mask], **kwargs)
+        plt.plot(np.array(self.dates)[mask], Qs_plot[mask], **kwargs)
 
         # Customize the plot
         plt.title(f"Sediment transport capacity for {self.reach.name}")
@@ -490,6 +499,9 @@ class Scenario:
         """
         Compute annual sediment volume or mass (ton/year) from the scenario's sediment load.
 
+        If sediment load has not been computed yet, this method will compute it first by calling
+        compute_sediment_load_from_reach(). The annual budget is stored in self.annual_sediment_budget.
+
         Parameters
         ----------
         to_ton : bool, optional
@@ -505,14 +517,19 @@ class Scenario:
         -------
         pd.DataFrame or dict
             Annual sediment budget (per phi class and total) in m³/year or ton/year.
+            Also stored in self.annual_sediment_budget.
         """
-        # First compute the sediment load time series
-        sed_df = self.compute_sediment_load_from_reach(to_csv=to_csv)
-        self.sediment_load_df = sed_df
+        # Ensure sediment load time series has been computed
+        if not hasattr(self, "sediment_load_df") or self.sediment_load_df is None:
+            self.compute_sediment_load(to_csv=None)
 
-        # Then compute annual volumes or tons
+        # Compute annual volumes or tons (save to CSV here if requested)
         annual_budget = compute_annual_sediment_volume(
-            sed_df, to_csv=to_csv, as_dict=as_dict, to_ton=to_ton, rho_s=rho_s
+            self.sediment_load_df,
+            to_csv=to_csv,
+            as_dict=as_dict,
+            to_ton=to_ton,
+            rho_s=rho_s,
         )
         self.annual_sediment_budget = annual_budget
         return annual_budget

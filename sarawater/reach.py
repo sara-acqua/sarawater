@@ -7,6 +7,25 @@ from sarawater.scenarios import Scenario, ConstScenario
 from sarawater.IHA import compute_IHA
 
 
+def _validate_positive_numeric(value, param_name):
+    """Validate that a value is a positive finite number.
+
+    Parameters
+    ----------
+    value : any
+        The value to validate.
+    param_name : str
+        Name of the parameter for error messages.
+
+    Raises
+    ------
+    ValueError
+        If value is not a positive finite number.
+    """
+    if not isinstance(value, (float, int)) or not np.isfinite(value) or value <= 0:
+        raise ValueError(f"{param_name} must be a positive finite number, got {value}")
+
+
 class Reach:
     def __init__(self, name: str, dates: list, Qnat: ndarray, Qabs_max: float):
         """Represents a river reach.
@@ -24,6 +43,13 @@ class Reach:
         """
         if len(dates) != len(Qnat):
             raise ValueError("Dates and flow data length mismatch")
+
+        # Validate that all discharge values are non-negative
+        if np.any(Qnat < 0):
+            raise ValueError("Natural flow rate (Qnat) must be non-negative (>= 0)")
+
+        # Validate Qabs_max is positive
+        _validate_positive_numeric(Qabs_max, "Qabs_max")
 
         self.name = name
         self.dates = dates
@@ -113,6 +139,11 @@ class Reach:
         ----------
         HQ_curve : DataFrame
             Habitat-flow curve as a pandas DataFrame where columns represent different species/stages.
+
+        Returns
+        -------
+        Reach
+            The current reach instance.
         """
         self.HQ_curve = HQ_curve
         self.HQ_curve_columns = list(HQ_curve.columns)
@@ -120,7 +151,7 @@ class Reach:
         self.available_HQ_curves = [
             col for col in self.HQ_curve_columns if col not in ["DIS", "WET"]
         ]
-        return HQ_curve
+        return self
 
     def get_list_available_HQ_curves(self) -> list:
         """Get the list of available HQ curve names.
@@ -159,81 +190,144 @@ class Reach:
         else:
             raise ValueError("No HQ curves have been added to this reach.")
 
-    def add_cross_section_info(self, section, slope, grain_data):
-        """Add cross-section information to the reach, including geometry, slope,
-        and optionally grain size distribution.
+    def add_cross_section_geometry(
+        self,
+        slope,
+        ks,
+        width=None,
+        section=None,
+    ):
+        """Add cross-section geometry, channel roughness and bed slope to the reach. Either coordinate pairs (composite cross section) or channel width (rectangular cross section) must be provided.
 
         Parameters
         ----------
-        section : str or DataFrame
-            Path to CSV file containing section coordinates ('x [m]', 'y [m]'),
-            or a pandas DataFrame with those columns.
         slope : float
             Channel bed slope (m/m).
-        grain_data : str, DataFrame, float
-            Path to CSV file or DataFrame. Must contain 'i(di)' and 'di[mm]' columns
+
+        ks : float
+            Strickler coefficient (m^(1/3)/s) representing channel roughness.
+
+        width : float, optional
+            Channel width for rectangular cross-section (meters).
+
+        section : str or DataFrame
+            Path to CSV file containing section coordinates ('y [m]', 'z [m]'),
+            or a pandas DataFrame with those columns. y represents transverse coordinates along the cross-section, and z represents bed elevation at each point.
 
         Returns
         -------
         Reach
             The current reach instance.
         """
-        # --- Load section geometry ---
-        if isinstance(section, str):
-            section_data = pd.read_csv(section, delimiter=None, engine="python")
-        elif isinstance(section, pd.DataFrame):
-            section_data = section.copy()
-        else:
-            raise ValueError("section must be a CSV file path or a pandas DataFrame")
+        if width is None and section is None:
+            raise ValueError(
+                "Either width for rectangular section or section coordinates must be provided."
+            )
+        if width is not None and section is not None:
+            raise ValueError(
+                "Provide either width for rectangular section or section coordinates, not both."
+            )
 
-        # Validate columns
-        required_cols = ["x [m]", "y [m]"]
-        if not all(col in section_data.columns for col in required_cols):
-            raise ValueError(f"Section data must contain columns {required_cols}")
+        _validate_positive_numeric(slope, "slope")
+        _validate_positive_numeric(ks, "ks")
 
-        # --- Handle slope ---
-        if not isinstance(slope, (float, int)):
-            raise ValueError("slope must be a numeric value (float)")
+        self.ks = ks
+        self.slope = slope
 
-        # Compute section width, area and equivalent rectangular geometry
-        x = section_data["x [m]"].values
-        y = section_data["y [m]"].values
-        x_min, x_max = np.min(x), np.max(x)
-        y_max = np.max(y)
-        width = x_max - x_min
-        area = np.trapezoid(y, x)
-        height_avg = area / width
+        # Validate and process width or section input to retrieve the (y,z) coordinates of the cross-section
+        if width is not None:
+            _validate_positive_numeric(width, "width")
 
-        num_points = len(section_data)
-        x_equiv = np.linspace(x_min, x_max, num_points)
-        y_equiv = np.full(num_points, height_avg)
-        x_with_edges = np.concatenate(([x_min], x_equiv, [x_max]))
-        y_with_edges = np.concatenate(([y_max], y_equiv, [y_max]))
-        rectangular_section = pd.DataFrame(
-            {"x [m]": x_with_edges, "y [m]": y_with_edges}
-        )
+            # Create simple rectangular section data
+            y = np.array([0, width])
+            z = np.array([0, 0])  # Flat bed at elevation 0
+            cross_section_coordinates = pd.DataFrame({"y [m]": y, "z [m]": z})
 
-        # --- Handle grain size data ---
-        if grain_data is not None:
-            # If a path or DataFrame was passed earlier it's already handled above.
-            # Here we accept a float (D50), or a 2D array/list/ndarray with two columns:
-            # [i(di), di[mm]] or shape (2, n) with first row i(di) and second row di[mm]).
-            if isinstance(grain_data, (float, int)):
-                # Treat as D50 in mm — construct a minimal, reasonable distribution
-                d50 = float(grain_data)
-
-                dfphi = pd.DataFrame(
-                    {
-                        "i(di)": [0.0, 1.0],  # cumulative fractions (0..1)
-                        "di[mm]": [d50, d50],  # grain sizes in mm
-                    }
+        if section is not None:
+            if isinstance(section, str):
+                cross_section_coordinates = pd.read_csv(section, delimiter=None)
+            elif isinstance(section, pd.DataFrame):
+                cross_section_coordinates = section.copy()
+            else:
+                raise ValueError(
+                    "section must be a CSV file path or a pandas DataFrame"
                 )
+
+            # Validate columns
+            required_cols = ["y [m]", "z [m]"]
+            if not all(
+                col in cross_section_coordinates.columns for col in required_cols
+            ):
+                raise ValueError(f"Section data must contain columns {required_cols}")
+
+            # Validate numeric values in section
+            if not np.all(np.isfinite(cross_section_coordinates["y [m]"])):
+                raise ValueError("Section y coordinates must be finite numbers")
+            if not np.all(np.isfinite(cross_section_coordinates["z [m]"])):
+                raise ValueError(
+                    "Section z coordinates (representing bed elevation) must be finite numbers"
+                )
+
+            if not np.all(np.diff(cross_section_coordinates["y [m]"]) > 0):
+                raise ValueError("y coordinates must be monotonically increasing")
+
+        self.cross_section_coordinates = cross_section_coordinates
+        return self
+
+    def add_grain_size_distribution(self, grain_data):
+        """Add grain size distribution data to the reach. The input can be a single D50 value, a DataFrame with columns 'i(di)' and 'di[mm]', a 2D array with those columns, or a path to a CSV file containing that data.
+
+        Parameters
+        ----------
+        grain_data : float or DataFrame or array or str
+            Grain size distribution data. Can be one of the following:
+            - A single float representing D50 in millimeters. This will be converted to a uniform grain size distribution with 100% in the corresponding phi class.
+            - A pandas DataFrame with columns 'i(di)' (cumulative percentage) and 'di[mm]' (diameter in millimeters).
+            - A 2D array with columns 'i(di)' and 'di[mm]'.
+            - A path to a CSV file containing columns 'i(di)' and 'di[mm]'.
+
+        Returns
+        -------
+        Reach
+            The current reach instance for method chaining.
+        """
+        # Define standard phi classes: -9.5 to 7.5 with step 1 (18 classes total)
+        phi_class_centers = np.arange(-9.5, 7.5 + 1, 1)
+        expected_phi_length = len(phi_class_centers)  # Should be 18
+
+        # Initialize variables that will be set in all branches
+        dfphi = None
+        phi_percentages = None
+
+        if isinstance(grain_data, (float, int)):
+            # Single D50 value provided - assign 100% to the corresponding phi class
+            d50 = float(grain_data)
+            if d50 <= 0:
+                raise ValueError("D50 must be positive")
+
+            # Convert D50 to phi scale
+            phi_d50 = -np.log2(d50)
+
+            # Find the closest phi class center
+            # phi_class_centers = [-9.5, -8.5, -7.5, ..., 6.5, 7.5]
+            closest_phi_idx = np.argmin(np.abs(phi_class_centers - phi_d50))
+            closest_phi = phi_class_centers[closest_phi_idx]
+
+            # Create phi_percentages with 100% in the closest class, 0% elsewhere
+            phi_percentages = pd.Series(0.0, index=phi_class_centers)
+            phi_percentages.loc[closest_phi] = 1.0
+
+            # dfphi remains None for D50 input
+
+        else:
+            # Handle DataFrame, array, or CSV file input
+            if isinstance(grain_data, pd.DataFrame):
+                dfphi = grain_data.copy()
             elif isinstance(grain_data, (list, tuple, np.ndarray)):
                 arr = np.asarray(grain_data)
                 if arr.ndim == 2 and arr.shape[1] == 2:
                     dfphi = pd.DataFrame(arr, columns=["i(di)", "di[mm]"])
                 elif arr.ndim == 2 and arr.shape[0] == 2:
-                    # transposed form: first row i(di), second row di[mm]
                     dfphi = pd.DataFrame({"i(di)": arr[0, :], "di[mm]": arr[1, :]})
                 else:
                     raise ValueError(
@@ -243,11 +337,11 @@ class Reach:
                 dfphi = pd.read_csv(grain_data)
             else:
                 raise ValueError(
-                    "grain_data must be float (D50), a 2D array/list with [i(di), di[mm]], a DataFrame, or a path to a CSV file"
+                    "grain_data must be float (D50), a 2D array/list with [i(di), di[mm]], "
+                    "a DataFrame, or a path to a CSV file"
                 )
 
             # Ensure numeric columns and sensible ordering
-            dfphi = dfphi.copy()
             if "i(di)" not in dfphi.columns or "di[mm]" not in dfphi.columns:
                 raise ValueError("grain_data must provide columns 'i(di)' and 'di[mm]'")
 
@@ -272,29 +366,59 @@ class Reach:
             dfphi["Percent"] = (
                 dfphi["i(di)"].diff().fillna(dfphi["i(di)"].iloc[0]) * 100
             )
-            phi_classes = np.arange(-9.5, 7.5 + 1, 1)
-            dfphi["Phi Interval"] = pd.cut(
-                dfphi["Phi Scale"],
-                bins=phi_classes,
-                right=False,
-                labels=phi_classes[:-1],
-            )
-            phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
-            if 7.5 not in phi_percentages.index:
-                phi_percentages.loc[7.5] = 0.0
-        else:
-            dfphi, phi_percentages = None, None
 
-        # Store results
-        self.section_data = section_data
-        self.rectangular_section = rectangular_section
-        self.width = width
-        self.area = area
-        self.height_avg = height_avg
-        self.slope = slope
+            # Create bin edges: 18 classes need 19 edges
+            # Edges at: -10, -9, -8, ..., 7, 8
+            phi_bin_edges = np.concatenate([[-10], phi_class_centers + 0.5])
+
+            # Bin the grain sizes into phi classes using pd.cut
+            # This assigns each grain size to a phi class bin
+            dfphi["Phi Class"] = pd.cut(
+                dfphi["Phi Scale"],
+                bins=phi_bin_edges,
+                labels=phi_class_centers,
+                include_lowest=True,
+            )
+
+            # Group by phi class and sum the percentages
+            phi_percentages = dfphi.groupby("Phi Class", observed=False)[
+                "Percent"
+            ].sum()
+
+            # Ensure ALL phi classes are present (fill missing with zeros)
+            phi_percentages = phi_percentages.reindex(phi_class_centers, fill_value=0.0)
+
+            # Normalize to ensure sum = 100%
+            total = phi_percentages.sum()
+            if total > 0:
+                phi_percentages = phi_percentages / total * 100.0
+            else:
+                raise ValueError(
+                    "Grain size distribution resulted in zero total percentage. "
+                    "Check that grain_data covers a reasonable size range."
+                )
+
+            # Convert to fractions (0-1)
+            phi_percentages = phi_percentages / 100.0
+
+        # **VALIDATION: Verify length** (applies to both D50 and DataFrame/array paths)
+        if len(phi_percentages) != expected_phi_length:
+            raise ValueError(
+                f"Grain size distribution produced {len(phi_percentages)} phi classes, "
+                f"but expected {expected_phi_length} classes for range [-9.5, 7.5]. "
+                f"This is an internal error - please report this issue."
+            )
+
+        # **VALIDATION: Verify sum** (applies to both D50 and DataFrame/array paths)
+        total_fraction = phi_percentages.sum()
+        if not np.isclose(total_fraction, 1.0, atol=0.01):
+            raise ValueError(
+                f"Phi percentages must sum to 1.0, got {total_fraction:.4f}. "
+                f"Check grain size distribution normalization."
+            )
+
         self.grain_size_data = dfphi
         self.phi_percentages = phi_percentages
-
         return self
 
     def export_scenarios_summary(
@@ -441,9 +565,9 @@ class Reach:
                 # If it's a DataFrame, compute mean values
                 if isinstance(budget, pd.DataFrame):
                     # Add mean total sediment budget
-                    if "qS_total" in budget.columns:
+                    if "Qs_total" in budget.columns:
                         row["annual_sediment_budget_total_mean"] = budget[
-                            "qS_total"
+                            "Qs_total"
                         ].mean()
 
                 # If it's a dict, compute mean from yearly values
@@ -451,8 +575,8 @@ class Reach:
                     # Structure is {year: {phi_class: value, ...}}
                     all_years = list(budget.keys())
                     first_year_data = budget[all_years[0]]
-                    if "qS_total" in first_year_data:
-                        total_values = [budget[year]["qS_total"] for year in all_years]
+                    if "Qs_total" in first_year_data:
+                        total_values = [budget[year]["Qs_total"] for year in all_years]
                         row["annual_sediment_budget_total_mean"] = np.mean(total_values)
 
             data_rows.append(row)

@@ -301,11 +301,13 @@ def test_export_scenarios_summary_with_annual_sediment_budget():
     reach = create_test_reach()
 
     # Add cross-section info for sediment calculations
-    reach.add_cross_section_info(
-        section=pd.DataFrame({"x [m]": [0, 5, 10], "y [m]": [0, 1, 0]}),
-        slope=0.001,
-        grain_data=10.0,  # D50 in mm
+    reach.add_cross_section_geometry(
+        0.001,
+        20,
+        width=10.0,
     )
+
+    reach.add_grain_size_distribution(0.02)
 
     scenario = sc.ConstScenario("Sediment Test", "Sediment test", reach, [15.0] * 12)
     reach.add_scenario(scenario)

@@ -1,9 +1,11 @@
 import sys, os
 import numpy as np
 import datetime
+import pandas as pd
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
+from sarawater.hydraulics import steady_flow_solver
 import sarawater.reach as rch
 import sarawater.scenarios as sc
 
@@ -120,9 +122,175 @@ def test_reach_with_ecological_scenario():
     )  # Ensure DE is greater than Q97
 
 
+def test_reach_with_irregular_cross_section():
+    """Test reach with irregular cross-section and grain size distribution"""
+    # Create a reach
+    reach = rch.Reach("Test Reach", dates, Qnat, 50)
+
+    # Create an irregular cross-section (trapezoidal-like)
+    section_data = pd.DataFrame(
+        {"y [m]": [0.0, 2.0, 5.0, 8.0, 10.0], "z [m]": [0.0, -0.5, -0.5, -0.5, 0.0]}
+    )
+    bankfull_area = 4.0
+
+    # Create grain size distribution data
+    # Simple distribution with a few points
+    grain_data = pd.DataFrame(
+        {
+            "di[mm]": [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0],
+            "i(di)": [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+        }
+    )
+
+    ks = 20
+    slope = 0.002
+
+    # Add cross-section info
+    reach.add_cross_section_geometry(slope, ks, section=section_data)
+    reach.add_grain_size_distribution(grain_data)
+
+    # Compute cross-section area
+    Q = 1.95  # corresponds to a uniform flow depth equal to bankfull for this geometry, i.e., to h=0
+    h, A, U, P = steady_flow_solver(
+        Q, slope, ks, section_data["y [m]"].values, section_data["z [m]"].values
+    )
+
+    # Verify reach properties are set
+    assert reach.slope == slope, "Slope should match input"
+    assert reach.ks == ks, "KS should match input"
+    assert np.isclose(
+        h, 0.0, atol=1e-2
+    ), f"Free-surface elevation should be close to 0m for bankfull flow, got {h} m"
+    assert np.isclose(
+        A, bankfull_area, atol=1e-2
+    ), f"Area should match bankfull area of {bankfull_area} m^2, got {A} m^2"
+
+    # Verify phi percentages
+    assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
+    assert reach.phi_percentages is not None, "Phi percentages should not be None"
+    assert (
+        len(reach.phi_percentages) == 18
+    ), f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
+
+    # Verify phi percentages sum to approximately 1.0
+    total_fraction = reach.phi_percentages.sum()
+    assert (
+        abs(total_fraction - 1.0) < 0.01
+    ), f"Phi percentages should sum to 1.0, got {total_fraction}"
+
+
+def test_reach_with_simple_d50():
+    """Test reach with simple D50 grain size specification"""
+    # Create a reach
+    reach = rch.Reach("Test Reach", dates, Qnat, 50)
+
+    # Simple rectangular cross-section
+    section_data = pd.DataFrame({"y [m]": [0.0, 10.0], "z [m]": [2.0, 2.0]})
+
+    # Simple D50 value in mm
+    D50 = 10.0  # mm
+    ks = 20
+    slope = 0.001
+
+    # Add cross-section info
+    reach.add_cross_section_geometry(slope, ks, section=section_data)
+    reach.add_grain_size_distribution(D50)
+
+    # Verify reach properties
+    assert reach.slope == slope, "Slope should match input"
+
+    # Verify phi percentages are created correctly
+    assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
+    assert reach.phi_percentages is not None, "Phi percentages should not be None"
+    assert (
+        len(reach.phi_percentages) == 18
+    ), f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
+
+    # For simple D50, most of the distribution should be concentrated
+    # around the corresponding phi class
+    total_fraction = reach.phi_percentages.sum()
+    assert (
+        abs(total_fraction - 1.0) < 0.01
+    ), f"Phi percentages should sum to 1.0, got {total_fraction}"
+
+
+def test_reach_with_grain_array():
+    """Test reach with grain size as 2D array"""
+    import numpy as np
+
+    # Create a reach
+    reach = rch.Reach("Test Reach", dates, Qnat, 50)
+
+    # Simple cross-section
+    section_data = pd.DataFrame({"y [m]": [0.0, 1.5, 3.0], "z [m]": [2.0, 2.0, 2.0]})
+
+    # Grain data as 2D numpy array
+    grain_array = np.array(
+        [
+            [0.0, 0.2, 0.5, 0.8, 1.0],  # i(di) - cumulative fractions
+            [1.0, 5.0, 10.0, 20.0, 50.0],  # di[mm] - grain sizes
+        ]
+    )
+
+    ks = 20
+    slope = 0.002
+
+    # Add cross-section info
+    reach.add_cross_section_geometry(slope, ks, section=section_data)
+    reach.add_grain_size_distribution(grain_array)
+
+    # Verify phi percentages
+    assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
+    assert (
+        len(reach.phi_percentages) == 18
+    ), f"Expected 18 phi classes, got {len(reach.phi_percentages)}"
+
+    total_fraction = reach.phi_percentages.sum()
+    assert (
+        abs(total_fraction - 1.0) < 0.01
+    ), f"Phi percentages should sum to 1.0, got {total_fraction}"
+
+
+def test_d50_creates_all_phi_classes():
+    """Test that D50 input creates all 18 phi classes"""
+    reach = rch.Reach("Test Reach", dates, Qnat, 50)
+
+    section_data = pd.DataFrame({"y [m]": [0.0, 10.0], "z [m]": [2.0, 2.0]})
+
+    # Test with various D50 values
+    for d50 in [1.0, 5.0, 10.0, 20.0, 50.0]:
+        reach.add_cross_section_geometry(0.001, 20, section=section_data)
+        reach.add_grain_size_distribution(d50)
+
+        # Verify exactly 18 classes
+        assert (
+            len(reach.phi_percentages) == 18
+        ), f"D50={d50}mm should produce 18 phi classes, got {len(reach.phi_percentages)}"
+
+        # Verify all expected phi values are present
+        expected_phi = np.arange(-9.5, 7.5 + 1, 1)
+        assert all(
+            phi in reach.phi_percentages.index for phi in expected_phi
+        ), f"D50={d50}mm missing expected phi classes"
+
+        # Verify normalization
+        total = reach.phi_percentages.sum()
+        assert (
+            abs(total - 1.0) < 0.01
+        ), f"D50={d50}mm phi percentages sum to {total}, expected 1.0"
+
+        # Verify no NaN values
+        assert (
+            not reach.phi_percentages.isnull().any()
+        ), f"D50={d50}mm produced NaN values in phi_percentages"
+
+
 if __name__ == "__main__":
     test_reach_basics()
     test_reach_with_prop_scenario()
     test_reach_with_const_scenario()
     test_reach_with_multiple_scenarios()
     test_reach_with_ecological_scenario()
+    test_reach_with_irregular_cross_section()
+    test_reach_with_simple_d50()
+    test_reach_with_grain_array()
