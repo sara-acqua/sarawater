@@ -401,8 +401,8 @@ class Scenario:
         self.sediment_load_df = compute_sediment_load(
             self.Qrel,
             self.dates,
-            self.reach.cross_section_coordinates["y [m]"],
-            self.reach.cross_section_coordinates["z [m]"],
+            self.reach.cross_section_coordinates["y [m]"].values,
+            self.reach.cross_section_coordinates["z [m]"].values,
             self.reach.slope,
             self.reach.ks,
             self.reach.phi_percentages.values,
