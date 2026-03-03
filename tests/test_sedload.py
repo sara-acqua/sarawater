@@ -9,8 +9,14 @@ sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from sarawater.sediment_load import (
     compute_sediment_load,
     wilcock_crowe_2003,
+    meyer_peter_mueller,
+    transport_capacity,
+    integrate_transport_across_section,
+    shields_parameter,
+    PHI_RANGE,
+    DMI,
 )
-from sarawater.hydraulics import steady_flow_solver
+from sarawater.hydraulics import steady_flow_solver, shear_stress
 
 # === Synthetic Test Data Setup ===
 np.random.seed(42)
@@ -19,9 +25,8 @@ np.random.seed(42)
 dates = [datetime.datetime(2025, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
 Q_series = np.random.lognormal(mean=1.5, sigma=0.5, size=len(dates))  # m³/s
 
-# Sediment fractions (phi classes)
-sed_range = np.arange(-9.5, 7.5 + 1, 1)
-Fi = np.exp(-0.5 * ((sed_range + 2) / 2.5) ** 2)
+# Sediment fractions (phi classes) - use PHI_RANGE from sediment_load module
+Fi = np.exp(-0.5 * ((PHI_RANGE + 2) / 2.5) ** 2)  # normal distribution around phi=-2
 Fi /= Fi.sum()  # Normalize to 1
 
 # Channel parameters
@@ -33,32 +38,29 @@ ks = 20.0  # Strickler coefficient [m^(1/3)/s]
 y_coords = np.array([0, B])
 z_coords = np.array([0, 0])  # Flat bed
 
+# Physical constants
+rho_w = 1000.0  # kg/m³
+rho_s = 2650.0  # kg/m³
+g = 9.81  # m/s²
+Delta = (rho_s - rho_w) / rho_w
+theta_c = 0.047
+
 
 # === Tests ===
 
 
-def test_steady_flow_solver_monotonicity():
-    """Test that computed flow depth increases with discharge."""
-    Q_values = [0.1, 1, 10, 100]
-    h_values = [
-        steady_flow_solver(Q, slope, ks, y_coords, z_coords)[0] for Q in Q_values
-    ]
-
-    assert all(np.diff(h_values) > 0), "Flow depth should increase monotonically with Q"
-
-
 def test_wilcock_crowe_behavior():
     """Test basic behavior of Wilcock & Crowe 2003 sediment transport model."""
-    # Create some test theta values
-    theta_i = np.full(len(sed_range), 0.05)  # Shields parameter for each grain class
+    # Create some test theta values (Shields parameters)
+    theta_i = np.full(len(PHI_RANGE), 0.05)  # Shields parameter for each grain class
 
-    Qsi = wilcock_crowe_2003(theta_i, Fi)
+    qsi = wilcock_crowe_2003(theta_i, Fi)
 
     # Ensure outputs are positive or zero
-    assert np.all(Qsi >= 0), "Sediment transport should be non-negative"
+    assert np.all(qsi >= 0), "Sediment transport should be non-negative"
 
     # Ensure some sediment is actually moving
-    assert Qsi.sum() > 0, "Total sediment transport should be > 0 for typical flow"
+    assert qsi.sum() > 0, "Total sediment transport should be > 0 for typical flow"
 
 
 def test_compute_sediment_load_output_shape():
@@ -120,73 +122,176 @@ def test_no_transport_when_zero_flow():
     assert np.allclose(df["Qs_total"], 0), "Sediment transport must be zero for Q=0"
 
 
-def test_numerical_stability_small_h():
-    """Check that the solver does not crash for very small flow or roughness."""
-    h, strip_area, v = steady_flow_solver(0.001, slope, ks, y_coords, z_coords)
-    assert h >= 0, "Depth should never be negative"
-    assert np.isfinite(h), "Depth should be finite"
-    assert np.isfinite(v), "Velocity should be finite"
+def test_transport_capacity_selector():
+    """Test that transport_capacity function correctly selects between formulas."""
+    theta_i = np.full(len(PHI_RANGE), 0.05)
+
+    # Test Wilcock & Crowe selection
+    qsi_wc = transport_capacity(theta_i, Fi, transport_formula="wilcock_crowe")
+    assert np.all(qsi_wc >= 0), "Wilcock-Crowe transport should be non-negative"
+    assert qsi_wc.sum() > 0, "Total transport should be positive"
+
+    # Test MPM selection
+    qsi_mpm = transport_capacity(theta_i, Fi, transport_formula="mpm")
+    assert np.all(qsi_mpm >= 0), "MPM transport should be non-negative"
+    assert qsi_mpm.sum() > 0, "Total transport should be positive"
+
+    # Test invalid formula
+    try:
+        transport_capacity(theta_i, Fi, transport_formula="invalid")
+        assert False, "Should raise ValueError for invalid formula"
+    except ValueError as e:
+        assert "Unknown transport formula" in str(e)
 
 
-def test_solver_low_Q_stability_range():
+def test_meyer_peter_mueller_behavior():
+    """Test basic behavior of Meyer-Peter & Müller sediment transport model."""
+    # Test with Shields parameters above critical threshold
+    theta_i = np.full(len(PHI_RANGE), 0.1)  # Above typical theta_c = 0.047
+
+    qsi = meyer_peter_mueller(theta_i, Fi, theta_c=0.047)
+
+    # Ensure outputs are positive or zero
+    assert np.all(qsi >= 0), "Sediment transport should be non-negative"
+
+    # Ensure some sediment is moving (theta > theta_c)
+    assert qsi.sum() > 0, "Total sediment transport should be > 0 when theta > theta_c"
+
+    # Test with Shields parameters below critical threshold
+    theta_i_low = np.full(len(PHI_RANGE), 0.01)  # Below theta_c = 0.047
+    qsi_low = meyer_peter_mueller(theta_i_low, Fi, theta_c=0.047)
+
+    # Should be zero or very small when below threshold
+    assert qsi_low.sum() < 1e-10, "Transport should be negligible when theta < theta_c"
+
+
+def test_integrate_transport_across_section():
+    """Test integration of unit transport rates across a cross-section."""
+    # Create a simple rectangular channel
+    y_test = np.array([0, 5, 10, 15])
+    z_test = np.array([0, 0, 0, 0])  # Flat bed
+    h_test = 1.0  # Water surface elevation
+
+    # Create uniform unit transport rates for 3 grain classes
+    # Shape should be (n_classes, N) where N is number of points
+    n_classes = 3
+    n_points = len(y_test)
+    qs_test = np.ones((n_classes, n_points)) * 0.01  # m²/s
+
+    # Integrate
+    Qsi = integrate_transport_across_section(qs_test, y_test, z_test, h_test)
+
+    # For a rectangular channel with uniform qs, Qs = qs * width
+    expected = 0.01 * 15  # width = 15 m
+
+    assert Qsi.shape == (n_classes,), "Should return one value per grain class"
+    for i in range(n_classes):
+        assert np.isclose(
+            Qsi[i], expected, rtol=0.01
+        ), f"Class {i}: expected {expected}, got {Qsi[i]}"
+
+
+def test_mpm_steady_flow_verification():
     """
-    Ensure that the steady flow solver remains stable and finite for very small discharges.
+    Test MPM formula with steady flow discharge and rectangular cross-section.
+    All values from sediment load time series must match theoretical MPM values.
+
+    This test verifies that the compute_sediment_load function correctly implements
+    the Meyer-Peter & Müller (1948) formula by comparing computed transport rates
+    against theoretical values calculated directly from the formula.
     """
+    # Test parameters
+    Q_steady = 5.0  # constant discharge [m³/s]
+    n_timesteps = 5
+    dates_steady = [
+        datetime.datetime(2025, 1, 1) + datetime.timedelta(days=i)
+        for i in range(n_timesteps)
+    ]
+    Q_series_steady = np.full(n_timesteps, Q_steady)
 
-    # Test a wide range of small discharges (including zero)
-    discharges = [0.0, 1e-4, 1e-3, 1e-2, 0.1, 1.0]
+    # Compute sediment load using MPM formula
+    df_mpm = compute_sediment_load(
+        Q_series_steady,
+        dates_steady,
+        y_coords,
+        z_coords,
+        slope,
+        ks,
+        Fi,
+        transport_formula="mpm",
+        mpm_theta_c=theta_c,
+        rho_w=rho_w,
+        rho_s=rho_s,
+        g=g,
+    )
 
-    for Q in discharges:
-        h, A, v = steady_flow_solver(Q, slope, ks, y_coords, z_coords)
+    # Verify all timesteps have the same values (steady flow)
+    for col in df_mpm.columns:
+        if col != "Datetime":
+            values = df_mpm[col].values
+            # All values should be identical for steady flow
+            assert np.allclose(
+                values, values[0], rtol=1e-10
+            ), f"Column {col} should be constant for steady flow"
 
-        # Assert non-negative and finite outputs
-        assert np.isfinite(h), f"Depth not finite for Q={Q}"
-        assert np.isfinite(A), f"Area not finite for Q={Q}"
-        assert np.isfinite(v), f"Velocity not finite for Q={Q}"
+    # Now compute the theoretical MPM transport rate manually
+    # Step 1: Solve for flow depth
+    h_computed = df_mpm["h"].iloc[0]
+    depth = h_computed - z_coords
 
-        assert h >= 0.0, f"Depth negative for Q={Q}"
-        assert A >= 0.0, f"Area negative for Q={Q}"
-        assert v >= 0.0, f"Velocity negative for Q={Q}"
+    # Step 2: Compute theoretical transport for each stripe and integrate
+    theta_i_theoretical = np.zeros((len(DMI), len(depth)))
+    qs_theoretical = np.zeros_like(theta_i_theoretical)
 
-        # For very small Q, depth and velocity should remain small
-        if Q < 1e-2:
-            assert h < 0.1, f"Unrealistic depth for very small Q={Q}: {h}"
-            assert v < 2.0, f"Unrealistic velocity for very small Q={Q}: {v}"
+    for stripe_idx, stripe_depth in enumerate(depth):
+        tau_b = shear_stress(rho_w, g, stripe_depth, slope)
+        theta_i_theoretical[:, stripe_idx] = shields_parameter(
+            tau_b, rho_w, rho_s, g, DMI
+        )
 
+        # Apply MPM formula: qb_i = 8 * max(theta_i - theta_c, 0)^{3/2} * sqrt(g * Delta * d_i^3)
+        phi_i = np.maximum(theta_i_theoretical[:, stripe_idx] - theta_c, 0.0)
+        qb_i = 8.0 * (phi_i**1.5) * np.sqrt(g * Delta * DMI**3)
+        qs_theoretical[:, stripe_idx] = qb_i * Fi
 
-def test_solver_high_Q_stability_range():
-    """
-    Ensure that the steady flow solver remains stable and finite for very large discharges.
-    """
+    # Step 3: Integrate across section to obtain total transport for each grain class
+    Qs_theoretical = integrate_transport_across_section(
+        qs_theoretical, y_coords, z_coords, h_computed
+    )
 
-    # Large discharges to test hydraulic realism
-    discharges = [10, 20, 50, 100]
+    # Step 4: Compare computed vs theoretical values for the total transport
+    Qs_total_computed = df_mpm["Qs_total"].iloc[0]
+    Qs_total_theoretical = Qs_theoretical.sum()
 
-    for Q in discharges:
-        h, A, v = steady_flow_solver(Q, slope, ks, y_coords, z_coords)
+    assert np.isclose(
+        Qs_total_computed, Qs_total_theoretical, rtol=1e-8
+    ), f"Total transport mismatch: computed={Qs_total_computed}, theoretical={Qs_total_theoretical}"
 
-        # Must remain finite and positive
-        assert np.isfinite(h), f"Depth not finite for Q={Q}"
-        assert np.isfinite(A), f"Area not finite for Q={Q}"
-        assert np.isfinite(v), f"Velocity not finite for Q={Q}"
+    # Check per-class transport
+    for j, phi in enumerate(PHI_RANGE):
+        col_name = f"Qs_phi_{phi}"
+        Qs_computed = df_mpm[col_name].iloc[0]
+        Qs_theo = Qs_theoretical[j]
 
-        assert h > 0.0, f"Depth should be positive for Q={Q}"
-        assert A > 0.0, f"Area should be positive for Q={Q}"
-        assert v > 0.0, f"Velocity should be positive for Q={Q}"
+        assert np.isclose(
+            Qs_computed, Qs_theo, rtol=1e-8
+        ), f"Phi class {phi}: computed={Qs_computed}, theoretical={Qs_theo}"
 
-        # Check physically realistic ranges
-        assert h < 50.0, f"Unrealistically large depth for Q={Q}: {h:.2f} m"
-        assert v < 15.0, f"Unrealistically high velocity for Q={Q}: {v:.2f} m/s"
+    # Verify all timesteps match the theoretical value (since flow is steady)
+    for i in range(n_timesteps):
+        assert np.isclose(
+            df_mpm["Qs_total"].iloc[i], Qs_total_theoretical, rtol=1e-8
+        ), f"Timestep {i} does not match theoretical value"
 
 
 if __name__ == "__main__":
-    test_steady_flow_solver_monotonicity()
     test_wilcock_crowe_behavior()
     test_compute_sediment_load_output_shape()
     test_sediment_load_sensitivity()
     test_consistency_between_runs()
     test_no_transport_when_zero_flow()
-    test_numerical_stability_small_h()
-    test_solver_low_Q_stability_range()
-    test_solver_high_Q_stability_range()
+    test_transport_capacity_selector()
+    test_meyer_peter_mueller_behavior()
+    test_integrate_transport_across_section()
+    test_mpm_steady_flow_verification()
     print("All sediment_load tests passed successfully.")

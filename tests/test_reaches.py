@@ -5,6 +5,7 @@ import pandas as pd
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
+from sarawater.hydraulics import steady_flow_solver
 import sarawater.reach as rch
 import sarawater.scenarios as sc
 
@@ -128,8 +129,9 @@ def test_reach_with_irregular_cross_section():
 
     # Create an irregular cross-section (trapezoidal-like)
     section_data = pd.DataFrame(
-        {"x [m]": [0.0, 2.0, 5.0, 8.0, 10.0], "y [m]": [0.0, 1.5, 2.0, 1.5, 0.0]}
+        {"y [m]": [0.0, 2.0, 5.0, 8.0, 10.0], "z [m]": [0.0, -0.5, -0.5, -0.5, 0.0]}
     )
+    bankfull_area = 4.0
 
     # Create grain size distribution data
     # Simple distribution with a few points
@@ -140,16 +142,28 @@ def test_reach_with_irregular_cross_section():
         }
     )
 
+    ks = 20
     slope = 0.002
 
     # Add cross-section info
-    reach.add_cross_section_info(section_data, slope, grain_data)
+    reach.add_cross_section_geometry(slope, ks, section=section_data)
+    reach.add_grain_size_distribution(grain_data)
+
+    # Compute cross-section area
+    Q = 1.95  # corresponds to a uniform flow depth equal to bankfull for this geometry, i.e., to h=0
+    h, A, U, P = steady_flow_solver(
+        Q, slope, ks, section_data["y [m]"].values, section_data["z [m]"].values
+    )
 
     # Verify reach properties are set
-    assert reach.width > 0, "Width should be positive"
-    assert reach.area > 0, "Area should be positive"
     assert reach.slope == slope, "Slope should match input"
-    assert reach.height_avg > 0, "Average height should be positive"
+    assert reach.ks == ks, "KS should match input"
+    assert np.isclose(
+        h, 0.0, atol=1e-2
+    ), f"Free-surface elevation should be close to 0m for bankfull flow, got {h} m"
+    assert np.isclose(
+        A, bankfull_area, atol=1e-2
+    ), f"Area should match bankfull area of {bankfull_area} m^2, got {A} m^2"
 
     # Verify phi percentages
     assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
@@ -164,23 +178,6 @@ def test_reach_with_irregular_cross_section():
         abs(total_fraction - 1.0) < 0.01
     ), f"Phi percentages should sum to 1.0, got {total_fraction}"
 
-    # Verify subdivision data
-    assert hasattr(reach, "rectangular_section"), "Rectangular section should be set"
-    assert (
-        reach.rectangular_section is not None
-    ), "Rectangular section should not be None"
-    assert (
-        len(reach.rectangular_section) == 4
-    ), "Should have 4 subdivisions for 5 points"
-
-    # Verify each subdivision has required fields
-    for i, subdiv in reach.rectangular_section.iterrows():
-        assert "width" in subdiv, "Subdivision should have width"
-        assert "height" in subdiv, "Subdivision should have height"
-        assert "area" in subdiv, "Subdivision should have area"
-        assert subdiv["width"] > 0, f"Subdivision {i} width should be positive"
-        assert subdiv["area"] >= 0, f"Subdivision {i} area should be non-negative"
-
 
 def test_reach_with_simple_d50():
     """Test reach with simple D50 grain size specification"""
@@ -188,17 +185,18 @@ def test_reach_with_simple_d50():
     reach = rch.Reach("Test Reach", dates, Qnat, 50)
 
     # Simple rectangular cross-section
-    section_data = pd.DataFrame({"x [m]": [0.0, 10.0], "y [m]": [2.0, 2.0]})
+    section_data = pd.DataFrame({"y [m]": [0.0, 10.0], "z [m]": [2.0, 2.0]})
 
     # Simple D50 value in mm
     D50 = 10.0  # mm
+    ks = 20
     slope = 0.001
 
     # Add cross-section info
-    reach.add_cross_section_info(section_data, slope, D50)
+    reach.add_cross_section_geometry(slope, ks, section=section_data)
+    reach.add_grain_size_distribution(D50)
 
     # Verify reach properties
-    assert reach.width == 10.0, "Width should be 10m"
     assert reach.slope == slope, "Slope should match input"
 
     # Verify phi percentages are created correctly
@@ -224,7 +222,7 @@ def test_reach_with_grain_array():
     reach = rch.Reach("Test Reach", dates, Qnat, 50)
 
     # Simple cross-section
-    section_data = pd.DataFrame({"x [m]": [0.0, 5.0, 10.0], "y [m]": [0.0, 1.5, 0.0]})
+    section_data = pd.DataFrame({"y [m]": [0.0, 1.5, 3.0], "z [m]": [2.0, 2.0, 2.0]})
 
     # Grain data as 2D numpy array
     grain_array = np.array(
@@ -234,10 +232,12 @@ def test_reach_with_grain_array():
         ]
     )
 
+    ks = 20
     slope = 0.002
 
     # Add cross-section info
-    reach.add_cross_section_info(section_data, slope, grain_array)
+    reach.add_cross_section_geometry(slope, ks, section=section_data)
+    reach.add_grain_size_distribution(grain_array)
 
     # Verify phi percentages
     assert hasattr(reach, "phi_percentages"), "Phi percentages should be set"
@@ -255,11 +255,12 @@ def test_d50_creates_all_phi_classes():
     """Test that D50 input creates all 18 phi classes"""
     reach = rch.Reach("Test Reach", dates, Qnat, 50)
 
-    section_data = pd.DataFrame({"x [m]": [0.0, 10.0], "y [m]": [2.0, 2.0]})
+    section_data = pd.DataFrame({"y [m]": [0.0, 10.0], "z [m]": [2.0, 2.0]})
 
     # Test with various D50 values
     for d50 in [1.0, 5.0, 10.0, 20.0, 50.0]:
-        reach.add_cross_section_info(section_data, 0.001, d50)
+        reach.add_cross_section_geometry(0.001, 20, section=section_data)
+        reach.add_grain_size_distribution(d50)
 
         # Verify exactly 18 classes
         assert (
