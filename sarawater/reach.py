@@ -179,7 +179,7 @@ class Reach:
         width=None,
         section=None,
     ):
-        """Add cross-section geometry, channel roughness and bed slope to the reach. Either coordinate pairs (composite cross section) or channel width (rectangular cross section) must be provided.
+        """Add cross-section geometry, channel roughness and bed slope to the reach. Either coordinate pairs (composite cross section) or channel width (rectangular cross section) must be provided. When a width is provided, a two-point simple rectangular cross-section is created with a flat bed at elevation 0, corresponding to the coordinate pairs y [m] = [0, width] and z [m] = [0, 0]. When section coordinates are provided, they must be in the form of a CSV file or a DataFrame with columns 'y [m]' (transverse coordinate) and 'z [m]' (bed elevation).
 
         Parameters
         ----------
