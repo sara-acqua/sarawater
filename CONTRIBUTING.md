@@ -17,7 +17,7 @@ You do not need to write code to contribute to SARAwater! If you find a bug, hav
 
 ## Getting Started with Code Contributions
 
-**TIP**: If you are new to GitHub and open-source contributions, check out this [GitHub Guide for Beginners](https://guides.github.com/activities/hello-world/) to get familiar with the basics of forking, branching, and making pull requests. Some code editors allow for using Git directly from the interface, without needing to use the command line. For example, if you are using [VS Code](https://code.visualstudio.com/), you can also check out the [Source Control in VS Code](https://code.visualstudio.com/docs/sourcecontrol/overview) page, which also includes a short tutorial specific to GitHub, to learn how to manage your contributions directly from the editor.
+**TIP**: If you are new to GitHub and open-source contributions, check out this [GitHub Guide for Beginners](https://guides.github.com/activities/hello-world/) to get familiar with the basics of forking, branching, and making pull requests. Some code editors allow for using git and GitHub directly from the interface, without needing to use the command line. For example, if you are using [VS Code](https://code.visualstudio.com/), you can also check out the [Source Control in VS Code](https://code.visualstudio.com/docs/sourcecontrol/overview) page, which also includes a short tutorial specific to GitHub, to learn how to manage your contributions directly from the editor.
 
 ### 1. Setting Up Your Development Environment
 
@@ -38,6 +38,7 @@ To start working on the code, you will need a local copy of the repository and a
     ```bash
     pip install -e .[dev,docs]
     ```
+    It is recommended to run the `pip install` command within a virtual environment (e.g., `venv` or `conda`) to keep the development version of SARAwater and its dependencies isolated from other Python projects on your machine.
 5.  **Install Pandoc (for documentation):**
     Building the documentation requires Pandoc. You can download and install it from the [official Pandoc website](https://pandoc.org/installing.html).
 
