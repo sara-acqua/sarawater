@@ -279,7 +279,7 @@ class Reach:
                 right=False,
                 labels=phi_classes[:-1],
             )
-            phi_percentages = dfphi.groupby("Phi Interval")["Percent"].sum()
+            phi_percentages = dfphi.groupby("Phi Interval", observed=False)["Percent"].sum()
             if 7.5 not in phi_percentages.index:
                 phi_percentages.loc[7.5] = 0.0
         else:
