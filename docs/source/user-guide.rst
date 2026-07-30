@@ -27,7 +27,7 @@ The ``Reach`` class is the central object in SARAwater, representing a river rea
 - ``get_list_available_HQ_curves()``: Get list of available habitat curves
 - ``get_HQ_curve(curve_name)``: Retrieve a specific habitat-discharge curve
 - ``print_scenarios()``: Print a list of all scenarios added to the reach
-- ``export_scenario_summary()``: Export a comprehensive summary table of all scenarios with their parameters and indices
+- ``export_scenarios_summary()``: Export a comprehensive summary table of all scenarios with their parameters and indices
 
 Scenario objects
 ----------------
@@ -65,7 +65,7 @@ A scenario with constant monthly flow requirements.
 
 **Parameters:**
 
-- ``Qreq_months``: List of 12 float values representing monthly constant flow rates (l/s)
+- ``Qreq_months``: List of 12 float values representing monthly constant flow rates (m3/s)
 
 **PropScenario (proportional release)**
 
