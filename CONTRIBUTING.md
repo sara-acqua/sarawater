@@ -11,34 +11,72 @@ You do not need to write code to contribute to SARAwater! If you find a bug, hav
 * **Bug Reports:** If you encounter an error, please [open an issue](https://github.com/sara-acqua/SARAwater/issues) and include as much detail as possible. Let us know what version of SARAwater you are using, what you were trying to do, and the exact error message you received.
 * **Feature Requests:** If you have an idea for a new scenario model or an improvement to the existing package, please [open an issue](https://github.com/sara-acqua/SARAwater/issues) to discuss it with the package maintainers before you spend time writing the code.
 
-**If you want to contribute code to fix an issue or add a feature, please read the following sections!**
+> [!TIP]
+> If you want to contribute code to fix an issue or add a feature, please read the following sections!
 
----
+## Getting Started with Code Contributions: How to Fork the Repository, Create a Branch, and submit a Pull Request
+> [!TIP]
+> If you are new to GitHub and open-source contributions, check out this [GitHub Guide for Beginners](https://guides.github.com/activities/hello-world/) to get familiar with the basics of forking, branching, and making pull requests. Some code editors allow for using git and GitHub directly from the interface, without needing to use the command line. For example, if you are using [VS Code](https://code.visualstudio.com/), you can also check out the [Source Control in VS Code](https://code.visualstudio.com/docs/sourcecontrol/overview) page, which also includes a short tutorial specific to GitHub, to learn how to manage your contributions directly from the editor.
 
-## Getting Started with Code Contributions: Setting Up Your Development Environment
+To start working on the code, you will need your own fork of the repository and a dedicated development environment. SARAwater supports **Python 3.11+**.
 
-**TIP**: If you are new to GitHub and open-source contributions, check out this [GitHub Guide for Beginners](https://guides.github.com/activities/hello-world/) to get familiar with the basics of forking, branching, and making pull requests. Some code editors allow for using git and GitHub directly from the interface, without needing to use the command line. For example, if you are using [VS Code](https://code.visualstudio.com/), you can also check out the [Source Control in VS Code](https://code.visualstudio.com/docs/sourcecontrol/overview) page, which also includes a short tutorial specific to GitHub, to learn how to manage your contributions directly from the editor.
-
-To start working on the code, you will need a local copy of the repository and a dedicated development environment. SARAwater supports **Python 3.11+**.
-
-1.  **Fork the repository:** Click the "Fork" button at the top right of the [SARAwater GitHub page](https://github.com/sara-acqua/SARAwater). This creates a copy of the repository in your own GitHub account.
-2.  **Clone your fork:** Download your copy to your local machine by cloning it, either using your Editor or the command line. For the latter, replace `YOUR-USERNAME` in the URL with your actual GitHub username and run:
+1.  **Fork the repository:** Navigate to the [SARAwater GitHub repository](https://github.com/sara-acqua/SARAwater) and click **Fork** in the top-right corner. Choose your personal GitHub account as the destination and create the fork. This creates a copy of the repository that you can modify freely.
+2.  **Clone your fork:** Download your fork to your local machine. Replace `YOUR-USERNAME` with your GitHub username and run:
     ```bash
     git clone https://github.com/YOUR-USERNAME/SARAwater.git
     cd SARAwater
     ```
-3.  **Connect to the original repository:** Add the main SARAwater repository as an "upstream" remote so you can easily pull in the latest changes made by others:
+3.  **Connect the official repository as upstream:** Add the main SARAwater repository as an `upstream` remote so you can pull in the latest changes made by others:
     ```bash
     git remote add upstream https://github.com/sara-acqua/SARAwater.git
     ```
-4.  **Install the package for development:**
+    You can verify that both remotes are configured with:
+    ```bash
+    git remote -v
+    ```
+4.  **Keep your fork in sync before starting new work:** From time to time, update your local `main` branch from the official repository and push the changes to your fork:
+    ```bash
+    git checkout main
+    git fetch upstream
+    git merge upstream/main
+    git push origin main
+    ```
+5.  **Install the package for development:**
     We use `pip` to install the package in "editable" mode (`-e`), along with all the dependencies needed for development and building documentation.
     ```bash
     pip install -e .[dev,docs]
     ```
     It is recommended to run the `pip install` command within a virtual environment (e.g., `venv` or `conda`) to keep the development version of SARAwater and its dependencies isolated from other Python projects on your machine.
-5.  **Install Pandoc (for documentation):**
+6.  **Install Pandoc (for documentation):**
     Building the documentation requires Pandoc. You can download and install it from the [official Pandoc website](https://pandoc.org/installing.html).
+
+### Create a feature branch and submit your contribution
+
+> [!WARNING]
+> **Never commit directly to `main`!** Your local and forked `main` branches should remain exact mirrors of the official SARAwater `main` branch. Always create a dedicated feature branch before making changes.
+
+Once your local environment is ready, follow this workflow for each contribution:
+
+1. **Create a feature branch** for your bugfix or new feature:
+   ```bash
+   git checkout -b feature/scenario-model
+   ```
+2. **Make your changes** and keep them focused on a single issue or improvement.
+3. **Format and test your changes** before submitting them:
+   ```bash
+   black .
+   pytest
+   ```
+4. **Commit your changes** with a clear message:
+   ```bash
+   git add .
+   git commit -m "feat: add new scenario model calculation"
+   ```
+5. **Push your branch to your fork** and open a pull request:
+   ```bash
+   git push -u origin feature/scenario-model
+   ```
+   Then open the repository on GitHub and click **Compare & pull request** to submit your changes for review.
 
 ## Coding Guidelines & Architecture
 
@@ -102,23 +140,3 @@ We use `pytest` to ensure that new changes do not break existing functionality. 
 ```bash
 pytest
 ```
-
-## Submitting Your Code
-
-Since direct write access to the main SARAwater repository is restricted to maintainers, you will submit your code by pushing it to your personal fork and opening a Pull Request (PR).
-
-1.  **Update your local branch:** Before making changes, ensure your local `main` branch is up to date with the original repository:
-    ```bash
-    git checkout main
-    git pull upstream main
-    ```
-2.  **Create a new branch:** Never work directly on the `main` branch. Create a new branch for your feature or bugfix:
-    ```bash
-    git checkout -b feature/new-scenario-model
-    ```
-3.  **Commit your changes:** Write clear, descriptive commit messages explaining what you changed and why.
-4.  **Push to your fork:** Push your new branch up to your personal GitHub copy (`origin`):
-    ```bash
-    git push origin feature/new-scenario-model
-    ```
-5.  **Open a Pull Request:** Go to the main [SARAwater GitHub page](https://github.com/sara-acqua/SARAwater). You should see a prompt to "Compare & pull request" for your recently pushed branch. Click it, fill out the description, and submit\!
