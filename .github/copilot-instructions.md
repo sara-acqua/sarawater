@@ -54,6 +54,12 @@ The typical workflow is:
 - **No `input()` calls** — the package is used programmatically; all parameters must be explicit arguments.
 - **No `verbose` parameter** — do not add verbosity controls.
 - **Plotting type annotations** — plotting functions should return a Matplotlib axis and be annotated consistently: import `Axes` via `from matplotlib.axes import Axes`, annotate plotting methods as `-> Axes`, and ensure methods annotated as `Axes` always return an axis (do not mix `-> None` annotations with `return plt.gca()`).
+- **Scenario computed-attribute guards** — when adding new Scenario attributes that are populated only after a compute step (for example indices, tables, or budgets), always follow the same contract:
+	1. initialize the attribute in `Scenario.__init__` with an explicit nullable type (`... | None`) instead of creating it dynamically with `hasattr` patterns;
+	2. add a private `_require_<attribute>()` helper that returns the non-null typed value and raises a clear `ValueError` explaining which compute method must be run first;
+	3. use that guard in all internal consumers (plotting, exports, summaries) rather than directly indexing optional values;
+	4. in cross-object consumers (e.g., `Reach`/`ReachPlotter`), check value presence (`is not None`) instead of attribute existence (`hasattr`) for these initialized optional fields.
+	This keeps runtime behavior explicit and prevents typing regressions when the model/state surface grows.
 - **Validate at boundaries**: `raise ValueError` for out-of-range inputs instead of silently clamping or using defaults. Use `_validate_positive_numeric()` from `utils.py` for positive-numeric checks.
 - **No hardcoded magic numbers** — if a value has a physical meaning or a valid range, document it and validate it.
 - Units: flow in **m³/s**, lengths in **m**, grain sizes in **mm** (converted internally), sediment density default **2650 kg/m³**.

@@ -196,33 +196,29 @@ The ``output_dir`` argument must be a valid directory path string (``None`` is n
 
 **Discharge and Flow Regime:**
 
-- ``plot_scenarios_discharge(start_date, end_date, log_scale=True, save=False)``: Compare discharge time series across scenarios
-- ``plot_cases_duration(save=False)``: Visualize flow regime case durations (Case 1: Qnat ≤ Qreq; Case 2: abstraction occurring; Case 3: excess flow)
-- ``plot_cases_duration_month(month, save=False)``: Monthly case duration comparison
-- ``plot_monthly_abstraction(save=False)``: Compare monthly water abstraction volumes
+- ``plot_scenarios_discharge()``: Compare discharge time series across scenarios
+- ``plot_cases_duration()``: Visualize flow regime case durations (Case 1: Qnat ≤ Qreq; Case 2: abstraction occurring; Case 3: excess flow)
+- ``plot_cases_duration_month(month)``: Monthly case duration comparison
+- ``plot_monthly_abstraction()``: Compare monthly water abstraction volumes
 
 **Hydrologic Alteration:**
 
-- ``plot_iha_parameters(save=False)``: Multi-panel plot of all IHA parameters across scenarios
-- ``plot_iari_groups(save=False)``: IARI values by IHA group
-- ``plot_iari_summary(save=False)``: Overall IARI comparison across scenarios
-- ``plot_nIHA_summary(save=False)``: Normalized IHA comparison
-- ``plot_iha_boxplots(save=False)``: Box plots of IHA parameters showing inter-annual variability
-- ``plot_relative_deviations(save=False)``: Relative deviations of IHA parameters from natural conditions
-- ``plot_iari_vs_volume(save=False)``: Trade-off between hydrologic alteration (IARI) and water abstraction
+- ``plot_iha_parameters()``: Multi-panel plot of all IHA parameters across scenarios
+- ``plot_iari_groups()``: IARI values by IHA group
+- ``plot_iari_summary()``: Overall IARI comparison across scenarios
+- ``plot_nIHA_summary()``: Normalized IHA comparison
+- ``plot_iha_boxplots()``: Box plots of IHA parameters showing inter-annual variability
+- ``plot_relative_deviations()``: Relative deviations of IHA parameters from natural conditions
+- ``plot_iari_vs_volume()``: Trade-off between hydrologic alteration (IARI) and water abstraction
 
 **Habitat Analysis:**
 
-- ``plot_hq_curves(species, save=False)``: Display habitat-discharge curves for specified species
-- ``plot_habitat_timeseries(species, start_date, end_date, save=False)``: Compare habitat availability time series
-- ``plot_ucut_curves(species, save=False)``: UCUT curves showing duration of habitat stress events
-- ``plot_ih_vs_volume(save=False)``: Trade-off between habitat alteration (IH) and water abstraction
-- ``plot_nIHA_vs_volume(save=False)``: Trade-off between normalized IHA and water abstraction
+- ``plot_hq_curves()``: Display habitat-discharge curves
+- ``plot_habitat_timeseries(species)``: Compare habitat availability time series
+- ``plot_ucut_curves(species)``: UCUT curves showing duration of habitat stress events
+- ``plot_ih_vs_volume()``: Trade-off between habitat alteration (IH) and water abstraction
+- ``plot_nIHA_vs_volume()``: Trade-off between normalized IHA and water abstraction
 
 **Plot Options:**
 
-All plotting methods support:
-
-- ``save=False``: Set to ``True`` to save plots to the output directory
-- Date filtering with ``start_date`` and ``end_date`` parameters (where applicable)
-- Additional matplotlib kwargs can be passed to customize appearance
+All plotting methods support saving plots to the configured output directory by setting ``save=True``. Additional keyword arguments can be passed to customize the plots (e.g., figure size, colors, labels).
