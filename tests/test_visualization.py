@@ -51,7 +51,9 @@ def test_plotter_initialization():
 
 def test_plotter_initialization_rejects_none_output_dir():
     """Test ReachPlotter rejects None as output_dir."""
-    with pytest.raises(ValueError, match="output_dir must be a valid directory path string"):
+    with pytest.raises(
+        ValueError, match="output_dir must be a valid directory path string"
+    ):
         ReachPlotter(test_visualization_reach, None)
 
 

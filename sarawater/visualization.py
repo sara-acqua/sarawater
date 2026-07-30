@@ -46,7 +46,9 @@ class ReachPlotter:
         """
         self.reach = reach
         if output_dir is None:
-            raise ValueError("output_dir must be a valid directory path string and cannot be None")
+            raise ValueError(
+                "output_dir must be a valid directory path string and cannot be None"
+            )
         self.scenario_colors = scenario_colors
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
