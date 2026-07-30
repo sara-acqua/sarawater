@@ -2,6 +2,7 @@ import sys, os
 import numpy as np
 import datetime
 import matplotlib.pyplot as plt
+import pytest
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -46,6 +47,12 @@ def test_plotter_initialization():
     test_output_dir = os.path.join("tests", "test_output")
     plotter = ReachPlotter(test_visualization_reach, test_output_dir)
     assert plotter.output_dir == test_output_dir
+
+
+def test_plotter_initialization_rejects_none_output_dir():
+    """Test ReachPlotter rejects None as output_dir."""
+    with pytest.raises(ValueError, match="output_dir must be a valid directory path string"):
+        ReachPlotter(test_visualization_reach, None)
 
 
 def test_scenario_discharge_plot():

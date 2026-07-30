@@ -190,6 +190,8 @@ The ``ReachPlotter`` class provides comprehensive visualization capabilities for
    
    plotter = ReachPlotter(reach, output_dir='outputs')
 
+The ``output_dir`` argument must be a valid directory path string (``None`` is not supported).
+
 **Available Plots:**
 
 **Discharge and Flow Regime:**

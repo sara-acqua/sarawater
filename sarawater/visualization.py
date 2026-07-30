@@ -19,7 +19,7 @@ class ReachPlotter:
     def __init__(
         self,
         reach: Reach,
-        output_dir: Optional[str] = "outputs",
+        output_dir: str = "outputs",
         scenario_colors: List[str] = [
             "tab:red",
             "tab:orange",
@@ -39,16 +39,17 @@ class ReachPlotter:
         ----------
         reach : Reach
             The reach object containing scenarios to plot
-        output_dir : str or None, optional
-            Directory where to save the plots. By default "outputs". Set to None to prevent the directory from being created. Note that plotting methods need to be called with save=True to save the plots.
+        output_dir : str, optional
+            Directory where to save the plots. By default "outputs". The directory is created if it does not exist. Note that plotting methods need to be called with save=True to save the plots.
         scenario_colors : list of str, optional
             List of colors to use for each scenario in the plots. Default is a set of distinct tab colors.
         """
         self.reach = reach
+        if output_dir is None:
+            raise ValueError("output_dir must be a valid directory path string and cannot be None")
         self.scenario_colors = scenario_colors
         self.output_dir = output_dir
-        if output_dir is not None:
-            os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
 
     def _ensure_iha_dir(self) -> str:
         """Create IHA subfolder if it doesn't exist (for multi-file methods)."""
