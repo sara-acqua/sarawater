@@ -214,12 +214,12 @@ class Scenario:
             1. Dictionary containing IHA indicators grouped by type for the altered state
             2. Dictionary containing the index values (IARI or normalized_IHA) per group and aggregated
         """
-        qrel = self._require_Qrel()
+        Qrel = self._require_Qrel()
         iha_alt = self.compute_IHA() if self.IHA is None else self._require_iha()
 
         _, out_dict = compute_IHA_index(
             self.Qnat,
-            qrel,
+            Qrel,
             self.dates,
             index_metric=index_metric,
             IHA_nat=self.reach.IHA_nat,
