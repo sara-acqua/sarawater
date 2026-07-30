@@ -194,13 +194,13 @@ def compute_IHA(
         )
         yearly_variations["reversals"][i] = np.sum(np.diff(np.signbit(flow_changes)))
 
-        IHA_groups["Group5"].update(
-            {
-                "positive_variation_median": yearly_variations["pos_med"],
-                "negative_variation_median": yearly_variations["neg_med"],
-                "flow_reversals": yearly_variations["reversals"],
-            }
-        )
+    IHA_groups["Group5"].update(
+        {
+            "positive_variation_median": yearly_variations["pos_med"],
+            "negative_variation_median": yearly_variations["neg_med"],
+            "flow_reversals": yearly_variations["reversals"],
+        }
+    )
 
     return IHA_groups
 
