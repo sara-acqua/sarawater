@@ -1,13 +1,22 @@
 import numpy as np
 import datetime
 import pandas as pd
+from numpy.typing import NDArray
+from typing import Optional, Sequence, TypedDict
 
 from sarawater.utils import compute_consecutive_lengths
+
+IHAResult = dict[str, dict[str, NDArray[np.float64]]]
+
+
+class IHAIndexResult(TypedDict):
+    groups: dict[str, NDArray[np.float64]]
+    aggregated: NDArray[np.float64]
 
 
 def compute_IHA(
     Qnat: np.ndarray, Qrel: np.ndarray, dates: list, zero_flow_threshold: float = 0.001
-) -> dict[str, dict[str, np.ndarray]]:
+) -> IHAResult:
     """Compute Indicators of Hydrologic Alteration (IHA) for a given flow time series Qrel with respect to a natural time series Qnat.
     Each indicator is computed yearly. The indicators are grouped into 5 groups as per IHA methodology.
 
@@ -56,11 +65,11 @@ def compute_IHA(
     df_daily = df.groupby("date").agg({"Qnat": "mean", "Qrel": "mean"}).reset_index()
 
     # Extract daily-averaged data
-    dates_daily = pd.to_datetime(df_daily["date"]).tolist()
-    Qnat_daily = df_daily["Qnat"].values
-    Qrel_daily = df_daily["Qrel"].values
+    dates_daily = [d.to_pydatetime() for d in pd.to_datetime(df_daily["date"])]
+    Qnat_daily = df_daily["Qnat"].to_numpy(dtype=float)
+    Qrel_daily = df_daily["Qrel"].to_numpy(dtype=float)
 
-    IHA_groups = {f"Group{i+1}": {} for i in range(5)}
+    IHA_groups: IHAResult = {f"Group{i+1}": {} for i in range(5)}
     years = np.unique([d.year for d in dates_daily])
     n_years = len(years)
 
@@ -111,7 +120,7 @@ def compute_IHA(
     for i, year in enumerate(years):
         year_mask = np.array([d.year == year for d in dates_daily])
         year_data = Qrel_daily[year_mask]
-        year_dates = np.array(dates_daily)[year_mask]
+        year_dates = [d for d in dates_daily if d.year == year]
 
         max_idx = np.argmax(year_data)
         min_idx = np.argmin(year_data)
@@ -201,11 +210,11 @@ def compute_IHA_index(
     Qrel: np.ndarray,
     dates: list,
     index_metric: str,
-    weights: list[float] = None,
-    IHA_nat: dict = None,
-    IHA_alt: dict = None,
+    weights: Optional[Sequence[float]] = None,
+    IHA_nat: Optional[IHAResult] = None,
+    IHA_alt: Optional[IHAResult] = None,
     epsilon: float = 1e-5,
-) -> tuple[dict, dict[str, dict[str, np.ndarray]]]:
+) -> tuple[IHAResult, IHAIndexResult]:
     """Compute the IHA indicators and the related IARI index for each year.
 
     Parameters
@@ -272,9 +281,8 @@ def compute_IHA_index(
     group_weights = {group_name: w for group_name, w in zip(IHA_nat.keys(), weights)}
 
     # define if we are computing IARI or normalized IHA
-    if index_metric.lower() not in ["iari", "normalized_iha"]:
-        raise ValueError("index_metric must be either 'IARI' or 'normalized_IHA'")
-    elif index_metric.lower() == "normalized_iha":
+    metric = index_metric.lower()
+    if metric == "normalized_iha":
         # Initialize group normalized IHA arrays
         normalized_IHA_groups = {
             group_name: np.zeros(n_years) for group_name in IHA_nat.keys()
@@ -306,14 +314,14 @@ def compute_IHA_index(
         normalized_IHA_aggregated = np.zeros(n_years)
         for group_name, w in group_weights.items():
             normalized_IHA_aggregated += w * normalized_IHA_groups[group_name]
-        nIHA_dict = {
+        nIHA_dict: IHAIndexResult = {
             "groups": normalized_IHA_groups,
             "aggregated": normalized_IHA_aggregated,
         }
 
         return IHA_alt, nIHA_dict
 
-    elif index_metric.lower() == "iari":
+    if metric == "iari":
         # Initialize group IARI arrays
         IARI_groups = {group_name: np.zeros(n_years) for group_name in IHA_nat.keys()}
 
@@ -353,9 +361,11 @@ def compute_IHA_index(
         IARI_aggregated = np.zeros(n_years)
         for group_name, w in group_weights.items():
             IARI_aggregated += w * IARI_groups[group_name]
-        IARI_dict = {
+        IARI_dict: IHAIndexResult = {
             "groups": IARI_groups,
             "aggregated": IARI_aggregated,
         }
 
         return IHA_alt, IARI_dict
+
+    raise ValueError("index_metric must be either 'IARI' or 'normalized_IHA'")

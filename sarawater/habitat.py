@@ -1,12 +1,25 @@
 import numpy as np
-from typing import Tuple
+from typing import Any, Literal
+from numpy.typing import NDArray
 
 from sarawater.utils import compute_consecutive_lengths
 
 
 def compute_h_ucut(
-    HQ, date, Q, Q97, H97_ref=None, mode=None, n=100
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    HQ,
+    date,
+    Q,
+    Q97,
+    H97_ref: float | None = None,
+    mode: Literal["reference", "altered"] | None = None,
+    n: int = 100,
+) -> tuple[
+    NDArray[np.float64],
+    NDArray[np.int64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    dict[str, Any],
+]:
     """
     Compute habitat time series and UCUT curve for a discharge time series and habitat-discharge curve.
 
@@ -51,7 +64,7 @@ def compute_h_ucut(
     # pp = CubicSpline(HQ[:, 0], HQ[:, 1])
     # splineHQ = pp(Qfit)
 
-    H = np.full_like(Q, np.nan, dtype=float)
+    H = np.full(Q.shape, np.nan, dtype=np.float64)
     mask = Q < Qend
     H[mask] = np.interp(Q[mask], HQ[:, 0], HQ[:, 1])
     H = np.round(H, 3)
@@ -65,6 +78,8 @@ def compute_h_ucut(
             H97 = np.interp(Q97, HQ[:, 0], HQ[:, 1])
             H97 = np.ceil(H97)
     elif mode == "altered":
+        if H97_ref is None:
+            raise ValueError("H97_ref must be provided when mode='altered'")
         H97 = H97_ref
         H97 = np.ceil(H97)
     else:
@@ -78,9 +93,10 @@ def compute_h_ucut(
     if UT_days.size == 0:
         # No under-threshold events
         return (
-            np.array([]),
-            np.array([]),
+            np.array([], dtype=float),
+            np.array([], dtype=np.int64),
             H,
+            np.array([], dtype=float),
             {"Q97": Q97, "H97": H97, "Qfit": Qfit, "splineHQ": None},
         )
 
@@ -88,7 +104,7 @@ def compute_h_ucut(
     UT_days_sorted = np.sort(UT_days)[::-1]
 
     # create an array that starts from UT_days_sorted[0] and ends with UT_days_sorted[-1] with a step of 1
-    UCUT_events = np.arange(UT_days_sorted[0], 0, -1)
+    UCUT_events = np.arange(UT_days_sorted[0], 0, -1, dtype=np.int64)
 
     # create an array that contains the number of durations of each event and an array that contains the number of counts of each event
     durations, counts = np.unique(UT_days_sorted, return_counts=True)
@@ -121,7 +137,7 @@ def compute_h_ucut(
 
 def compute_IH(
     UCUT_cum_ref, UCUT_cum_alt, H_ref, H_alt, UCUT_events_ref
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """
     Calculate HSD, ISH, ITH, IH according to the MATLAB function logic.
 
