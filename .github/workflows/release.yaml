@@ -38,7 +38,22 @@ jobs:
             exit 1
           fi
 
+      - name: Validate tag matches package version
+        run: |
+          TAG_VERSION="${{ steps.release.outputs.new_version }}"
+          PACKAGE_VERSION=$(python -c "import pathlib,tomllib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version'])")
+
+          echo "Tag version: $TAG_VERSION"
+          echo "Package version: $PACKAGE_VERSION"
+
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Error: tag version ($TAG_VERSION) does not match pyproject version ($PACKAGE_VERSION)."
+            exit 1
+          fi
+
   release-build:
+    needs:
+      - details
     runs-on: ubuntu-latest
 
     steps:
