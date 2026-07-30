@@ -179,7 +179,8 @@ def steady_flow_solver(
         h = np.min(z_coords)
         Omega = 0.0
         U = 0.0
-        return h, Omega, U
+        P = 0.0
+        return h, Omega, U, P
 
     # Compute wetted area and average flow velocity
     N = y_coords.size
