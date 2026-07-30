@@ -19,18 +19,8 @@ class ReachPlotter:
     def __init__(
         self,
         reach: Reach,
-        output_dir: str = "outputs",
-        scenario_colors: List[str] = [
-            "tab:red",
-            "tab:orange",
-            "tab:green",
-            "tab:purple",
-            "tab:brown",
-            "tab:pink",
-            "tab:gray",
-            "tab:olive",
-            "tab:cyan",
-        ],
+        output_dir: Optional[str] = "outputs",
+        scenario_colors: List[str] | None = None,
     ):
         """
         Initialize a ReachPlotter instance.
@@ -49,9 +39,23 @@ class ReachPlotter:
             raise ValueError(
                 "output_dir must be a valid directory path string and cannot be None"
             )
-        self.scenario_colors = scenario_colors
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+
+        if scenario_colors is not None:
+            self.scenario_colors = list(scenario_colors)[: len(self.reach.scenarios)]
+        else:
+            self.scenario_colors = [
+                "tab:orange",
+                "tab:green",
+                "tab:red",
+                "tab:purple",
+                "tab:brown",
+                "tab:pink",
+                "tab:gray",
+                "tab:olive",
+                "tab:cyan",
+            ][: len(self.reach.scenarios)]
 
     def _ensure_iha_dir(self) -> str:
         """Create IHA subfolder if it doesn't exist (for multi-file methods)."""
@@ -881,7 +885,8 @@ class ReachPlotter:
         if save:
             plt.savefig(
                 os.path.join(
-                    self.output_dir, f"habitat_timeseries_{species}_{scenario.name}.png"
+                    self.output_dir,
+                    f"habitat_timeseries_{species}_{self.reach.name}.png",
                 ),
                 bbox_inches="tight",
             )
@@ -929,7 +934,7 @@ class ReachPlotter:
                 min(ih_values),
                 vol_median,
                 yerr=vol_std,
-                xerr=np.array([[0], [max(ih_values)] - min(ih_values)]),
+                xerr=np.array([[0], [max(ih_values) - min(ih_values)]]),
                 fmt="^",  # marker style
                 color=self.scenario_colors[i],
                 label=scenario.name,
