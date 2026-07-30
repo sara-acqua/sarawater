@@ -6,11 +6,11 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import List, Optional, Union
+from matplotlib.axes import Axes
+from typing import List, Optional, Union, cast
 from datetime import datetime
 
 from sarawater.reach import Reach
-from sarawater.scenarios import Scenario
 
 
 class ReachPlotter:
@@ -20,17 +20,7 @@ class ReachPlotter:
         self,
         reach: Reach,
         output_dir: Optional[str] = "outputs",
-        scenario_colors: List[str] = [
-            "tab:red",
-            "tab:orange",
-            "tab:green",
-            "tab:purple",
-            "tab:brown",
-            "tab:pink",
-            "tab:gray",
-            "tab:olive",
-            "tab:cyan",
-        ],
+        scenario_colors: List[str] | None = None,
     ):
         """
         Initialize a ReachPlotter instance.
@@ -39,16 +29,33 @@ class ReachPlotter:
         ----------
         reach : Reach
             The reach object containing scenarios to plot
-        output_dir : str or None, optional
-            Directory where to save the plots. By default "outputs". Set to None to prevent the directory from being created. Note that plotting methods need to be called with save=True to save the plots.
+        output_dir : str, optional
+            Directory where to save the plots. By default "outputs". The directory is created if it does not exist. Note that plotting methods need to be called with save=True to save the plots.
         scenario_colors : list of str, optional
             List of colors to use for each scenario in the plots. Default is a set of distinct tab colors.
         """
         self.reach = reach
-        self.scenario_colors = scenario_colors
+        if output_dir is None:
+            raise ValueError(
+                "output_dir must be a valid directory path string and cannot be None"
+            )
         self.output_dir = output_dir
-        if output_dir is not None:
-            os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
+
+        if scenario_colors is not None:
+            self.scenario_colors = list(scenario_colors)[: len(self.reach.scenarios)]
+        else:
+            self.scenario_colors = [
+                "tab:orange",
+                "tab:green",
+                "tab:red",
+                "tab:purple",
+                "tab:brown",
+                "tab:pink",
+                "tab:gray",
+                "tab:olive",
+                "tab:cyan",
+            ][: len(self.reach.scenarios)]
 
     def _ensure_iha_dir(self) -> str:
         """Create IHA subfolder if it doesn't exist (for multi-file methods)."""
@@ -63,7 +70,7 @@ class ReachPlotter:
         log_scale: bool = True,
         save: bool = False,
         plot_Qnat: bool = True,
-    ) -> None:
+    ) -> Axes:
         """
         Plot discharge comparison between scenarios.
 
@@ -75,7 +82,7 @@ class ReachPlotter:
             End date for the plot range
         log_scale : bool, default=True
             Whether to use log scale for y-axis
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         plot_Qnat : bool, default=True
             Whether to plot the natural flow (Qnat)
@@ -94,9 +101,10 @@ class ReachPlotter:
 
         plt.figure()
         for color, scenario in zip(self.scenario_colors, self.reach.scenarios):
+            scenario_Qrel = scenario._require_Qrel()
             plt.plot(
                 np.array(self.reach.dates)[mask],
-                scenario.Qrel[mask],
+                scenario_Qrel[mask],
                 color=color,
                 label=scenario.name,
             )
@@ -125,31 +133,37 @@ class ReachPlotter:
         return plt.gca()
 
     def plot_iari_groups(
-        self, save: bool = False, ylims: list = [None, None, None, None, None]
-    ) -> None:
+        self,
+        save: bool = False,
+        ylims: Optional[List[Optional[tuple[float, float]]]] = None,
+    ) -> Axes:
         """
         Plot IARI values comparison for each group.
 
         Parameters
         ----------
-        ylims : list, default=None for all groups
-            Y-axis limit for each group. If None, the limit is set automatically.
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plots to files
+        ylims : list[tuple[float, float] | None] | None, default=None
+            Y-axis limit for each group. If None, the limit is set automatically.
         """
+        if ylims is None:
+            ylims = [None, None, None, None, None]
+
         min_year = self.reach.dates[0].year
         years = range(
             min_year, min_year + len(self.reach.IHA_nat["Group1"]["mean_january"])
         )
-        groups = self.reach.scenarios[0].IARI["groups"].keys()
+        groups = self.reach.scenarios[0]._require_iari()["groups"].keys()
 
         for g_idx, group in enumerate(groups):
             plt.figure()
 
             for i, scenario in enumerate(self.reach.scenarios):
+                scenario_iari = scenario._require_iari()
                 plt.plot(
                     years,
-                    scenario.IARI["groups"][group],
+                    scenario_iari["groups"][group],
                     color=self.scenario_colors[i],
                     label=scenario.name,
                 )
@@ -158,7 +172,8 @@ class ReachPlotter:
             plt.xlabel("Year")
             plt.ylabel("IARI Value")
             plt.xlim(min(years), max(years))
-            plt.xticks(years, years, rotation=45)
+            years_list = list(years)
+            plt.xticks(years_list, [str(y) for y in years_list], rotation=45)
             plt.grid(True)
             plt.legend()
 
@@ -175,13 +190,13 @@ class ReachPlotter:
                 )
         return plt.gca()
 
-    def plot_iha_parameters(self, save: bool = False) -> None:
+    def plot_iha_parameters(self, save: bool = False) -> Axes:
         """
         Plot IHA parameter comparisons for all parameters.
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plots to files
         """
         min_year = self.reach.dates[0].year
@@ -190,7 +205,8 @@ class ReachPlotter:
         years_alt = range(years_nat[-1] + 1, years_nat[-1] + 1 + num_years)
         years = list(years_nat) + list(years_alt)
 
-        for IHA_group_name, IHA_group in self.reach.scenarios[0].IHA.items():
+        first_scenario_iha = self.reach.scenarios[0]._require_iha()
+        for IHA_group_name, IHA_group in first_scenario_iha.items():
             for indicator in IHA_group:
                 natural_values = self.reach.IHA_nat[IHA_group_name][indicator]
 
@@ -217,9 +233,10 @@ class ReachPlotter:
                 plt.axhline(y=p75, color="tab:blue", linestyle="--")
 
                 for j, scenario in enumerate(self.reach.scenarios):
+                    scenario_iha = scenario._require_iha()
                     plt.plot(
                         years_alt,
-                        scenario.IHA[IHA_group_name][indicator],
+                        scenario_iha[IHA_group_name][indicator],
                         label=scenario.name,
                         color=self.scenario_colors[j],
                     )
@@ -228,7 +245,7 @@ class ReachPlotter:
                 plt.xlabel("Year")
                 plt.ylabel("IHA Value")
                 plt.xlim(min(years), max(years))
-                plt.xticks(years, years, rotation=45)
+                plt.xticks(years, [str(y) for y in years], rotation=45)
                 plt.grid(True)
                 plt.legend()
 
@@ -241,13 +258,13 @@ class ReachPlotter:
                     )
         return plt.gca()
 
-    def plot_iari_summary(self, save: bool = False) -> None:
+    def plot_iari_summary(self, save: bool = False) -> Axes:
         """
         Create a summary bar plot of IARI indices for all scenarios.
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         """
         groups = ["Group1", "Group2", "Group3", "Group4", "Group5"]
@@ -255,11 +272,14 @@ class ReachPlotter:
 
         # Calculate mean IARI values for each group and scenario
         means = {
-            scenario.name: [np.mean(scenario.IARI["groups"][group]) for group in groups]
+            scenario.name: [
+                np.mean(scenario._require_iari()["groups"][group]) for group in groups
+            ]
             for scenario in self.reach.scenarios
         }
         for scenario in self.reach.scenarios:
-            means[scenario.name].append(np.mean(scenario.IARI["aggregated"]))
+            aggregated_iari = cast(np.ndarray, scenario._require_iari()["aggregated"])
+            means[scenario.name].append(np.mean(aggregated_iari))
 
         # Create grouped bar plot
         width = 0.8 / n_scenarios
@@ -283,13 +303,13 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_nIHA_summary(self, save: bool = False) -> None:
+    def plot_nIHA_summary(self, save: bool = False) -> Axes:
         """
         Create a summary bar plot of normalized IHA indices for all scenarios.
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         """
         groups = ["Group1", "Group2", "Group3", "Group4", "Group5"]
@@ -298,12 +318,16 @@ class ReachPlotter:
         # Calculate mean nIHA values for each group and scenario
         means = {
             scenario.name: [
-                np.mean(scenario.normalized_IHA["groups"][group]) for group in groups
+                np.mean(scenario._require_normalized_iha()["groups"][group])
+                for group in groups
             ]
             for scenario in self.reach.scenarios
         }
         for scenario in self.reach.scenarios:
-            means[scenario.name].append(np.mean(scenario.normalized_IHA["aggregated"]))
+            aggregated_niha = cast(
+                np.ndarray, scenario._require_normalized_iha()["aggregated"]
+            )
+            means[scenario.name].append(np.mean(aggregated_niha))
 
         # Create grouped bar plot
         width = 0.8 / n_scenarios
@@ -327,16 +351,17 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_iha_boxplots(self, save: bool = False) -> None:
+    def plot_iha_boxplots(self, save: bool = False) -> Axes:
         """
         Create boxplot comparisons for IHA parameters across scenarios.
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plots to files
         """
-        for IHA_group_name, IHA_group in self.reach.scenarios[0].IHA.items():
+        first_scenario_iha = self.reach.scenarios[0]._require_iha()
+        for IHA_group_name, IHA_group in first_scenario_iha.items():
             for indicator in IHA_group:
                 plt.figure()
 
@@ -344,10 +369,11 @@ class ReachPlotter:
                 labels = ["Natural"]
 
                 for scenario in self.reach.scenarios:
-                    data.append(scenario.IHA[IHA_group_name][indicator])
+                    scenario_iha = scenario._require_iha()
+                    data.append(scenario_iha[IHA_group_name][indicator])
                     labels.append(scenario.name)
 
-                plt.boxplot(data, labels=labels)
+                plt.boxplot(data, tick_labels=labels)
                 plt.title(f"{self.reach.name} - IHA Distribution - {indicator}")
                 plt.ylabel("Value")
                 plt.grid(True, alpha=0.3)
@@ -362,16 +388,17 @@ class ReachPlotter:
                     )
         return plt.gca()
 
-    def plot_relative_deviations(self, save: bool = False) -> None:
+    def plot_relative_deviations(self, save: bool = False) -> Axes:
         """
         Plot relative deviations of IHA parameters from natural flow.
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plots to files
         """
-        for IHA_group_name, IHA_group in self.reach.scenarios[0].IHA.items():
+        first_scenario_iha = self.reach.scenarios[0]._require_iha()
+        for IHA_group_name, IHA_group in first_scenario_iha.items():
             for indicator in IHA_group:
                 plt.figure()
                 natural_values = self.reach.IHA_nat[IHA_group_name][indicator]
@@ -380,7 +407,8 @@ class ReachPlotter:
                 years = range(min_year, min_year + len(natural_values))
 
                 for scenario in self.reach.scenarios:
-                    scenario_values = scenario.IHA[IHA_group_name][indicator]
+                    scenario_iha = scenario._require_iha()
+                    scenario_values = scenario_iha[IHA_group_name][indicator]
                     relative_dev = (
                         (scenario_values - natural_values) / natural_values * 100
                     )
@@ -400,7 +428,8 @@ class ReachPlotter:
                 plt.xlabel("Year")
                 plt.ylabel("Relative Deviation (%)")
                 plt.xlim(min(years), max(years))
-                plt.xticks(years, years, rotation=45)
+                years_list = list(years)
+                plt.xticks(years_list, [str(y) for y in years_list], rotation=45)
                 plt.grid(True)
                 plt.legend()
 
@@ -414,7 +443,7 @@ class ReachPlotter:
                     )
         return plt.gca()
 
-    def plot_cases_duration(self, save: bool = False) -> None:
+    def plot_cases_duration(self, save: bool = False) -> Axes:
         """
         Create a bar plot showing the duration percentage of each flow case for all scenarios.
 
@@ -425,7 +454,7 @@ class ReachPlotter:
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         """
         # Ensure all scenarios have computed their cases_duration
@@ -485,7 +514,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_cases_duration_month(self, month, save: bool = False) -> None:
+    def plot_cases_duration_month(self, month, save: bool = False) -> Axes:
         """
         Create a bar plot showing the duration percentage of each flow case for all scenarios for a specific month.
 
@@ -574,13 +603,13 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_monthly_abstraction(self, save: bool = False) -> None:
+    def plot_monthly_abstraction(self, save: bool = False) -> Axes:
         """
         Create a bar plot showing the average monthly abstracted volumes for each scenario.
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         """
         # Ensure all scenarios have computed their abstracted volumes
@@ -646,7 +675,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_iari_vs_volume(self, save: bool = False) -> None:
+    def plot_iari_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and IARI indices.
         Each scenario is shown with error bars representing standard deviations.
@@ -656,7 +685,7 @@ class ReachPlotter:
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         """
         plt.figure()
@@ -664,7 +693,7 @@ class ReachPlotter:
         # For each scenario except natural flow
         for i, scenario in enumerate(self.reach.scenarios):
             # Calculate IARI statistics
-            iari_values = scenario.IARI["aggregated"]
+            iari_values = cast(np.ndarray, scenario._require_iari()["aggregated"])
             iari_median = np.median(iari_values)
             iari_std = np.std(iari_values)
 
@@ -703,20 +732,26 @@ class ReachPlotter:
     def plot_hq_curves(
         self,
         save: bool = False,
-        xlim: float = None,
-        rule_min: float = None,
-        rule_max: float = None,
+        xlim: Optional[float] = None,
+        rule_min: Optional[float] = None,
+        rule_max: Optional[float] = None,
         rule_name: str = "DMV",
-    ) -> None:
+    ) -> Axes:
         """
         Plot all HQ curves of the reach.
 
         Parameters
-
-
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
+        xlim : float or None, default=None
+            Optional maximum value for x-axis. If provided, x-axis limits are [0, xlim].
+        rule_min : float or None, default=None
+            Lower bound of optional rule range marker.
+        rule_max : float or None, default=None
+            Upper bound of optional rule range marker.
+        rule_name : str, default="DMV"
+            Label used for the optional rule range markers.
         """
 
         plt.figure(figsize=(10, 6))
@@ -730,10 +765,10 @@ class ReachPlotter:
         plt.ylabel(r"Available area $[\mathrm{m}^2]$")
         plt.title("Habitat-Discharge (HQ) curves")
 
-        if xlim:
+        if xlim is not None:
             plt.xlim(0, xlim)
 
-        if rule_min and rule_max:
+        if rule_min is not None and rule_max is not None:
             plt.axvline(
                 x=rule_min,
                 color="tab:gray",
@@ -757,24 +792,22 @@ class ReachPlotter:
         self,
         species: str,
         save: bool = False,
-        start_year: int = None,
-        end_year: int = None,
-    ) -> None:
+        start_year: Optional[int] = None,
+        end_year: Optional[int] = None,
+    ) -> Axes:
         """
-        Plot habitat time series for specific species and scenario
+        Plot habitat time series for a species across all scenarios.
 
         Parameters
         ----------
-        save : bool, default=False
-            Whether to save the plot to file
         species : str
             Species to plot
-        scenario : Scenario
-            Scenario to plot
-        start_year : int
-            Start year for the plot range
-        end_year : int
-            End year for the plot range
+        save : bool, default=False
+            Whether to save the plot to file
+        start_year : int or None, default=None
+            Start year for the plot range. If None, the first year in reach dates is used.
+        end_year : int or None, default=None
+            End year for the plot range. If None, the last year in reach dates is used.
         """
 
         plt.figure()
@@ -809,23 +842,22 @@ class ReachPlotter:
                 os.path.join(self.output_dir, f"habitat_timeseries_{species}.png"),
                 bbox_inches="tight",
             )
+        return plt.gca()
 
     def plot_ucut_curves(
         self,
         species: str,
         save: bool = False,
-    ) -> None:
+    ) -> Axes:
         """
-        Plot ucut curves for specific species and all scenarios
+        Plot UCUT curves for a species across all scenarios.
 
         Parameters
         ----------
-        save : bool, default=True
-            Whether to save the plot to file
         species : str
             Species to plot
-        scenario : Scenario
-            Scenario to plot
+        save : bool, default=False
+            Whether to save the plot to file
         """
 
         plt.figure()
@@ -853,12 +885,14 @@ class ReachPlotter:
         if save:
             plt.savefig(
                 os.path.join(
-                    self.output_dir, f"habitat_timeseries_{species}_{scenario.name}.png"
+                    self.output_dir,
+                    f"habitat_timeseries_{species}_{self.reach.name}.png",
                 ),
                 bbox_inches="tight",
             )
+        return plt.gca()
 
-    def plot_ih_vs_volume(self, save: bool = False) -> None:
+    def plot_ih_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and IH index for a selected species.
         Each scenario is shown with error bars representing standard deviations of volumes.
@@ -878,7 +912,7 @@ class ReachPlotter:
         for scenario in self.reach.scenarios:
             all_species.update(scenario.IH.keys())
 
-        species_colors = plt.cm.tab10(np.linspace(0, 1, len(all_species)))
+        species_colors = plt.get_cmap("tab10")(np.linspace(0, 1, len(all_species)))
         species_color_map = {
             species: species_colors[i] for i, species in enumerate(sorted(all_species))
         }
@@ -900,7 +934,7 @@ class ReachPlotter:
                 min(ih_values),
                 vol_median,
                 yerr=vol_std,
-                xerr=np.array([[0], [max(ih_values)] - min(ih_values)]),
+                xerr=np.array([[0], [max(ih_values) - min(ih_values)]]),
                 fmt="^",  # marker style
                 color=self.scenario_colors[i],
                 label=scenario.name,
@@ -935,7 +969,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_nIHA_vs_volume(self, save: bool = False) -> None:
+    def plot_nIHA_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and nIHA indexes.
         Each scenario is shown with error bars representing standard deviations.
@@ -946,7 +980,7 @@ class ReachPlotter:
 
         Parameters
         ----------
-        save : bool, default=True
+        save : bool, default=False
             Whether to save the plot to file
         """
         plt.figure()
@@ -954,7 +988,9 @@ class ReachPlotter:
         # For each scenario except natural flow
         for i, scenario in enumerate(self.reach.scenarios):
             # Calculate nIHA statistics
-            nIHA_values = scenario.normalized_IHA["aggregated"]
+            nIHA_values = cast(
+                np.ndarray, scenario._require_normalized_iha()["aggregated"]
+            )
             nIHA_median = np.median(nIHA_values)
             nIHA_std = np.std(nIHA_values)
 
@@ -996,7 +1032,7 @@ class ReachPlotter:
         end_date: Optional[Union[str, datetime]] = None,
         log_scale: bool = True,
         save: bool = False,
-    ) -> None:
+    ) -> Axes:
         """
         Plot total sediment load (Qs_total) over time for all scenarios.
 
@@ -1023,11 +1059,12 @@ class ReachPlotter:
 
         plt.figure()
         for i, scenario in enumerate(self.reach.scenarios):
-            if not hasattr(scenario, "sediment_load"):
+            sediment_load = getattr(scenario, "sediment_load", None)
+            if sediment_load is None:
                 continue
             plt.plot(
                 np.array(self.reach.dates)[mask],
-                scenario.sediment_load["Qs_total"].values[mask],
+                sediment_load["Qs_total"].values[mask],
                 label=scenario.name,
                 color=self.scenario_colors[i],
             )
@@ -1053,7 +1090,7 @@ class ReachPlotter:
         start_date: Optional[Union[str, datetime]] = None,
         end_date: Optional[Union[str, datetime]] = None,
         save: bool = False,
-    ) -> None:
+    ) -> Axes:
         """
         Plot sediment load fractions per phi class as stacked area for a scenario.
 
@@ -1069,10 +1106,11 @@ class ReachPlotter:
             Whether to save the plot
         """
         scenario = self.reach.scenarios[scenario_index]
-        if not hasattr(scenario, "sediment_load"):
+        sediment_load = getattr(scenario, "sediment_load", None)
+        if sediment_load is None:
             raise ValueError(f"Scenario {scenario.name} has no sediment_load data.")
 
-        df = scenario.sediment_load.copy()
+        df = sediment_load.copy()
         if isinstance(start_date, str):
             start_date = pd.to_datetime(start_date)
         if isinstance(end_date, str):

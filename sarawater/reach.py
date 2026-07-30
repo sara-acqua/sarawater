@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 from numpy import ndarray
 from pandas import DataFrame
+from typing import Any
 
-from sarawater.scenarios import Scenario, ConstScenario
+from sarawater.scenarios import Scenario, ConstScenario, PropScenario
 from sarawater.IHA import compute_IHA
 from sarawater.utils import _validate_positive_numeric
 
@@ -357,8 +358,8 @@ class Reach:
             # This assigns each grain size to a phi class bin
             dfphi["Phi Class"] = pd.cut(
                 dfphi["Phi Scale"],
-                bins=phi_bin_edges,
-                labels=phi_class_centers,
+                bins=phi_bin_edges.tolist(),
+                labels=phi_class_centers.tolist(),
                 include_lowest=True,
             )
 
@@ -404,7 +405,7 @@ class Reach:
         return self
 
     def export_scenarios_summary(
-        self, output_path: str = None, format: str = "csv"
+        self, output_path: str | None = None, format: str = "csv"
     ) -> DataFrame:
         """Export a comprehensive summary table of all scenarios with their parameters and indices.
 
@@ -452,7 +453,7 @@ class Reach:
         data_rows = []
 
         for scenario in self.scenarios:
-            row = {
+            row: dict[str, Any] = {
                 "scenario_name": scenario.name,
                 "scenario_description": scenario.description,
             }
@@ -461,11 +462,11 @@ class Reach:
             row["Qabs_max"] = scenario.Qabs_max
 
             # Add scenario-specific parameters
-            if hasattr(scenario, "Qreq_months"):
+            if isinstance(scenario, ConstScenario):
                 row["scenario parameters"] = scenario.Qreq_months
                 # for i, qr in enumerate(scenario.Qreq_months):
                 #     row[f"Qreq_month_{i+1}"] = qr
-            elif hasattr(scenario, "Qbase"):
+            elif isinstance(scenario, PropScenario):
                 row["scenario parameters"] = [
                     scenario.Qbase,
                     scenario.c_Qin,
@@ -484,37 +485,40 @@ class Reach:
                         )
 
             # Add volume statistics if available
-            if hasattr(scenario, "yearly_abs_volumes") and hasattr(
-                scenario, "yearly_nat_volumes"
-            ):
-                row["yearly_abs_volume_mean_m3"] = np.mean(scenario.yearly_abs_volumes)
-                row["yearly_nat_volume_mean_m3"] = np.mean(scenario.yearly_nat_volumes)
+            yearly_abs_volumes = getattr(scenario, "yearly_abs_volumes", None)
+            yearly_nat_volumes = getattr(scenario, "yearly_nat_volumes", None)
+            if yearly_abs_volumes is not None and yearly_nat_volumes is not None:
+                row["yearly_abs_volume_mean_m3"] = np.mean(yearly_abs_volumes)
+                row["yearly_nat_volume_mean_m3"] = np.mean(yearly_nat_volumes)
 
                 # Normalized abstracted volume (handle division by zero)
                 # Set to 0 where natural volume is 0 to avoid division errors
                 with np.errstate(divide="ignore", invalid="ignore"):
                     abs_norm = np.where(
-                        scenario.yearly_nat_volumes != 0,
-                        scenario.yearly_abs_volumes / scenario.yearly_nat_volumes,
+                        yearly_nat_volumes != 0,
+                        yearly_abs_volumes / yearly_nat_volumes,
                         0.0,
                     )
                 row["abs_volume_normalized_mean"] = np.mean(abs_norm)
 
             # Add monthly abstracted volumes if available
-            if hasattr(scenario, "monthly_abs_volumes"):
-                for i, vol in enumerate(scenario.monthly_abs_volumes):
+            monthly_abs_volumes = getattr(scenario, "monthly_abs_volumes", None)
+            if monthly_abs_volumes is not None:
+                for i, vol in enumerate(monthly_abs_volumes):
                     row[f"monthly_abs_volume_month_{i+1}_m3"] = vol
 
             # Add seasonal volumes if available
-            if hasattr(scenario, "seasonal_abs_volumes"):
-                for season, vol in scenario.seasonal_abs_volumes.items():
+            seasonal_abs_volumes = getattr(scenario, "seasonal_abs_volumes", None)
+            if seasonal_abs_volumes is not None:
+                for season, vol in seasonal_abs_volumes.items():
                     row[f"seasonal_abs_volume_{season}_m3"] = vol
 
             # Add cases duration if available
-            if hasattr(scenario, "cases_duration"):
-                row["case1_duration_fraction"] = scenario.cases_duration[0]
-                row["case2_duration_fraction"] = scenario.cases_duration[1]
-                row["case3_duration_fraction"] = scenario.cases_duration[2]
+            cases_duration = getattr(scenario, "cases_duration", None)
+            if cases_duration is not None:
+                row["case1_duration_fraction"] = cases_duration[0]
+                row["case2_duration_fraction"] = cases_duration[1]
+                row["case3_duration_fraction"] = cases_duration[2]
 
             # Add habitat indices if available
             ih_dict = getattr(scenario, "IH", {})
@@ -526,15 +530,15 @@ class Reach:
                     row[f"HSD_{species}"] = ih_data.get("HSD", np.nan)
 
             # Add IHA indices if available (IARI)
-            if hasattr(scenario, "IARI"):
-                iari_dict = scenario.IARI
+            iari_dict = getattr(scenario, "IARI", None)
+            if iari_dict is not None:
                 row["IARI_aggregated_mean"] = np.mean(iari_dict["aggregated"])
                 for group_name, group_values in iari_dict["groups"].items():
                     row[f"IARI_{group_name}_mean"] = np.mean(group_values)
 
             # Add normalized IHA indices if available
-            if hasattr(scenario, "normalized_IHA"):
-                norm_iha_dict = scenario.normalized_IHA
+            norm_iha_dict = getattr(scenario, "normalized_IHA", None)
+            if norm_iha_dict is not None:
                 row["normalized_IHA_aggregated_mean"] = np.mean(
                     norm_iha_dict["aggregated"]
                 )
@@ -542,8 +546,8 @@ class Reach:
                     row[f"normalized_IHA_{group_name}_mean"] = np.mean(group_values)
 
             # Add annual sediment budget if available
-            if hasattr(scenario, "annual_sediment_budget"):
-                budget = scenario.annual_sediment_budget
+            budget = getattr(scenario, "annual_sediment_budget", None)
+            if budget is not None:
                 # If it's a DataFrame, compute mean values
                 if isinstance(budget, pd.DataFrame):
                     # Add mean total sediment budget
