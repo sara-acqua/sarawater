@@ -53,6 +53,7 @@ The typical workflow is:
 - **Formatter**: `black` — run before every commit.
 - **No `input()` calls** — the package is used programmatically; all parameters must be explicit arguments.
 - **No `verbose` parameter** — do not add verbosity controls.
+- **Plotting type annotations** — plotting functions should return a Matplotlib axis and be annotated consistently: import `Axes` via `from matplotlib.axes import Axes`, annotate plotting methods as `-> Axes`, and ensure methods annotated as `Axes` always return an axis (do not mix `-> None` annotations with `return plt.gca()`).
 - **Validate at boundaries**: `raise ValueError` for out-of-range inputs instead of silently clamping or using defaults. Use `_validate_positive_numeric()` from `utils.py` for positive-numeric checks.
 - **No hardcoded magic numbers** — if a value has a physical meaning or a valid range, document it and validate it.
 - Units: flow in **m³/s**, lengths in **m**, grain sizes in **mm** (converted internally), sediment density default **2650 kg/m³**.

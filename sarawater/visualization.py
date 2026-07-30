@@ -6,11 +6,11 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from typing import List, Optional, Union
 from datetime import datetime
 
 from sarawater.reach import Reach
-from sarawater.scenarios import Scenario
 
 
 class ReachPlotter:
@@ -64,7 +64,7 @@ class ReachPlotter:
         log_scale: bool = True,
         save: bool = False,
         plot_Qnat: bool = True,
-    ) -> None:
+    ) -> Axes:
         """
         Plot discharge comparison between scenarios.
 
@@ -127,7 +127,7 @@ class ReachPlotter:
 
     def plot_iari_groups(
         self, save: bool = False, ylims: list = [None, None, None, None, None]
-    ) -> None:
+    ) -> Axes:
         """
         Plot IARI values comparison for each group.
 
@@ -176,7 +176,7 @@ class ReachPlotter:
                 )
         return plt.gca()
 
-    def plot_iha_parameters(self, save: bool = False) -> None:
+    def plot_iha_parameters(self, save: bool = False) -> Axes:
         """
         Plot IHA parameter comparisons for all parameters.
 
@@ -242,7 +242,7 @@ class ReachPlotter:
                     )
         return plt.gca()
 
-    def plot_iari_summary(self, save: bool = False) -> None:
+    def plot_iari_summary(self, save: bool = False) -> Axes:
         """
         Create a summary bar plot of IARI indices for all scenarios.
 
@@ -284,7 +284,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_nIHA_summary(self, save: bool = False) -> None:
+    def plot_nIHA_summary(self, save: bool = False) -> Axes:
         """
         Create a summary bar plot of normalized IHA indices for all scenarios.
 
@@ -328,7 +328,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_iha_boxplots(self, save: bool = False) -> None:
+    def plot_iha_boxplots(self, save: bool = False) -> Axes:
         """
         Create boxplot comparisons for IHA parameters across scenarios.
 
@@ -363,7 +363,7 @@ class ReachPlotter:
                     )
         return plt.gca()
 
-    def plot_relative_deviations(self, save: bool = False) -> None:
+    def plot_relative_deviations(self, save: bool = False) -> Axes:
         """
         Plot relative deviations of IHA parameters from natural flow.
 
@@ -415,7 +415,7 @@ class ReachPlotter:
                     )
         return plt.gca()
 
-    def plot_cases_duration(self, save: bool = False) -> None:
+    def plot_cases_duration(self, save: bool = False) -> Axes:
         """
         Create a bar plot showing the duration percentage of each flow case for all scenarios.
 
@@ -486,7 +486,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_cases_duration_month(self, month, save: bool = False) -> None:
+    def plot_cases_duration_month(self, month, save: bool = False) -> Axes:
         """
         Create a bar plot showing the duration percentage of each flow case for all scenarios for a specific month.
 
@@ -575,7 +575,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_monthly_abstraction(self, save: bool = False) -> None:
+    def plot_monthly_abstraction(self, save: bool = False) -> Axes:
         """
         Create a bar plot showing the average monthly abstracted volumes for each scenario.
 
@@ -647,7 +647,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_iari_vs_volume(self, save: bool = False) -> None:
+    def plot_iari_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and IARI indices.
         Each scenario is shown with error bars representing standard deviations.
@@ -708,7 +708,7 @@ class ReachPlotter:
         rule_min: float = None,
         rule_max: float = None,
         rule_name: str = "DMV",
-    ) -> None:
+    ) -> Axes:
         """
         Plot all HQ curves of the reach.
 
@@ -760,7 +760,7 @@ class ReachPlotter:
         save: bool = False,
         start_year: int = None,
         end_year: int = None,
-    ) -> None:
+    ) -> Axes:
         """
         Plot habitat time series for specific species and scenario
 
@@ -810,12 +810,13 @@ class ReachPlotter:
                 os.path.join(self.output_dir, f"habitat_timeseries_{species}.png"),
                 bbox_inches="tight",
             )
+        return plt.gca()
 
     def plot_ucut_curves(
         self,
         species: str,
         save: bool = False,
-    ) -> None:
+    ) -> Axes:
         """
         Plot ucut curves for specific species and all scenarios
 
@@ -858,8 +859,9 @@ class ReachPlotter:
                 ),
                 bbox_inches="tight",
             )
+        return plt.gca()
 
-    def plot_ih_vs_volume(self, save: bool = False) -> None:
+    def plot_ih_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and IH index for a selected species.
         Each scenario is shown with error bars representing standard deviations of volumes.
@@ -936,7 +938,7 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_nIHA_vs_volume(self, save: bool = False) -> None:
+    def plot_nIHA_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and nIHA indexes.
         Each scenario is shown with error bars representing standard deviations.
@@ -997,7 +999,7 @@ class ReachPlotter:
         end_date: Optional[Union[str, datetime]] = None,
         log_scale: bool = True,
         save: bool = False,
-    ) -> None:
+    ) -> Axes:
         """
         Plot total sediment load (Qs_total) over time for all scenarios.
 
@@ -1054,7 +1056,7 @@ class ReachPlotter:
         start_date: Optional[Union[str, datetime]] = None,
         end_date: Optional[Union[str, datetime]] = None,
         save: bool = False,
-    ) -> None:
+    ) -> Axes:
         """
         Plot sediment load fractions per phi class as stacked area for a scenario.
 
