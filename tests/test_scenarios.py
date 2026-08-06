@@ -27,7 +27,7 @@ def test_scenario_basics():
         sc1.Qabs_max == test_scenarios_reach.Qabs_max
     )  # Ensure Qabs_max is correctly fetched from the reach
     assert np.array_equal(
-        sc1.dates, test_scenarios_reach.dates
+        np.array(sc1.dates), np.array(test_scenarios_reach.dates)
     )  # Ensure dates are correctly fetched from the reach
 
 
@@ -52,7 +52,20 @@ def test_changing_reach_attrs():
 def test_const_scenario_with_dates():
 
     # Define monthly constant flow rates
-    Qreq_months = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
+    Qreq_months = [
+        10.0,
+        20.0,
+        30.0,
+        40.0,
+        50.0,
+        60.0,
+        70.0,
+        80.0,
+        90.0,
+        100.0,
+        110.0,
+        120.0,
+    ]
 
     # Create a ConstScenario with the reach and Qreq_months
     const_scenario = sc.ConstScenario(
@@ -74,7 +87,7 @@ def test_const_scenario_with_dates():
 def test_const_scenario():
     # Use the global Reach instance
     sc1 = sc.ConstScenario(
-        "Scenario 1", "This is the first scenario.", test_scenarios_reach, [1] * 12
+        "Scenario 1", "This is the first scenario.", test_scenarios_reach, [1.0] * 12
     )
     assert sc1.name == "Scenario 1"
     assert sc1.description == "This is the first scenario."
@@ -109,7 +122,7 @@ def test_prop_scenario():
 
 def test_scenario_IARI_computation():
     # Create a scenario with known properties
-    Qreq_months = [10] * 12  # Constant release of 10 units for all months
+    Qreq_months = [10.0] * 12  # Constant release of 10 units for all months
     test_scenario = sc.ConstScenario(
         "Test Scenario",
         "Test scenario for IARI computation",
@@ -124,10 +137,9 @@ def test_scenario_IARI_computation():
     IHA, IARI = test_scenario.compute_IHA_index(index_metric="IARI")
 
     # Test IARI structure
-    assert isinstance(IARI, dict)
-    assert "groups" in IARI
-    assert "aggregated" in IARI
-    assert len(IARI["groups"]) == 5
+    assert hasattr(IARI, "groups")
+    assert hasattr(IARI, "aggregated")
+    assert len(IARI.groups) == 5
     # Test IHA structure
     assert isinstance(IHA, dict)
     assert all([f"Group{i+1}" in IHA for i in range(5)])
@@ -136,7 +148,7 @@ def test_scenario_IARI_computation():
 
 def test_scenario_normalized_IHA_computation():
     # Create a scenario with known properties
-    Qreq_months = [10] * 12  # Constant release of 10 units for all months
+    Qreq_months = [10.0] * 12  # Constant release of 10 units for all months
     test_scenario = sc.ConstScenario(
         "Test Scenario",
         "Test scenario for normalized IHA computation",
@@ -151,10 +163,9 @@ def test_scenario_normalized_IHA_computation():
     IHA, normalized_IHA = test_scenario.compute_IHA_index(index_metric="normalized_IHA")
 
     # Test normalized_IHA structure
-    assert isinstance(normalized_IHA, dict)
-    assert "groups" in normalized_IHA
-    assert "aggregated" in normalized_IHA
-    assert len(normalized_IHA["groups"]) == 5
+    assert hasattr(normalized_IHA, "groups")
+    assert hasattr(normalized_IHA, "aggregated")
+    assert len(normalized_IHA.groups) == 5
     # Test IHA structure
     assert isinstance(IHA, dict)
     assert all([f"Group{i+1}" in IHA for i in range(5)])
@@ -163,7 +174,7 @@ def test_scenario_normalized_IHA_computation():
 
 def test_scenario_IARI_with_custom_weights():
     # Create a scenario with custom weights
-    Qreq_months = [5] * 12
+    Qreq_months = [5.0] * 12
     test_scenario = sc.ConstScenario(
         "Custom Weights Scenario",
         "Test scenario with custom weights",
@@ -179,14 +190,12 @@ def test_scenario_IARI_with_custom_weights():
         index_metric="IARI", index_options={"weights": weights}
     )
 
-    assert "groups" in IARI
-    assert "aggregated" in IARI
-    assert len(IARI["groups"]) == 5
+    assert len(IARI.groups) == 5
 
 
 def test_scenario_normalized_IHA_with_custom_weights():
     # Create a scenario with custom weights
-    Qreq_months = [5] * 12
+    Qreq_months = [5.0] * 12
     test_scenario = sc.ConstScenario(
         "Custom Weights Scenario",
         "Test scenario with custom weights",
@@ -202,9 +211,7 @@ def test_scenario_normalized_IHA_with_custom_weights():
         index_metric="normalized_IHA", index_options={"weights": weights}
     )
 
-    assert "groups" in normalized_IHA
-    assert "aggregated" in normalized_IHA
-    assert len(normalized_IHA["groups"]) == 5
+    assert len(normalized_IHA.groups) == 5
 
 
 if __name__ == "__main__":

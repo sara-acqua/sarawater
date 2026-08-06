@@ -1,18 +1,29 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from numpy import ndarray
 
-from sarawater.IHA import compute_IHA_index, compute_IHA
-from sarawater import habitat as hab
+from sarawater.IHA import IHAIndexResult, IHAResult, compute_IHA_index, compute_IHA
+from sarawater.habitat import HabitatIndicesResult, compute_habitat_indices
 from sarawater.sediment_load import (
     compute_sediment_load,
     compute_annual_sediment_volume,
 )
 
+if TYPE_CHECKING:
+    from sarawater.reach import Reach
+
 
 class Scenario:
-    def __init__(self, name: str, description: str, reach: "Reach", Qabs_max=None):  # type: ignore
+    def __init__(
+        self, name: str, description: str, reach: Reach, Qabs_max: float | None = None
+    ):
         """Parent class for all types of scenarios. Contains the name and description of the scenario.
 
         Parameters
@@ -29,14 +40,18 @@ class Scenario:
         self.name = name
         self.description = description
         self.reach = reach
-        self.Qreq = None  # Placeholder for the minimum release flow time series
-        self.Qrel = None  # Placeholder for the released flow rate time series
+        self.Qreq: ndarray | None = None  # Placeholder for minimum release flow
+        self.Qrel: ndarray | None = None  # Placeholder for released flow
         if Qabs_max is None:
             self.Qabs_max = reach.Qabs_max
         else:
             self.Qabs_max = Qabs_max
-        self.IH = {}
-        self.IHA = None  # Placeholder for IHA indicators
+        self.IH: dict[str, HabitatIndicesResult] = {}
+        self.IHA: IHAResult | None = None
+        self.IARI: IHAIndexResult | None = None
+        self.normalized_IHA: IHAIndexResult | None = None
+        self.sediment_load_df: pd.DataFrame | None = None
+        self.annual_sediment_budget: pd.DataFrame | dict | None = None
 
     def __repr__(self):
         return f"Scenario(name={self.name}, description={self.description}, reach={self.reach.name})"
@@ -47,9 +62,54 @@ class Scenario:
         return self.reach.Qnat
 
     @property
-    def dates(self) -> list:
+    def dates(self) -> list[datetime]:
         """Get the dates from the associated Reach."""
         return self.reach.dates
+
+    def _require_Qrel(self) -> ndarray:
+        """Return released flow, ensuring it has been computed."""
+        qrel = self.Qrel
+        if qrel is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no released flow data. Run scenario.compute_Qrel() first."
+            )
+        return qrel
+
+    def _require_iha(self) -> IHAResult:
+        """Return IHA mapping, ensuring it has been computed."""
+        iha = self.IHA
+        if iha is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no IHA data. Run scenario.compute_IHA() first."
+            )
+        return iha
+
+    def _require_iari(self) -> IHAIndexResult:
+        """Return IARI mapping, ensuring it has been computed."""
+        iari = self.IARI
+        if iari is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no IARI data. Run scenario.compute_IHA_index(index_metric='IARI') first."
+            )
+        return iari
+
+    def _require_normalized_iha(self) -> IHAIndexResult:
+        """Return normalized IHA mapping, ensuring it has been computed."""
+        normalized_iha = self.normalized_IHA
+        if normalized_iha is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no normalized IHA data. Run scenario.compute_IHA_index(index_metric='normalized_IHA') first."
+            )
+        return normalized_iha
+
+    def _require_sediment_load_df(self) -> pd.DataFrame:
+        """Return sediment load table, ensuring it has been computed."""
+        sediment_load_df = self.sediment_load_df
+        if sediment_load_df is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no sediment load data. Run scenario.compute_sediment_load() first."
+            )
+        return sediment_load_df
 
     def compute_Qrel(self) -> ndarray:
         """Compute the released flow rate time series for the scenario.
@@ -73,9 +133,7 @@ class Scenario:
         self.cases_duration = [sum(c) / Qrel.size for c in [case1, case2, case3]]
         return Qrel
 
-    def plot_scenario_discharge(
-        self, start_date=None, end_date=None, **kwargs
-    ) -> plt.Axes:
+    def plot_scenario_discharge(self, start_date=None, end_date=None, **kwargs) -> Axes:
         """Plot released discharge (Qrel) for a given scenario within a specified date range.
 
         Parameters
@@ -108,8 +166,10 @@ class Scenario:
         if "label" not in kwargs:
             kwargs["label"] = self.name
 
+        Qrel = self._require_Qrel()
+
         # Plot the data with any additional keyword arguments
-        plt.plot(np.array(self.dates)[mask], self.Qrel[mask], **kwargs)
+        plt.plot(np.array(self.dates)[mask], Qrel[mask], **kwargs)
 
         # Customize the plot
         plt.title(f"Flow release time series for {self.reach.name}")
@@ -125,7 +185,7 @@ class Scenario:
 
         return plt.gca()
 
-    def compute_IHA(self, **kwargs) -> dict:
+    def compute_IHA(self, **kwargs) -> IHAResult:
         """Compute the IHA for the scenario using the function compute_IHA().
         See the function documentation in IHA.py for more details on parameters and return values.
 
@@ -142,14 +202,15 @@ class Scenario:
                 'Group5': {...}
             }
         """
-        self.IHA = compute_IHA(self.Qnat, self.Qrel, self.dates, **kwargs)
+        Qrel = self._require_Qrel()
+        self.IHA = compute_IHA(self.Qnat, Qrel, self.dates, **kwargs)
         return self.IHA
 
     def compute_IHA_index(
         self,
-        index_metric,
-        index_options={},
-    ) -> tuple[dict, dict]:
+        index_metric: str,
+        index_options: Optional[dict[str, Any]] = None,
+    ) -> tuple[IHAResult, IHAIndexResult]:
         """Compute the IHA index for the scenario using compute_IHA_index(). Currently supports 'IARI' and 'normalized_IHA' as index_metric.
 
         Parameters
@@ -162,34 +223,35 @@ class Scenario:
 
         Returns
         -------
-        tuple[dict, dict]
+        tuple[dict[str, dict[str, np.ndarray]], IHAIndexResult]
             A tuple containing:
             1. Dictionary containing IHA indicators grouped by type for the altered state
-            2. Dictionary containing the index values (IARI or normalized_IHA) per group and aggregated
+            2. IHAIndexResult containing the index values (IARI or normalized_IHA) per group and aggregated
         """
-        if self.IHA is None:
-            self.compute_IHA()
+        Qrel = self._require_Qrel()
+        iha_alt = self.compute_IHA() if self.IHA is None else self._require_iha()
 
         _, out_dict = compute_IHA_index(
             self.Qnat,
-            self.Qrel,
+            Qrel,
             self.dates,
             index_metric=index_metric,
             IHA_nat=self.reach.IHA_nat,
-            IHA_alt=self.IHA,
-            **index_options,
+            IHA_alt=iha_alt,
+            **(index_options or {}),
         )
-        if index_metric.lower() == "iari":
+        metric = index_metric.lower()
+        if metric == "iari":
             self.IARI = out_dict
-        elif index_metric.lower() == "normalized_iha":
+        elif metric == "normalized_iha":
             self.normalized_IHA = out_dict
         else:
             raise ValueError("index_metric must be either 'IARI' or 'normalized_IHA'")
-        return self.IHA, out_dict
+        return iha_alt, out_dict
 
     def compute_natural_abstracted_volumes(
         self,
-        month_to_season: dict[int, str] = None,
+        month_to_season: Optional[dict[int, str]] = None,
     ) -> tuple[ndarray, ndarray, ndarray, ndarray]:
         """Compute the water volumes abstracted for the scenario.
         Returns yearly totals and monthly averages over the whole series.
@@ -212,10 +274,7 @@ class Scenario:
             - Average natural volumes per month
             - Average abstracted volumes per month
         """
-        if self.Qrel is None:
-            raise ValueError(
-                "Qrel must be computed before calculating abstracted volumes."
-            )
+        Qrel = self._require_Qrel()
 
         # Default season mapping if none provided
         if month_to_season is None:
@@ -245,7 +304,7 @@ class Scenario:
         time_steps = np.append(time_steps, time_steps[-1])
 
         # Calculate abstracted flow rates
-        Qab = self.Qnat - self.Qrel
+        Qab = self.Qnat - Qrel
 
         # Convert flow rates (m³/s) to volumes (m³)
         nat_volumes = self.Qnat * time_steps
@@ -299,7 +358,8 @@ class Scenario:
         list[float]
             List with the duration percentage of each case [case1, case2, case3] for the specified month.
         """
-        if self.Qrel is None or self.Qreq is None:
+        self._require_Qrel()
+        if self.Qreq is None:
             raise ValueError(
                 "Qrel and Qreq must be computed before calculating case durations."
             )
@@ -317,7 +377,7 @@ class Scenario:
 
     def compute_IH_for_species(
         self, species: str | list[str] | None = None, **kwargs
-    ) -> dict:
+    ) -> dict[str, HabitatIndicesResult]:
         """Compute the Habitat Index (IH) for a given species using the scenario's Qrel.
 
         Parameters
@@ -330,11 +390,10 @@ class Scenario:
 
         Returns
         -------
-        dict
-            Dictionary with results from "compute_habitat_indices" for each species.
+        dict[str, HabitatIndicesResult]
+            Dictionary mapping species names to habitat outputs.
         """
-        if self.Qrel is None:
-            raise ValueError("Qrel must be computed before calculating IH.")
+        Qrel = self._require_Qrel()
 
         # Determine which species to process
         if species is None:
@@ -347,8 +406,8 @@ class Scenario:
         # Compute IH for each species
         for sp in species_list:
             HQ = self.reach.get_HQ_curve(sp)
-            IH_values = hab.compute_habitat_indices(
-                self.Qnat, self.Qrel, HQ, self.dates, **kwargs
+            IH_values = compute_habitat_indices(
+                self.Qnat, Qrel, HQ, self.dates, **kwargs
             )
             self.IH[sp] = IH_values
 
@@ -383,10 +442,7 @@ class Scenario:
         ValueError
             If self.Qrel is None (discharge must be computed before calling this method).
         """
-        if self.Qrel is None:
-            raise ValueError(
-                "Qrel must be computed first. Call compute_Qrel() before computing sediment load."
-            )
+        Qrel = self._require_Qrel()
 
         if not hasattr(self.reach, "cross_section_coordinates"):
             raise ValueError(
@@ -399,7 +455,7 @@ class Scenario:
             )
 
         self.sediment_load_df = compute_sediment_load(
-            self.Qrel,
+            Qrel,
             self.dates,
             self.reach.cross_section_coordinates["y [m]"].values,
             self.reach.cross_section_coordinates["z [m]"].values,
@@ -413,7 +469,7 @@ class Scenario:
 
     def plot_scenario_sediment_transport(
         self, start_date=None, end_date=None, unit="m3_per_day", rho_s=2650, **kwargs
-    ) -> plt.Axes:
+    ) -> Axes:
         """Plot sediment transport capacity for a given scenario within a specified date range.
 
         Parameters
@@ -435,7 +491,7 @@ class Scenario:
             The current Axes instance
         """
         # Check if sediment transport has been computed
-        if not hasattr(self, "sediment_load_df") or self.sediment_load_df is None:
+        if self.sediment_load_df is None:
             # Compute it if not available
             self.compute_sediment_load()
 
@@ -453,7 +509,8 @@ class Scenario:
         mask = np.array(mask, dtype=bool)
 
         # Extract sediment transport data and convert units
-        Qs_total = np.asarray(self.sediment_load_df["Qs_total"].values)
+        sediment_load_df = self._require_sediment_load_df()
+        Qs_total = np.asarray(sediment_load_df["Qs_total"].values)
 
         if unit == "m3_per_day":
             Qs_plot = Qs_total * 86400  # Convert m³/s to m³/day
@@ -520,12 +577,13 @@ class Scenario:
             Also stored in self.annual_sediment_budget.
         """
         # Ensure sediment load time series has been computed
-        if not hasattr(self, "sediment_load_df") or self.sediment_load_df is None:
+        if self.sediment_load_df is None:
             self.compute_sediment_load(to_csv=None)
+        sediment_load_df = self._require_sediment_load_df()
 
         # Compute annual volumes or tons (save to CSV here if requested)
         annual_budget = compute_annual_sediment_volume(
-            self.sediment_load_df,
+            sediment_load_df,
             to_csv=to_csv,
             as_dict=as_dict,
             to_ton=to_ton,
@@ -537,7 +595,12 @@ class Scenario:
 
 class ConstScenario(Scenario):
     def __init__(
-        self, name: str, description: str, reach: "Reach", Qreq_months: list[float], **kwargs  # type: ignore
+        self,
+        name: str,
+        description: str,
+        reach: Reach,
+        Qreq_months: list[float],
+        **kwargs,
     ):
         """Constant flow rate scenario.
 
@@ -570,7 +633,7 @@ class PropScenario(Scenario):
         self,
         name: str,
         description: str,
-        reach: "Reach",  # type: ignore
+        reach: Reach,
         Qbase: float,
         c_Qin: float,
         Qreq_min: float,

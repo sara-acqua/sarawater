@@ -1,12 +1,45 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 import numpy as np
-from typing import Tuple
+from typing import Any, Literal
 
 from sarawater.utils import compute_consecutive_lengths
 
 
+@dataclass
+class HabitatIndicesResult:
+    """Container for species habitat outputs computed from natural and altered flows."""
+
+    Q97_ref: float
+    H97_ref: float
+    UCUT_cum_ref: np.ndarray
+    UCUT_events_ref: np.ndarray
+    H_ref: np.ndarray
+    UCUT_cum_alt: np.ndarray
+    UCUT_events_alt: np.ndarray
+    H_alt: np.ndarray
+    ITH: float
+    ISH: float
+    IH: float
+    HSD: float
+
+
 def compute_h_ucut(
-    HQ, date, Q, Q97, H97_ref=None, mode=None, n=100
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    HQ,
+    date,
+    Q,
+    Q97,
+    H97_ref: float | None = None,
+    mode: Literal["reference", "altered"] | None = None,
+    n: int = 100,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    dict[str, Any],
+]:
     """
     Compute habitat time series and UCUT curve for a discharge time series and habitat-discharge curve.
 
@@ -51,7 +84,7 @@ def compute_h_ucut(
     # pp = CubicSpline(HQ[:, 0], HQ[:, 1])
     # splineHQ = pp(Qfit)
 
-    H = np.full_like(Q, np.nan, dtype=float)
+    H = np.full(Q.shape, np.nan, dtype=np.float64)
     mask = Q < Qend
     H[mask] = np.interp(Q[mask], HQ[:, 0], HQ[:, 1])
     H = np.round(H, 3)
@@ -65,6 +98,8 @@ def compute_h_ucut(
             H97 = np.interp(Q97, HQ[:, 0], HQ[:, 1])
             H97 = np.ceil(H97)
     elif mode == "altered":
+        if H97_ref is None:
+            raise ValueError("H97_ref must be provided when mode='altered'")
         H97 = H97_ref
         H97 = np.ceil(H97)
     else:
@@ -78,9 +113,10 @@ def compute_h_ucut(
     if UT_days.size == 0:
         # No under-threshold events
         return (
-            np.array([]),
-            np.array([]),
+            np.array([], dtype=float),
+            np.array([], dtype=np.int64),
             H,
+            np.array([], dtype=float),
             {"Q97": Q97, "H97": H97, "Qfit": Qfit, "splineHQ": None},
         )
 
@@ -88,7 +124,7 @@ def compute_h_ucut(
     UT_days_sorted = np.sort(UT_days)[::-1]
 
     # create an array that starts from UT_days_sorted[0] and ends with UT_days_sorted[-1] with a step of 1
-    UCUT_events = np.arange(UT_days_sorted[0], 0, -1)
+    UCUT_events = np.arange(UT_days_sorted[0], 0, -1, dtype=np.int64)
 
     # create an array that contains the number of durations of each event and an array that contains the number of counts of each event
     durations, counts = np.unique(UT_days_sorted, return_counts=True)
@@ -121,7 +157,7 @@ def compute_h_ucut(
 
 def compute_IH(
     UCUT_cum_ref, UCUT_cum_alt, H_ref, H_alt, UCUT_events_ref
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """
     Calculate HSD, ISH, ITH, IH according to the MATLAB function logic.
 
@@ -189,7 +225,7 @@ def compute_IH(
     return ITH, ISH, IH, HSD
 
 
-def compute_habitat_indices(Qnat, Qalt, HQ, date) -> dict:
+def compute_habitat_indices(Qnat, Qalt, HQ, date) -> HabitatIndicesResult:
     """
     Calculate Q97, UCUT, habitat time series and indices IH, ISH, ITH, HSD for natural and altered series.
 
@@ -206,7 +242,8 @@ def compute_habitat_indices(Qnat, Qalt, HQ, date) -> dict:
 
     Returns
     -------
-    dict with keys: Q97, UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_alt, UCUT_events_alt, H_alt, ITH, ISH, IH, HSD
+    HabitatIndicesResult
+        Dataclass containing Q97, UCUT outputs, habitat time series, and IH indices.
     """
     Qnat = np.asarray(Qnat)
     Qalt = np.asarray(Qalt)
@@ -231,17 +268,17 @@ def compute_habitat_indices(Qnat, Qalt, HQ, date) -> dict:
         UCUT_cum_ref, UCUT_cum_alt, H_ref, H_alt, UCUT_events_ref
     )
 
-    return {
-        "Q97_ref": Q97,
-        "H97_ref": extra_ref["H97"],
-        "UCUT_cum_ref": UCUT_cum_ref,
-        "UCUT_events_ref": UCUT_events_ref,
-        "H_ref": H_ref,
-        "UCUT_cum_alt": UCUT_cum_alt,
-        "UCUT_events_alt": UCUT_events_alt,
-        "H_alt": H_alt,
-        "ITH": ITH,
-        "ISH": ISH,
-        "IH": IH,
-        "HSD": HSD,
-    }
+    return HabitatIndicesResult(
+        Q97_ref=float(Q97),
+        H97_ref=float(extra_ref["H97"]),
+        UCUT_cum_ref=UCUT_cum_ref,
+        UCUT_events_ref=UCUT_events_ref,
+        H_ref=H_ref,
+        UCUT_cum_alt=UCUT_cum_alt,
+        UCUT_events_alt=UCUT_events_alt,
+        H_alt=H_alt,
+        ITH=ITH,
+        ISH=ISH,
+        IH=IH,
+        HSD=HSD,
+    )
