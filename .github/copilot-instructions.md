@@ -75,4 +75,4 @@ When adding a feature, add tests to the relevant file. Follow the existing patte
 
 ## Documentation
 
-Docs source is in `docs/source/` (reStructuredText + Sphinx). Tutorials are Jupyter notebooks in `tutorial/` and mirrored under `docs/source/tutorials/notebooks/`. See [docs/source/user-guide.rst](../docs/source/user-guide.rst) for the full API narrative.
+Docs source is in `docs/source/` (markdown + Sphinx). Tutorials are Jupyter notebooks in `tutorials/` and mirrored under `docs/source/tutorials/`. See [docs/source/user-guide.md](../docs/source/user-guide.md) for the full API narrative.
