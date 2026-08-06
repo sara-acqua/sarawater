@@ -1,21 +1,40 @@
-import numpy as np
+from __future__ import annotations
+
 import datetime
+from dataclasses import dataclass
+from typing import Optional, Sequence
+
+import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
-from typing import Optional, Sequence, TypedDict
 
 from sarawater.utils import compute_consecutive_lengths
 
-IHAResult = dict[str, dict[str, NDArray[np.float64]]]
+IHAResult = dict[
+    str, dict[str, np.ndarray]
+]  # Container for grouped IHA values, where each group contains a dictionary of indicator names and their corresponding yearly values.
 
 
-class IHAIndexResult(TypedDict):
-    groups: dict[str, NDArray[np.float64]]
-    aggregated: NDArray[np.float64]
+@dataclass
+class IHAIndexResult:
+    """Container for grouped and aggregated IHA index values.
+
+    Attributes
+    ----------
+    groups : dict[str, np.ndarray]
+        Per-group values of the IHA index of choice.
+    aggregated : np.ndarray
+        Values of the IHA index weighted across groups, one for each year.
+    """
+
+    groups: dict[str, np.ndarray]
+    aggregated: np.ndarray
 
 
 def compute_IHA(
-    Qnat: np.ndarray, Qrel: np.ndarray, dates: list, zero_flow_threshold: float = 0.001
+    Qnat: np.ndarray,
+    Qrel: np.ndarray,
+    dates: list[datetime.datetime],
+    zero_flow_threshold: float = 0.001,
 ) -> IHAResult:
     """Compute Indicators of Hydrologic Alteration (IHA) for a given flow time series Qrel with respect to a natural time series Qnat.
     Each indicator is computed yearly. The indicators are grouped into 5 groups as per IHA methodology.
@@ -29,15 +48,15 @@ def compute_IHA(
         Natural flow rate time series (any temporal resolution; will be aggregated to daily)
     Qrel : np.ndarray
         Released flow rate time series (any temporal resolution; will be aggregated to daily)
-    dates : list
+    dates : list[datetime.datetime]
         List of datetime objects corresponding to flow rates
     zero_flow_threshold : float, optional
         Threshold below which flow is considered zero in the "zero-flow days" indicator (default is 0.001)
 
     Returns
     -------
-    dict[str, dict[str, np.ndarray]]
-        Dictionary containing IHA indicators grouped by type
+    IHAResult
+        Indicators grouped by type
         {
             'Group1': {
                 'mean_january': np.array([yearly values]),
@@ -208,7 +227,7 @@ def compute_IHA(
 def compute_IHA_index(
     Qnat: np.ndarray,
     Qrel: np.ndarray,
-    dates: list,
+    dates: list[datetime.datetime],
     index_metric: str,
     weights: Optional[Sequence[float]] = None,
     IHA_nat: Optional[IHAResult] = None,
@@ -223,7 +242,7 @@ def compute_IHA_index(
         Natural flow rate time series
     Qrel : np.ndarray
         Released flow rate time series
-    dates : list
+    dates : list[datetime.datetime]
         List of datetime objects corresponding to flow rates
     index_metric : str
         Name of the index to compute (IARI, normalized_IHA)
@@ -239,18 +258,9 @@ def compute_IHA_index(
 
     Returns
     -------
-    tuple[dict, dict[str, dict[str, np.ndarray]]]
+    tuple[dict[str, dict[str, np.ndarray]], IHAIndexResult]
         A tuple containing:
-        1. Dictionary containing IHA_indexes per group and aggregated:
-           {
-               'groups': {
-                   'Group1': np.array([yearly values]),
-                   ...
-                   'Group5': np.array([yearly values])
-               },
-               'aggregated': np.array([yearly values])
-           }
-        2. Dictionary containing IHA indicators grouped by type for the altered state:
+        1. IHAResult containing indicators grouped by type for the altered state:
            {
                'Group1': {
                    'mean_january': np.array([yearly values]),
@@ -258,6 +268,15 @@ def compute_IHA_index(
                },
                ...
                'Group5': {...}
+           }
+        2. IHAIndexResult containing IHA indexes per group and aggregated:
+           {
+               'groups': {
+                   'Group1': np.array([yearly values]),
+                   ...
+                   'Group5': np.array([yearly values])
+               },
+               'aggregated': np.array([yearly values])
            }
     """
     # Calculate IHA indicators for both series
@@ -314,10 +333,10 @@ def compute_IHA_index(
         normalized_IHA_aggregated = np.zeros(n_years)
         for group_name, w in group_weights.items():
             normalized_IHA_aggregated += w * normalized_IHA_groups[group_name]
-        nIHA_dict: IHAIndexResult = {
-            "groups": normalized_IHA_groups,
-            "aggregated": normalized_IHA_aggregated,
-        }
+        nIHA_dict = IHAIndexResult(
+            groups=normalized_IHA_groups,
+            aggregated=normalized_IHA_aggregated,
+        )
 
         return IHA_alt, nIHA_dict
 
@@ -361,10 +380,7 @@ def compute_IHA_index(
         IARI_aggregated = np.zeros(n_years)
         for group_name, w in group_weights.items():
             IARI_aggregated += w * IARI_groups[group_name]
-        IARI_dict: IHAIndexResult = {
-            "groups": IARI_groups,
-            "aggregated": IARI_aggregated,
-        }
+        IARI_dict = IHAIndexResult(groups=IARI_groups, aggregated=IARI_aggregated)
 
         return IHA_alt, IARI_dict
 

@@ -30,7 +30,12 @@ sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), ".."
 
 import sarawater.reach as rch
 import sarawater.scenarios as sc
-from sarawater.habitat import compute_habitat_indices, compute_h_ucut, compute_IH
+from sarawater.habitat import (
+    HabitatIndicesResult,
+    compute_habitat_indices,
+    compute_h_ucut,
+    compute_IH,
+)
 
 # Global test data setup
 data_dir = os.path.join(os.path.dirname(__file__), "tests_data")
@@ -70,7 +75,7 @@ def setup_reach_with_dmv_scenario():
         name="DMV",
         description="Minimum release scenario from CSV file",
         reach=reach,
-        Qreq_months=Qreq_months,
+        Qreq_months=list(Qreq_months),
     )
 
     # Add scenario to reach
@@ -133,10 +138,9 @@ def test_habitat_computation():
 
         for HQ_name in available_curves:
             assert HQ_name in scenario.IH, f"Missing IH for species {HQ_name}"
-            assert "IH" in scenario.IH[HQ_name]
 
             # Check that IH values are in reasonable range [0, 1]
-            ih_value = scenario.IH[HQ_name]["IH"]
+            ih_value = scenario.IH[HQ_name].IH
             if not np.isnan(ih_value):
                 assert 0 <= ih_value <= 1
 
@@ -170,7 +174,7 @@ def test_habitat_index_values():
     # Collect computed IH values
     computed_IH_values = {}
     for species in available_species:
-        ih_value = dmv_scenario.IH[species]["IH"]
+        ih_value = dmv_scenario.IH[species].IH
         computed_IH_values[species] = ih_value
         print(f"Computed IH for {species}: {ih_value:.3f}")
 
@@ -273,30 +277,13 @@ def test_compute_habitat_indices_function():
     # Compute habitat indices
     result = compute_habitat_indices(Qnat, Qalt, HQ, test_dates)
 
-    # Verify all expected keys are present
-    expected_keys = [
-        "Q97_ref",
-        "H97_ref",
-        "UCUT_cum_ref",
-        "UCUT_events_ref",
-        "H_ref",
-        "UCUT_cum_alt",
-        "UCUT_events_alt",
-        "H_alt",
-        "ITH",
-        "ISH",
-        "IH",
-        "HSD",
-    ]
-
-    for key in expected_keys:
-        assert key in result
+    assert isinstance(result, HabitatIndicesResult)
 
     # Verify value ranges
-    assert 0 <= result["ISH"] <= 1
-    assert 0 <= result["ITH"] <= 1
-    assert 0 <= result["IH"] <= 1
-    assert result["HSD"] >= 0
+    assert 0 <= result.ISH <= 1
+    assert 0 <= result.ITH <= 1
+    assert 0 <= result.IH <= 1
+    assert result.HSD >= 0
 
 
 def test_compute_IH_default_behavior():
@@ -321,8 +308,7 @@ def test_compute_IH_default_behavior():
 
     for species in available_species:
         assert species in dmv_scenario.IH, f"Missing IH for species {species}"
-        assert "IH" in dmv_scenario.IH[species]
-        ih_value = dmv_scenario.IH[species]["IH"]
+        ih_value = dmv_scenario.IH[species].IH
         assert (
             0 <= ih_value <= 1
         ), f"IH value {ih_value} for {species} is outside valid range [0, 1]"
@@ -342,8 +328,7 @@ def test_compute_IH_single_species():
     # Verify IH was computed only for the specified species
     assert len(dmv_scenario.IH) == 1
     assert "BROW_A_R" in dmv_scenario.IH
-    assert "IH" in dmv_scenario.IH["BROW_A_R"]
-    ih_value = dmv_scenario.IH["BROW_A_R"]["IH"]
+    ih_value = dmv_scenario.IH["BROW_A_R"].IH
     assert 0 <= ih_value <= 1
 
 
@@ -363,8 +348,7 @@ def test_compute_IH_species_list():
     assert len(dmv_scenario.IH) == 2
     for species in species_list:
         assert species in dmv_scenario.IH, f"Missing IH for species {species}"
-        assert "IH" in dmv_scenario.IH[species]
-        ih_value = dmv_scenario.IH[species]["IH"]
+        ih_value = dmv_scenario.IH[species].IH
         assert 0 <= ih_value <= 1
 
 

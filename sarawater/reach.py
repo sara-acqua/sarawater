@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 from numpy import ndarray
@@ -10,7 +14,9 @@ from sarawater.utils import _validate_positive_numeric
 
 
 class Reach:
-    def __init__(self, name: str, dates: list, Qnat: ndarray, Qabs_max: float):
+    def __init__(
+        self, name: str, dates: list[datetime], Qnat: ndarray, Qabs_max: float
+    ):
         """Represents a river reach.
 
         Parameters
@@ -524,25 +530,25 @@ class Reach:
             ih_dict = getattr(scenario, "IH", {})
             if ih_dict:
                 for species, ih_data in ih_dict.items():
-                    row[f"IH_{species}"] = ih_data.get("IH", np.nan)
-                    row[f"ISH_{species}"] = ih_data.get("ISH", np.nan)
-                    row[f"ITH_{species}"] = ih_data.get("ITH", np.nan)
-                    row[f"HSD_{species}"] = ih_data.get("HSD", np.nan)
+                    row[f"IH_{species}"] = ih_data.IH
+                    row[f"ISH_{species}"] = ih_data.ISH
+                    row[f"ITH_{species}"] = ih_data.ITH
+                    row[f"HSD_{species}"] = ih_data.HSD
 
             # Add IHA indices if available (IARI)
             iari_dict = getattr(scenario, "IARI", None)
             if iari_dict is not None:
-                row["IARI_aggregated_mean"] = np.mean(iari_dict["aggregated"])
-                for group_name, group_values in iari_dict["groups"].items():
+                row["IARI_aggregated_mean"] = np.mean(iari_dict.aggregated)
+                for group_name, group_values in iari_dict.groups.items():
                     row[f"IARI_{group_name}_mean"] = np.mean(group_values)
 
             # Add normalized IHA indices if available
             norm_iha_dict = getattr(scenario, "normalized_IHA", None)
             if norm_iha_dict is not None:
                 row["normalized_IHA_aggregated_mean"] = np.mean(
-                    norm_iha_dict["aggregated"]
+                    norm_iha_dict.aggregated
                 )
-                for group_name, group_values in norm_iha_dict["groups"].items():
+                for group_name, group_values in norm_iha_dict.groups.items():
                     row[f"normalized_IHA_{group_name}_mean"] = np.mean(group_values)
 
             # Add annual sediment budget if available

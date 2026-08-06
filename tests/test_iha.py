@@ -70,16 +70,14 @@ def test_IARI_computation():
     """Test IARI computation with different weights"""
     # Test with default weights
     _, iari_default = compute_IHA_index(Qnat, Qrel, dates, index_metric="IARI")
-    assert "groups" in iari_default
-    assert "aggregated" in iari_default
-    assert len(iari_default["groups"]) == 5
+    assert len(iari_default.groups) == 5
 
     # Test with custom weights
     weights = [0.1, 0.2, 0.3, 0.2, 0.2]
     _, iari_custom = compute_IHA_index(
         Qnat, Qrel, dates, index_metric="IARI", weights=weights
     )
-    assert len(iari_custom["groups"]) == 5
+    assert len(iari_custom.groups) == 5
 
     # Test weight validation
     try:
@@ -109,8 +107,8 @@ def test_IARI_values():
     # Test when Qrel = 0 (maximum alteration)
     Qrel_zero = np.zeros_like(Qnat)
     _, iari_max_change = compute_IHA_index(Qnat, Qrel_zero, dates, index_metric="IARI")
-    assert np.all(iari_max_change["aggregated"] > 0)
-    assert np.all(iari_max_change["aggregated"] > iari_no_change["aggregated"])
+    assert np.all(iari_max_change.aggregated > 0)
+    assert np.all(iari_max_change.aggregated > iari_no_change.aggregated)
 
 
 def test_normalized_IHA_computation():
@@ -119,16 +117,14 @@ def test_normalized_IHA_computation():
     _, niha_default = compute_IHA_index(
         Qnat, Qrel, dates, index_metric="normalized_IHA"
     )
-    assert "groups" in niha_default
-    assert "aggregated" in niha_default
-    assert len(niha_default["groups"]) == 5
+    assert len(niha_default.groups) == 5
 
     # Test with custom weights
     weights = [0.1, 0.2, 0.3, 0.2, 0.2]
     _, niha_custom = compute_IHA_index(
         Qnat, Qrel, dates, index_metric="normalized_IHA", weights=weights
     )
-    assert len(niha_custom["groups"]) == 5
+    assert len(niha_custom.groups) == 5
 
     # Test weight validation
     try:
@@ -156,25 +152,25 @@ def test_normalized_IHA_values():
     _, niha_no_change = compute_IHA_index(
         Qnat, Qnat, dates, index_metric="normalized_IHA"
     )
-    assert np.all(niha_no_change["aggregated"] >= 0)
+    assert np.all(niha_no_change.aggregated >= 0)
 
     # Test when Qrel = 0.5 * Qnat (moderate alteration)
     Qrel_half = Qnat * 0.5
     _, niha_half = compute_IHA_index(
         Qnat, Qrel_half, dates, index_metric="normalized_IHA"
     )
-    assert np.all(niha_half["aggregated"] > 0)
+    assert np.all(niha_half.aggregated > 0)
     # Should show alteration since flows are different
-    assert np.all(niha_half["aggregated"] > niha_no_change["aggregated"])
+    assert np.all(niha_half.aggregated > niha_no_change.aggregated)
 
     # Test when Qrel = 0 (maximum alteration)
     Qrel_zero = np.zeros_like(Qnat) + 0.01  # Add small value to avoid division by zero
     _, niha_max_change = compute_IHA_index(
         Qnat, Qrel_zero, dates, index_metric="normalized_IHA"
     )
-    assert np.all(niha_max_change["aggregated"] > 0)
+    assert np.all(niha_max_change.aggregated > 0)
     # Maximum alteration should have higher values than moderate alteration
-    assert np.all(niha_max_change["aggregated"] > niha_half["aggregated"])
+    assert np.all(niha_max_change.aggregated > niha_half.aggregated)
 
 
 def test_index_metric_validation():
