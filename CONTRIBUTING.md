@@ -47,8 +47,6 @@ To start working on the code, you will need your own fork of the repository and 
     pip install -e .[dev,docs]
     ```
     It is recommended to run the `pip install` command within a virtual environment (e.g., `venv` or `conda`) to keep the development version of SARAwater and its dependencies isolated from other Python projects on your machine.
-6.  **Install Pandoc (for documentation):**
-    Building the documentation requires Pandoc. You can download and install it from the [official Pandoc website](https://pandoc.org/installing.html).
 
 ### Create a feature branch and submit your contribution
 

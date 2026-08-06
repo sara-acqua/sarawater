@@ -8,7 +8,7 @@
 pip install -e .[dev,docs]   # install for development
 pytest                        # run all tests
 black .                       # format code (required before committing)
-cd docs && sphinx-build -M html source build  # build docs (requires Pandoc)
+cd docs && sphinx-build -M html source build  # build docs
 ```
 
 ## Architecture
