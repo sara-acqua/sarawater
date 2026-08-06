@@ -12,6 +12,19 @@ on:
 
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - 'tutorials/**'
+
   format:
     runs-on: ubuntu-latest
     permissions:
@@ -73,11 +86,12 @@ jobs:
       run: |
         python -m pytest tests/ -v
 
-  docs:
-    needs: format
+  docs-validate:
+    needs: [format, changes]
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
     - uses: actions/checkout@v4
       with:
@@ -102,9 +116,28 @@ jobs:
       with:
         name: html-docs
         path: docs/build/html/
-    - name: Deploy
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main'
+
+  docs-deploy:
+    needs: docs-validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.docs-validate.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: docs/build/html
+        name: html-docs
+        path: docs/build/html/
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: docs/build/html
+
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
