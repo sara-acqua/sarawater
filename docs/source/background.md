@@ -1,13 +1,9 @@
-.. _background:
-
-Background
-==========
+# Background
 
 SARAwater is a Python package for analyzing different types of alterations in river reaches subject to flow abstraction, under different flow management scenarios. It is designed to help water resource managers and environmental scientists assess the ecological impacts of water abstractions and develop sustainable management strategies.
 
-IHA index
----------
-Indicators of Hydrologic Alteration (IHA) is a widely used method for assessing the degree of hydrologic change caused by human activities, such as the construction of water diversions [1]_ [2]_. 
+## IHA index
+Indicators of Hydrologic Alteration (IHA) is a widely used method for assessing the degree of hydrologic change caused by human activities, such as the construction of water diversions {cite:p}`richter1996`. 
 
 The IHA evaluates 33 ecologically relevant parameters derived from daily discharge data. These parameters are organized into five distinct groups, each characterizing a different aspect of the flow regime:
 
@@ -25,11 +21,10 @@ Usually, IHA has been used to assess pre and post impact conditions, here it is 
 
 In this work we try to assess the ecological impacts of flow alterations in rivers, through a parameter that comes from the IHA analysis and unifies all the 33 parameters. This parameter is called here IHA index, and it can be computed following two approaches.
 
-MesoHABSIM
-----------
+## MesoHABSIM
 The MesoHABSIM (Mesohabitat Simulation) model is a tool for simulating the physical habitat conditions in river systems. It allows users to assess the impacts of flow alterations on aquatic habitats by modeling the availability and quality of different habitat types under various flow scenarios. 
 
-MesoHABSIM assesses habitat availability for a specific species or life stage by using the mesoscale as the spatial reference. In this context, “mesoscale” refers to the spatial scale of hydro-morphological units [3]_.
+MesoHABSIM assesses habitat availability for a specific species or life stage by using the mesoscale as the spatial reference. In this context, “mesoscale” refers to the spatial scale of hydro-morphological units {cite:p}`parasiewicz2007`.
 The MesoHABSIM approach is based on three main components:
 
 1. Description of the hydro-morphological and environmental characteristics of mesohabitats, representing how the spatial mosaic of habitat units varies as a function of discharge
@@ -42,13 +37,7 @@ The resulting habitat–discharge relationship (component 3) forms the basis for
 
 SARAwater provides functionalities for running MesoHABSIM simulations and analyzing the results, starting from discharge time series and existing habitat–discharge relationships.
 
-Sediment transport
-------------------
+## Sediment transport
 
-
-References
-----------
-
-.. [1] Richter, B. D., Baumgartner, J. V., Powell, J., & Braun, D. P. (1996). A method for assessing hydrologic alteration within ecosystems. Conservation Biology, 10(4), 1163-1174.
-.. [2] Richter, B., Baumgartner, J., Wigington, R., & Braun, D. (1997). How much water does a river need?. Freshwater Biology, 37: 231-249.
-.. [3] Parasiewicz, P. (2007). The MesoHABSIM Model Revisited. River Research and Applications, 23, 893–903.
+## References
+```{bibliography}
