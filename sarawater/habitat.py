@@ -54,15 +54,14 @@ def compute_h_ucut(
     Q97 : float
         Threshold discharge value (e.g., 3rd percentile).
     H97_ref : float, optional
-        Habitat threshold to use (only for mode='altered').
-    mode : str, 'reference' or 'altered'
+        Habitat threshold to use (only for mode ``'altered'``).
+    mode : {'reference', 'altered'}
         Type of calculation.
     n : int, optional
         Number of points for habitat curve interpolation (default: 100).
 
     Returns
     -------
-
     UCUT_cumsum : np.ndarray
         Cumulative frequency of under-threshold events.
     UCUT_events : np.ndarray

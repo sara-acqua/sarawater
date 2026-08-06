@@ -4,16 +4,23 @@ from scipy.optimize import fsolve
 
 def shear_stress(rho_w, g, h, slope):
     """
-    Bed shear stress (N/m^2) for wide rectangular channel approx:
+    Bed shear stress (N/m^2) for a wide rectangular-channel approximation.
+
+    Formula::
+
         tau = rho_w * g * h * slope
-    where h is flow depth (m).
+
+    where ``h`` is flow depth (m).
     """
     return rho_w * g * h * slope
 
 
 def residual_uniFlow_rect(depth, Q, B, ks, slope):
     """
-    Residual function for steady uniform flow in rectangular channel. Computes the flow discharge Q_computed for a given water depth h and compares it to the known discharge Q. Returns Q_computed/Q - 1, which equals 0 when correct h is found.
+    Residual function for steady uniform flow in a rectangular channel.
+
+    Computes discharge ``Q_computed`` for a trial depth and returns
+    ``Q_computed / Q - 1``. The residual is zero when the correct depth is found.
     """
     Omega = B * depth
     Rh = Omega / (B + 2 * depth)
@@ -28,7 +35,7 @@ def residual_invEngelund_cs(
     """
     Engelund formula residual for finding water surface elevation of a composite cross-section for a given flow discharge.
 
-    Returns Q_computed/Q - 1, which equals 0 when correct h is found.
+    Returns ``Q_computed / Q - 1``, which equals 0 when correct ``h`` is found.
 
     Parameters
     ----------

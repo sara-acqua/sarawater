@@ -142,7 +142,7 @@ class Scenario:
             Start date in format 'YYYY-MM-DD' or datetime object
         end_date : str or datetime, optional
             End date in format 'YYYY-MM-DD' or datetime object
-        **kwargs : dict
+        kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.plot
 
         Returns
@@ -192,15 +192,9 @@ class Scenario:
         Returns
         -------
         dict[str, dict[str, np.ndarray]]
-            Dictionary containing IHA indicators grouped by type:
-            {
-                'Group1': {
-                    'mean_january': np.array([yearly values]),
-                    ...
-                },
-                ...
-                'Group5': {...}
-            }
+            Dictionary containing IHA indicators grouped by type. The keys are
+            ``Group1`` to ``Group5`` and each group maps indicator names to
+            yearly arrays.
         """
         Qrel = self._require_Qrel()
         self.IHA = compute_IHA(self.Qnat, Qrel, self.dates, **kwargs)
@@ -428,7 +422,7 @@ class Scenario:
             If a path-like string or file-like object is provided, the computed results will be
             written to CSV at that location or using that file handle. If None or False, no CSV
             file is written. The exact accepted values are forwarded to compute_sediment_load.
-        **kwargs : dict
+        kwargs : dict, optional
             Additional keyword arguments to pass to compute_sediment_load (see compute_sediment_load documentation).
 
         Returns
@@ -482,7 +476,7 @@ class Scenario:
             Unit for sediment transport: 'm3_per_day' (default), 'm3_per_s', or 'ton_per_day'
         rho_s : float, optional
             Sediment density in kg/m³ used when converting to mass (ton/day). Default 2650.
-        **kwargs : dict
+        kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.plot
 
         Returns
