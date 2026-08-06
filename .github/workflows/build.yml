@@ -17,6 +17,10 @@ jobs:
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
     steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@v4.0.3
         id: filter
         with:
