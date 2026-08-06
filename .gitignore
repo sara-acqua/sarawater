@@ -13,3 +13,5 @@ dist/
 build/
 examples/*.csv
 examples/*.xlsx
+docs/source/tutorials
+.jupyter_cache/
