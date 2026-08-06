@@ -1,20 +1,29 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from numpy import ndarray
 from matplotlib.axes import Axes
-from typing import Any, Optional, cast
+from numpy import ndarray
 
 from sarawater.IHA import IHAIndexResult, IHAResult, compute_IHA_index, compute_IHA
-from sarawater import habitat as hab
+from sarawater.habitat import HabitatIndicesResult, compute_habitat_indices
 from sarawater.sediment_load import (
     compute_sediment_load,
     compute_annual_sediment_volume,
 )
 
+if TYPE_CHECKING:
+    from sarawater.reach import Reach
+
 
 class Scenario:
-    def __init__(self, name: str, description: str, reach: "Reach", Qabs_max=None):  # type: ignore
+    def __init__(
+        self, name: str, description: str, reach: Reach, Qabs_max: float | None = None
+    ):
         """Parent class for all types of scenarios. Contains the name and description of the scenario.
 
         Parameters
@@ -37,7 +46,7 @@ class Scenario:
             self.Qabs_max = reach.Qabs_max
         else:
             self.Qabs_max = Qabs_max
-        self.IH: dict[str, dict[str, Any]] = {}
+        self.IH: dict[str, HabitatIndicesResult] = {}
         self.IHA: IHAResult | None = None
         self.IARI: IHAIndexResult | None = None
         self.normalized_IHA: IHAIndexResult | None = None
@@ -53,49 +62,54 @@ class Scenario:
         return self.reach.Qnat
 
     @property
-    def dates(self) -> list:
+    def dates(self) -> list[datetime]:
         """Get the dates from the associated Reach."""
         return self.reach.dates
 
     def _require_Qrel(self) -> ndarray:
         """Return released flow, ensuring it has been computed."""
-        if self.Qrel is None:
+        qrel = self.Qrel
+        if qrel is None:
             raise ValueError(
                 f"Scenario '{self.name}' has no released flow data. Run scenario.compute_Qrel() first."
             )
-        return cast(ndarray, self.Qrel)
+        return qrel
 
     def _require_iha(self) -> IHAResult:
         """Return IHA mapping, ensuring it has been computed."""
-        if self.IHA is None:
+        iha = self.IHA
+        if iha is None:
             raise ValueError(
                 f"Scenario '{self.name}' has no IHA data. Run scenario.compute_IHA() first."
             )
-        return cast(IHAResult, self.IHA)
+        return iha
 
     def _require_iari(self) -> IHAIndexResult:
         """Return IARI mapping, ensuring it has been computed."""
-        if self.IARI is None:
+        iari = self.IARI
+        if iari is None:
             raise ValueError(
                 f"Scenario '{self.name}' has no IARI data. Run scenario.compute_IHA_index(index_metric='IARI') first."
             )
-        return cast(IHAIndexResult, self.IARI)
+        return iari
 
     def _require_normalized_iha(self) -> IHAIndexResult:
         """Return normalized IHA mapping, ensuring it has been computed."""
-        if self.normalized_IHA is None:
+        normalized_iha = self.normalized_IHA
+        if normalized_iha is None:
             raise ValueError(
                 f"Scenario '{self.name}' has no normalized IHA data. Run scenario.compute_IHA_index(index_metric='normalized_IHA') first."
             )
-        return cast(IHAIndexResult, self.normalized_IHA)
+        return normalized_iha
 
     def _require_sediment_load_df(self) -> pd.DataFrame:
         """Return sediment load table, ensuring it has been computed."""
-        if self.sediment_load_df is None:
+        sediment_load_df = self.sediment_load_df
+        if sediment_load_df is None:
             raise ValueError(
                 f"Scenario '{self.name}' has no sediment load data. Run scenario.compute_sediment_load() first."
             )
-        return cast(pd.DataFrame, self.sediment_load_df)
+        return sediment_load_df
 
     def compute_Qrel(self) -> ndarray:
         """Compute the released flow rate time series for the scenario.
@@ -209,10 +223,10 @@ class Scenario:
 
         Returns
         -------
-        tuple[dict, dict]
+        tuple[dict[str, dict[str, np.ndarray]], IHAIndexResult]
             A tuple containing:
             1. Dictionary containing IHA indicators grouped by type for the altered state
-            2. Dictionary containing the index values (IARI or normalized_IHA) per group and aggregated
+            2. IHAIndexResult containing the index values (IARI or normalized_IHA) per group and aggregated
         """
         Qrel = self._require_Qrel()
         iha_alt = self.compute_IHA() if self.IHA is None else self._require_iha()
@@ -226,9 +240,10 @@ class Scenario:
             IHA_alt=iha_alt,
             **(index_options or {}),
         )
-        if index_metric.lower() == "iari":
+        metric = index_metric.lower()
+        if metric == "iari":
             self.IARI = out_dict
-        elif index_metric.lower() == "normalized_iha":
+        elif metric == "normalized_iha":
             self.normalized_IHA = out_dict
         else:
             raise ValueError("index_metric must be either 'IARI' or 'normalized_IHA'")
@@ -362,7 +377,7 @@ class Scenario:
 
     def compute_IH_for_species(
         self, species: str | list[str] | None = None, **kwargs
-    ) -> dict:
+    ) -> dict[str, HabitatIndicesResult]:
         """Compute the Habitat Index (IH) for a given species using the scenario's Qrel.
 
         Parameters
@@ -375,8 +390,8 @@ class Scenario:
 
         Returns
         -------
-        dict
-            Dictionary with results from "compute_habitat_indices" for each species.
+        dict[str, HabitatIndicesResult]
+            Dictionary mapping species names to habitat outputs.
         """
         Qrel = self._require_Qrel()
 
@@ -391,7 +406,7 @@ class Scenario:
         # Compute IH for each species
         for sp in species_list:
             HQ = self.reach.get_HQ_curve(sp)
-            IH_values = hab.compute_habitat_indices(
+            IH_values = compute_habitat_indices(
                 self.Qnat, Qrel, HQ, self.dates, **kwargs
             )
             self.IH[sp] = IH_values
@@ -580,7 +595,12 @@ class Scenario:
 
 class ConstScenario(Scenario):
     def __init__(
-        self, name: str, description: str, reach: "Reach", Qreq_months: list[float], **kwargs  # type: ignore
+        self,
+        name: str,
+        description: str,
+        reach: Reach,
+        Qreq_months: list[float],
+        **kwargs,
     ):
         """Constant flow rate scenario.
 
@@ -613,7 +633,7 @@ class PropScenario(Scenario):
         self,
         name: str,
         description: str,
-        reach: "Reach",  # type: ignore
+        reach: Reach,
         Qbase: float,
         c_Qin: float,
         Qreq_min: float,

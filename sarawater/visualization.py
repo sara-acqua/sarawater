@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 from datetime import datetime
 
 from sarawater.reach import Reach
@@ -154,7 +154,7 @@ class ReachPlotter:
         years = range(
             min_year, min_year + len(self.reach.IHA_nat["Group1"]["mean_january"])
         )
-        groups = self.reach.scenarios[0]._require_iari()["groups"].keys()
+        groups = self.reach.scenarios[0]._require_iari().groups.keys()
 
         for g_idx, group in enumerate(groups):
             plt.figure()
@@ -163,7 +163,7 @@ class ReachPlotter:
                 scenario_iari = scenario._require_iari()
                 plt.plot(
                     years,
-                    scenario_iari["groups"][group],
+                    scenario_iari.groups[group],
                     color=self.scenario_colors[i],
                     label=scenario.name,
                 )
@@ -221,8 +221,8 @@ class ReachPlotter:
                 # Calculate and plot percentiles for natural flow.
                 # The 25th and 75th percentiles define a band that represents the
                 # natural inter-annual variability of this indicator, which is used in the computation of the IARI index and serves as reference range when visually comparing scenario results.
-                p25 = np.percentile(natural_values, 25)
-                p75 = np.percentile(natural_values, 75)
+                p25 = float(np.percentile(natural_values, 25))
+                p75 = float(np.percentile(natural_values, 75))
 
                 # Plot percentile lines across the entire time range
                 plt.axhline(
@@ -273,12 +273,12 @@ class ReachPlotter:
         # Calculate mean IARI values for each group and scenario
         means = {
             scenario.name: [
-                np.mean(scenario._require_iari()["groups"][group]) for group in groups
+                np.mean(scenario._require_iari().groups[group]) for group in groups
             ]
             for scenario in self.reach.scenarios
         }
         for scenario in self.reach.scenarios:
-            aggregated_iari = cast(np.ndarray, scenario._require_iari()["aggregated"])
+            aggregated_iari = scenario._require_iari().aggregated
             means[scenario.name].append(np.mean(aggregated_iari))
 
         # Create grouped bar plot
@@ -318,15 +318,13 @@ class ReachPlotter:
         # Calculate mean nIHA values for each group and scenario
         means = {
             scenario.name: [
-                np.mean(scenario._require_normalized_iha()["groups"][group])
+                np.mean(scenario._require_normalized_iha().groups[group])
                 for group in groups
             ]
             for scenario in self.reach.scenarios
         }
         for scenario in self.reach.scenarios:
-            aggregated_niha = cast(
-                np.ndarray, scenario._require_normalized_iha()["aggregated"]
-            )
+            aggregated_niha = scenario._require_normalized_iha().aggregated
             means[scenario.name].append(np.mean(aggregated_niha))
 
         # Create grouped bar plot
@@ -693,7 +691,7 @@ class ReachPlotter:
         # For each scenario except natural flow
         for i, scenario in enumerate(self.reach.scenarios):
             # Calculate IARI statistics
-            iari_values = cast(np.ndarray, scenario._require_iari()["aggregated"])
+            iari_values = scenario._require_iari().aggregated
             iari_median = np.median(iari_values)
             iari_std = np.std(iari_values)
 
@@ -811,17 +809,18 @@ class ReachPlotter:
         """
 
         plt.figure()
+        dates = np.array(self.reach.dates)
         for scenario in self.reach.scenarios:
             plt.plot(
-                self.reach.dates,
-                scenario.IH[species]["H_alt"],
+                dates,
+                scenario.IH[species].H_alt,
                 label=f"{scenario.name} - {species}",
                 # color="tab:orange",
             )
 
         plt.plot(
-            self.reach.dates,
-            scenario.IH[species]["H_ref"],
+            dates,
+            scenario.IH[species].H_ref,
             label=f"Reference Q",
             # color="tab:blue",
         )
@@ -863,15 +862,15 @@ class ReachPlotter:
         plt.figure()
         for scenario in self.reach.scenarios:
             plt.plot(
-                scenario.IH[species]["UCUT_cum_alt"],
-                scenario.IH[species]["UCUT_events_alt"],
+                scenario.IH[species].UCUT_cum_alt,
+                scenario.IH[species].UCUT_events_alt,
                 label=f"{scenario.name} - {species}",
                 # color="tab:orange",
             )
 
         plt.plot(
-            scenario.IH[species]["UCUT_cum_ref"],
-            scenario.IH[species]["UCUT_events_ref"],
+            scenario.IH[species].UCUT_cum_ref,
+            scenario.IH[species].UCUT_events_ref,
             label=f"Reference Q",
             # color="tab:blue",
         )
@@ -922,7 +921,7 @@ class ReachPlotter:
             # Calculate IH statistics
             ih_values = []
             for species in scenario.IH.keys():
-                ih_values.append(scenario.IH[species]["IH"])
+                ih_values.append(scenario.IH[species].IH)
 
             # Calculate volume statistics
             vol_values = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
@@ -946,7 +945,7 @@ class ReachPlotter:
             # plot a point for each species IH
             for species in scenario.IH.keys():
                 plt.plot(
-                    scenario.IH[species]["IH"],
+                    scenario.IH[species].IH,
                     vol_median,
                     "o",
                     color=species_color_map[species],
@@ -988,9 +987,7 @@ class ReachPlotter:
         # For each scenario except natural flow
         for i, scenario in enumerate(self.reach.scenarios):
             # Calculate nIHA statistics
-            nIHA_values = cast(
-                np.ndarray, scenario._require_normalized_iha()["aggregated"]
-            )
+            nIHA_values = scenario._require_normalized_iha().aggregated
             nIHA_median = np.median(nIHA_values)
             nIHA_std = np.std(nIHA_values)
 
