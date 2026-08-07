@@ -2,30 +2,30 @@
 This section provides a comprehensive overview of the main classes and functions available in the `SARAwater` package.
 
 ## Reach objects
-The ``Reach`` class is the central object in SARAwater, representing a river reach with its natural flow time series. It serves as a container for scenarios and associated data.
+The {py:class}`sarawater.reach.Reach` class is the central object in SARAwater, representing a river reach with its natural flow time series. It serves as a container for scenarios and associated data.
 
 ### Key Attributes:
 - ``name``: Name of the reach
 - ``dates``: List of datetime objects for the time series
-- ``Qnat``: Natural flow rate time series (numpy array)
-- ``Qabs_max``: Maximum water abstraction threshold (m³/s)
+- ``Qnat``: Natural flow rate time series (NumPy array)
+- ``Qabs_max``: Maximum water abstraction threshold (m3/s)
 - ``scenarios``: List of scenarios added to the reach
-- ``IHA_nat``: Natural flow IHA indicators (computed automatically)
+- ``IHA_nat``: Natural-flow IHA indicators (computed automatically at construction)
 
 ### Main Methods:
-- ``add_scenario(scenario)``: Add a scenario to the reach
-- ``add_ecological_flow_scenario(name, description, k=0.2, p=2.0)``: Create and add an ecological flow scenario with monthly adjustments
-- ``add_HQ_curve(HQ_curve)``: Add habitat-discharge curves for different species/life stages
-- ``get_list_available_HQ_curves()``: Get list of available habitat curves
-- ``get_HQ_curve(curve_name)``: Retrieve a specific habitat-discharge curve
-- ``print_scenarios()``: Print a list of all scenarios added to the reach
-- ``export_scenarios_summary()``: Export a comprehensive summary table of all scenarios with their parameters and indices
+- {py:meth}`sarawater.reach.Reach.add_scenario`: Add a scenario to the reach
+- {py:meth}`sarawater.reach.Reach.add_ecological_flow_scenario`: Create and add an ecological flow scenario with monthly adjustments
+- {py:meth}`sarawater.reach.Reach.add_HQ_curve`: Add habitat-discharge curves for different species/life stages
+- {py:meth}`sarawater.reach.Reach.get_list_available_HQ_curves`: Get list of available habitat curves
+- {py:meth}`sarawater.reach.Reach.get_HQ_curve`: Retrieve a specific habitat-discharge curve
+- {py:meth}`sarawater.reach.Reach.print_scenarios`: Print a list of all scenarios added to the reach
+- {py:meth}`sarawater.reach.Reach.export_scenarios_summary`: Export a comprehensive summary table of all scenarios with their parameters and indices
 
 ## Scenario objects
 
-Scenarios represent different water management alternatives. SARAwater provides a base ``Scenario`` class and specialized subclasses:
+Scenarios represent different water management alternatives. SARAwater provides a base {py:class}`sarawater.scenarios.Scenario` class and specialized subclasses:
 
-### Scenario (base class)
+### {py:class}`sarawater.scenarios.Scenario` (base class)
 
 The parent class for all scenario types, containing shared functionality.
 
@@ -33,31 +33,36 @@ The parent class for all scenario types, containing shared functionality.
 
 - ``name``: Name of the scenario
 - ``description``: Description of the scenario
-- ``reach``: Associated Reach object
-- ``Qabs_max``: Maximum water abstraction, if different from Reach (m³/s)
-
-- ``Qreq``: Minimum release flow time series (m³/s)
-- ``Qrel``: Released flow rate time series (m³/s)
-- ``IHA``: Dictionary of IHA indicators
-- ``IH``: Dictionary of habitat indices for different species
+- ``reach``: Associated {py:class}`sarawater.reach.Reach` object
+- ``Qabs_max``: Maximum water abstraction, if different from the reach value (m3/s)
+- ``Qreq``: Minimum release flow time series (m3/s)
+- ``Qrel``: Released flow rate time series (m3/s)
+- ``IHA``: {py:data}`sarawater.IHA.IHAResult` mapping of IHA indicators (``Group1`` to ``Group5``)
+- ``IH``: Dictionary mapping species names to {py:class}`sarawater.habitat.HabitatIndicesResult`
+- ``IARI``: {py:class}`sarawater.IHA.IHAIndexResult` (set after IARI computation)
+- ``normalized_IHA``: {py:class}`sarawater.IHA.IHAIndexResult` (set after normalized IHA computation)
 
 ### Main Methods:
 
-- ``compute_Qrel()``: Calculate the released flow time series based on Qnat, Qreq, and Qabs_max
-- ``plot_scenario_discharge(start_date=None, end_date=None, **kwargs)``: Plot the released discharge time series
-- ``compute_IHA(**kwargs)``: Compute Indicators of Hydrologic Alteration
-- ``compute_IHA_index(index_metric, index_options={})``: Compute IHA indices (IARI or normalized_IHA)
-- ``compute_natural_abstracted_volumes(month_to_season=None)``: Calculate water volumes abstracted from the reach
-- ``compute_IH_for_species(species=None, **kwargs)``: Compute habitat indices for one or more species
+- {py:meth}`sarawater.scenarios.Scenario.compute_Qrel`: Calculate the released flow time series based on Qnat, Qreq, and Qabs_max
+- {py:meth}`sarawater.scenarios.Scenario.plot_scenario_discharge`: Plot the released discharge time series
+- {py:meth}`sarawater.scenarios.Scenario.compute_IHA`: Compute Indicators of Hydrologic Alteration
+- {py:meth}`sarawater.scenarios.Scenario.compute_IHA_index`: Compute IHA indices (IARI or normalized IHA)
+- {py:meth}`sarawater.scenarios.Scenario.compute_natural_abstracted_volumes`: Calculate water volumes abstracted from the reach
+- {py:meth}`sarawater.scenarios.Scenario.compute_IH_for_species`: Compute habitat indices for one or more species
+- {py:meth}`sarawater.scenarios.Scenario.cases_duration_for_month`: Compute monthly duration of each flow case (Case 1/2/3)
+- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_load`: Compute sediment transport time series for the scenario
+- {py:meth}`sarawater.scenarios.Scenario.plot_scenario_sediment_transport`: Plot sediment transport time series
+- {py:meth}`sarawater.scenarios.Scenario.compute_annual_sediment_budget`: Compute annual sediment budgets
 
-### ConstScenario (constant release)
+### {py:class}`sarawater.scenarios.ConstScenario` (constant release)
 
 A scenario with constant monthly flow requirements.
 
 Parameters:
 - ``Qreq_months``: List of 12 float values representing monthly constant flow rates (m3/s)
 
-### PropScenario (proportional release)
+### {py:class}`sarawater.scenarios.PropScenario` (proportional release)
 
 Child class for scenarios with flow requirements proportional to the incoming flow. In scenarios with a proportional flow requirement, $Q_{req}$ is computed as a fraction of the incoming flow discharge, $Q_{in}$, according to the formula:
 
@@ -79,10 +84,10 @@ Q_{req} = \begin{cases}
 $$ (eq:Qreq_piecewise)
 
 Parameters:
-- ``Qbase``: Base flow rate (m³/s)
+- ``Qbase``: Base flow rate (m3/s)
 - ``c_Qin``: Proportionality coefficient (dimensionless)
-- ``Qreq_min``: Minimum release constraint (m³/s)
-- ``Qreq_max``: Maximum release constraint (m³/s)
+- ``Qreq_min``: Minimum release constraint (m3/s)
+- ``Qreq_max``: Maximum release constraint (m3/s)
 
 ## Compute the released flow discharge for each scenario
 
@@ -102,7 +107,7 @@ Where the three cases correspond to the following:
 2) There is enough incoming flow to satisfy the flow requirement, and the abstracted flow discharge $Q_{abs}$ is lower than the maximum abstractable flow $Q_{abs,max}$. Recall that, according to Equation (1), $Q_{abs} = Q_{nat} - Q_{rel}$ (where, in this case, $Q_{rel} = Q_{req}$). This is the most "common" case, where the flow requirement rule is applied straightforwardly.
 3) The incoming flow $Q_{nat}$ is so large that the maximum abstractable flow can be diverted while still releasing a flow rate larger than the flow requirement. This usually happens during flood events.
 
-The piecewise function {eq}`eq:Qrel_piecewise` is implemented in the ``compute_Qrel`` method of the class ``Scenario``; therefore, to compute the released flow time series for each scenario we can simply write
+The piecewise function {eq}`eq:Qrel_piecewise` is implemented in {py:meth}`sarawater.scenarios.Scenario.compute_Qrel`; therefore, to compute the released flow time series for each scenario we can simply write
 
 ```python
    scenario.compute_Qrel()
@@ -126,18 +131,27 @@ The IHA framework quantifies changes in flow regime by analyzing 33 parameters g
 
 **Computing IHA:**
 
-Use ``scenario.compute_IHA()`` to calculate IHA indicators for a scenario. The method returns a dictionary with yearly values for each parameter.
+Use {py:meth}`sarawater.scenarios.Scenario.compute_IHA` to calculate IHA indicators for a scenario.
+
+The method returns an {py:data}`sarawater.IHA.IHAResult` mapping with five groups (``Group1`` to ``Group5``), where each group stores yearly arrays for its IHA parameters.
 
 **IHA Indices:**
 
 Two aggregate indices are available:
 
 - **IARI (Index of Alteration of Hydrologic Regime)**: Measures overall deviation from the natural hydrologic regime. When equal to 0 indicates an unaltered condition, while above 0.15 indicates severe alteration.
-  - Compute with: ``scenario.compute_IHA_index('IARI')``
+   - Compute with: {py:meth}`sarawater.scenarios.Scenario.compute_IHA_index` using ``index_metric='IARI'``
   
 - **Normalized IHA**: Normalized deviations of IHA parameters.
   
-  - Compute with: ``scenario.compute_IHA_index('normalized_IHA')``
+   - Compute with: {py:meth}`sarawater.scenarios.Scenario.compute_IHA_index` using ``index_metric='normalized_IHA'``
+
+{py:meth}`sarawater.scenarios.Scenario.compute_IHA_index` returns a tuple:
+
+1. {py:data}`sarawater.IHA.IHAResult` for altered-flow IHA indicators
+2. {py:class}`sarawater.IHA.IHAIndexResult` with:
+    - ``groups``: per-group yearly index values
+    - ``aggregated``: weighted aggregated yearly values
 
 ### Habitat alteration
 
@@ -147,24 +161,39 @@ Habitat alteration is quantified using habitat-discharge (HQ) curves and the UCU
 
 The following indices quantify habitat alteration for aquatic species:
 
-- **H97**: Habitat availability at Q97 (low flow threshold)
+- **Q97**: 3rd-percentile reference discharge threshold (stored as ``Q97_ref``)
+- **H97**: Habitat availability at Q97 in reference conditions (stored as ``H97_ref``)
 - **ISH (Index of Spatial Habitat)**: Measures average habitat reduction (0 = severe loss, 1 = no change)
 - **ITH (Index of Temporal Habitat)**: Measures habitat stress duration (0 = severe stress, 1 = no stress)
 - **IH (Habitat Index)**: Overall habitat alteration index, minimum of ISH and ITH (0 = severe impact, 1 = no impact)
 - **HSD (Habitat Stress Days)**: Cumulative measure of habitat stress events
 
+Habitat outputs are returned as {py:class}`sarawater.habitat.HabitatIndicesResult` objects.
+
 **Computing Habitat Indices:**
 
-1. Add HQ curves to the reach: ``reach.add_HQ_curve(HQ_dataframe)``
-2. Compute indices for a scenario: ``scenario.compute_IH_for_species(species='species_name')``
+1. Add HQ curves to the reach with {py:meth}`sarawater.reach.Reach.add_HQ_curve`
+2. Compute indices for a scenario with {py:meth}`sarawater.scenarios.Scenario.compute_IH_for_species`
 
 The method accepts a single species name, a list of species, or ``None`` (computes for all available species).
 
+Lower-level habitat computation utilities are available as:
+
+- {py:func}`sarawater.habitat.compute_habitat_indices`
+- {py:func}`sarawater.habitat.compute_h_ucut`
+- {py:func}`sarawater.habitat.compute_IH`
+
 ### Sediment transport alteration
+
+Sediment transport alteration can be computed at scenario level and analyzed with annual summaries:
+
+- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_load`: computes and stores a sediment transport table (see {py:func}`sarawater.sediment_load.compute_sediment_load`)
+- {py:meth}`sarawater.scenarios.Scenario.compute_annual_sediment_budget`: aggregates annual sediment budgets (via {py:func}`sarawater.sediment_load.compute_annual_sediment_volume`)
+- {py:meth}`sarawater.scenarios.Scenario.plot_scenario_sediment_transport`: plots time series of sediment transport capacity
 
 ## Visualizing the results
 
-The ``ReachPlotter`` class provides comprehensive visualization capabilities for comparing scenarios.
+The {py:class}`sarawater.visualization.ReachPlotter` class provides comprehensive visualization capabilities for comparing scenarios.
 
 **Creating a Plotter object:**
 
@@ -180,28 +209,28 @@ The ``output_dir`` argument must be a valid directory path string (``None`` is n
 
 **Discharge and Flow Regime:**
 
-- ``plot_scenarios_discharge()``: Compare discharge time series across scenarios
-- ``plot_cases_duration()``: Visualize flow regime case durations (Case 1: Qnat ≤ Qreq; Case 2: abstraction occurring; Case 3: excess flow)
-- ``plot_cases_duration_month(month)``: Monthly case duration comparison
-- ``plot_monthly_abstraction()``: Compare monthly water abstraction volumes
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_scenarios_discharge`: Compare discharge time series across scenarios
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_cases_duration`: Visualize flow regime case durations (Case 1: Qnat <= Qreq; Case 2: abstraction occurring; Case 3: excess flow)
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_cases_duration_month`: Monthly case duration comparison
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_monthly_abstraction`: Compare monthly water abstraction volumes
 
 **Hydrologic Alteration:**
 
-- ``plot_iha_parameters()``: Multi-panel plot of all IHA parameters across scenarios
-- ``plot_iari_groups()``: IARI values by IHA group
-- ``plot_iari_summary()``: Overall IARI comparison across scenarios
-- ``plot_nIHA_summary()``: Normalized IHA comparison
-- ``plot_iha_boxplots()``: Box plots of IHA parameters showing inter-annual variability
-- ``plot_relative_deviations()``: Relative deviations of IHA parameters from natural conditions
-- ``plot_iari_vs_volume()``: Trade-off between hydrologic alteration (IARI) and water abstraction
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_iha_parameters`: Multi-panel plot of all IHA parameters across scenarios
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_iari_groups`: IARI values by IHA group
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_iari_summary`: Overall IARI comparison across scenarios
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_nIHA_summary`: Normalized IHA comparison
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_iha_boxplots`: Box plots of IHA parameters showing inter-annual variability
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_relative_deviations`: Relative deviations of IHA parameters from natural conditions
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_iari_vs_volume`: Trade-off between hydrologic alteration (IARI) and water abstraction
 
 **Habitat Analysis:**
 
-- ``plot_hq_curves()``: Display habitat-discharge curves
-- ``plot_habitat_timeseries(species)``: Compare habitat availability time series
-- ``plot_ucut_curves(species)``: UCUT curves showing duration of habitat stress events
-- ``plot_ih_vs_volume()``: Trade-off between habitat alteration (IH) and water abstraction
-- ``plot_nIHA_vs_volume()``: Trade-off between normalized IHA and water abstraction
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_hq_curves`: Display habitat-discharge curves
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_habitat_timeseries`: Compare habitat availability time series
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_ucut_curves`: UCUT curves showing duration of habitat stress events
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_ih_vs_volume`: Trade-off between habitat alteration (IH) and water abstraction
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_nIHA_vs_volume`: Trade-off between normalized IHA and water abstraction
 
 **Plot Options:**
 
