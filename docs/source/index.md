@@ -22,7 +22,7 @@ Install `SARAwater` and set up your first stream reach and flow scenario.
 :::
 
 :::{grid-item-card} 📖 User Guide
-:link: user-guide
+:link: user-guide/index
 :link-type: doc
 
 In-depth explanations of core concepts, classes, and workflows to assess streamflow alterations for different environmental flow scenarios.
@@ -62,7 +62,7 @@ Guidelines for setting up a development environment, submitting Pull Requests, a
 :maxdepth: 2
 
 getting-started
-user-guide
+user-guide/index
 background
 tutorials/index
 contributing
