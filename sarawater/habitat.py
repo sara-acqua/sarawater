@@ -32,13 +32,14 @@ def compute_h_ucut(
     Q97,
     H97_ref: float | None = None,
     mode: Literal["reference", "altered"] | None = None,
-    n: int = 100,
+    HQ_curve_resampling: bool = False,
+    n_resample: int = 12,
 ) -> tuple[
     np.ndarray,
     np.ndarray,
     np.ndarray,
     np.ndarray,
-    dict[str, Any],
+    float,
 ]:
     """
     Compute habitat time series and UCUT curve for a discharge time series and habitat-discharge curve.
@@ -57,8 +58,10 @@ def compute_h_ucut(
         Habitat threshold to use (only for mode ``'altered'``).
     mode : {'reference', 'altered'}
         Type of calculation.
-    n : int, optional
-        Number of points for habitat curve interpolation (default: 100).
+    HQ_curve_resampling : bool, optional
+        Whether to resample the HQ curve for habitat calculation. Default is False.
+    n_resample : int, optional
+        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 12.
 
     Returns
     -------
@@ -70,31 +73,33 @@ def compute_h_ucut(
         Habitat time series.
     UCUT_cumpes : np.ndarray
         Cumulative frequency of under-threshold events, normalized.
-    extra : dict
-        Dictionary with Q97, H97, Qfit, splineHQ.
+    H97 : float
+        Habitat threshold value used in the calculation.
     """
-    HQ = np.asarray(HQ)
-    Q = np.asarray(Q)
-
     Qstart = HQ[0, 0]
     Qend = HQ[-1, 0]
 
-    Qfit = np.linspace(Qstart, Qend, n + 1)
-    # pp = CubicSpline(HQ[:, 0], HQ[:, 1])
-    # splineHQ = pp(Qfit)
-
     H = np.full(Q.shape, np.nan, dtype=np.float64)
-    mask = Q < Qend
-    H[mask] = np.interp(Q[mask], HQ[:, 0], HQ[:, 1])
-    H = np.round(H, 3)
+    mask = (
+        Q < Qend
+    )  # Flow discharge values higher than the maximum flow in the HQ curve are not considered for habitat calculation
 
+    if HQ_curve_resampling:
+        HQ_resampled = np.zeros((n_resample, 2))
+        HQ_resampled[:, 0] = np.linspace(Qstart, Qend, n_resample)
+        HQ_resampled[:, 1] = np.interp(HQ_resampled[:, 0], HQ[:, 0], HQ[:, 1])
+        HQ_interp = HQ_resampled
+    else:
+        HQ_interp = HQ
+
+    H[mask] = np.interp(Q[mask], HQ_interp[:, 0], HQ_interp[:, 1])
+    H = np.round(H, 3)
     # Calculate H97 threshold
     if mode == "reference":
-        if Q97 > Qfit[-1]:
+        if Q97 > Qend:
             H97 = 0
         else:
-            # H97 = pp(Q97)
-            H97 = np.interp(Q97, HQ[:, 0], HQ[:, 1])
+            H97 = np.interp(Q97, HQ_interp[:, 0], HQ_interp[:, 1])
             H97 = np.ceil(H97)
     elif mode == "altered":
         if H97_ref is None:
@@ -116,7 +121,7 @@ def compute_h_ucut(
             np.array([], dtype=np.int64),
             H,
             np.array([], dtype=float),
-            {"Q97": Q97, "H97": H97, "Qfit": Qfit, "splineHQ": None},
+            H97,
         )
 
     # sort the array in descending order
@@ -150,8 +155,7 @@ def compute_h_ucut(
     # Normalized version on total number of days
     UCUT_cumpes = UCUT_cumsum / days_tot
 
-    extra = {"Q97": Q97, "H97": H97, "Qfit": Qfit, "splineHQ": None}
-    return UCUT_cumsum, UCUT_events, H, UCUT_cumpes, extra
+    return UCUT_cumsum, UCUT_events, H, UCUT_cumpes, H97
 
 
 def compute_IH(
@@ -190,7 +194,6 @@ def compute_IH(
     l_alt = len(UCUT_cum_alt)
 
     # Calculate HSD (Habitat Stress Days)
-    # HSD is calculated as
     if l_alt == 1:
         HSD = np.nan
     elif l_alt < l_ref:
@@ -224,7 +227,9 @@ def compute_IH(
     return ITH, ISH, IH, HSD
 
 
-def compute_habitat_indices(Qnat, Qalt, HQ, date) -> HabitatIndicesResult:
+def compute_habitat_indices(
+    Qnat, Qalt, HQ, date, HQ_curve_resampling=False, n_resample=12
+) -> HabitatIndicesResult:
     """
     Calculate Q97, UCUT, habitat time series and indices IH, ISH, ITH, HSD for natural and altered series.
 
@@ -238,6 +243,10 @@ def compute_habitat_indices(Qnat, Qalt, HQ, date) -> HabitatIndicesResult:
         Habitat-discharge table (Q, H).
     date : array-like
         Time series of dates (same length as Qnat and Qalt).
+    HQ_curve_resampling : bool, optional
+        Whether to resample the HQ curve for habitat calculation. Default is False.
+    n_resample : int, optional
+        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 12.
 
     Returns
     -------
@@ -253,13 +262,26 @@ def compute_habitat_indices(Qnat, Qalt, HQ, date) -> HabitatIndicesResult:
     Q97 = np.percentile(Qnat, 3)
 
     # Calculate UCUT and habitat time series for the natural series (reference)
-    UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_pes_ref, extra_ref = compute_h_ucut(
-        HQ, date, Qnat, Q97, mode="reference"
+    UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_pes_ref, H97_ref = compute_h_ucut(
+        HQ,
+        date,
+        Qnat,
+        Q97,
+        mode="reference",
+        HQ_curve_resampling=HQ_curve_resampling,
+        n_resample=n_resample,
     )
 
     # Calculate UCUT and habitat time series for the altered series (altered)
-    UCUT_cum_alt, UCUT_events_alt, H_alt, UCUT_cum_pes_alt, extra_alt = compute_h_ucut(
-        HQ, date, Qalt, Q97, H97_ref=extra_ref["H97"], mode="altered"
+    UCUT_cum_alt, UCUT_events_alt, H_alt, UCUT_cum_pes_alt, H97_alt = compute_h_ucut(
+        HQ,
+        date,
+        Qalt,
+        Q97,
+        H97_ref=H97_ref,
+        mode="altered",
+        HQ_curve_resampling=HQ_curve_resampling,
+        n_resample=n_resample,
     )
 
     # Calculate IH, ISH, ITH, HSD indices
@@ -268,8 +290,8 @@ def compute_habitat_indices(Qnat, Qalt, HQ, date) -> HabitatIndicesResult:
     )
 
     return HabitatIndicesResult(
-        Q97_ref=float(Q97),
-        H97_ref=float(extra_ref["H97"]),
+        Q97_ref=Q97,
+        H97_ref=H97_ref,
         UCUT_cum_ref=UCUT_cum_ref,
         UCUT_events_ref=UCUT_events_ref,
         H_ref=H_ref,
