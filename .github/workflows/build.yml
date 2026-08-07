@@ -124,6 +124,8 @@ jobs:
   docs-deploy:
     needs: docs-validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.docs-validate.result == 'success'
+    environment:
+      name: github-pages
     runs-on: ubuntu-latest
     permissions:
       pages: write
