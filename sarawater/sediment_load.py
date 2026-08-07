@@ -90,7 +90,6 @@ def meyer_peter_mueller(
     -------
     np.ndarray
         Array of volumetric sediment transport per phi-class (m^3/s) if Fi is provided.
-        If Fi is None, returns a length-1 array with the total transport using D50.
     """
     phi_i = np.maximum(theta_i - theta_c, 0.0)
     qb_i = 8.0 * (phi_i**1.5) * np.sqrt(g * Delta * DMI**3)
