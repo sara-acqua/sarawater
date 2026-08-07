@@ -227,50 +227,68 @@ Use standard Sphinx reST roles inside docstrings to generate direct links across
 def compute_IHA_index(
     Qnat: np.ndarray,
     Qrel: np.ndarray,
-    index_metric: str = "IARI",
+    dates: list[datetime.datetime],
+    index_metric: str,
     weights: Sequence[float] | None = None,
-) -> tuple[IHAIndexResult, IHAResult]:
-    """Compute IHA indicators and aggregate alteration indices for a scenario.
-
-    Calculates the 33 Indicators of Hydrologic Alteration (IHA) and evaluates
-    overall ecosystem impact relative to natural flow conditions following
-    the methodology described in :cite:p:`richter1996`.
+    IHA_nat: IHAResult | None = None,
+    IHA_alt: IHAResult | None = None,
+    epsilon: float = 1e-5,
+) -> tuple[IHAResult, IHAIndexResult]:
+    """Compute the IHA indicators and the related IARI index for each year.
 
     Parameters
     ----------
     Qnat : np.ndarray
-        Natural flow rate time series (daily resolution).
+        Natural flow rate time series
     Qrel : np.ndarray
-        Altered or released flow rate time series (daily resolution).
-    index_metric : {'IARI', 'normalized_IHA'}, default='IARI'
-        Aggregation metric to compute.
-    weights : sequence of float, optional
-        Weights assigned to the 5 IHA parameter groups. Must sum to 1.0.
-        If None, equal weighting (0.2 per group) is applied.
+        Released flow rate time series
+    dates : list[datetime.datetime]
+        List of datetime objects corresponding to flow rates
+    index_metric : str
+        Name of the index to compute (IARI, normalized_IHA)
+    weights : list[float], optional
+        List of 5 weights for each group of IHA parameters. Must sum to 1.
+        If None, equal weights (0.2) will be used.
+    IHA_nat : IHAResult, optional
+        Pre-computed IHA for the natural flow series. If provided, it will be used instead of computing it again.
+    IHA_alt : IHAResult, optional
+        Pre-computed IHA for the altered flow series. If provided, it will be used instead of computing it again.
+    epsilon : float, optional
+        Small value to prevent division by zero in calculations. Used only if index_metric is "normalized_IHA". Default is 1e-5.
 
     Returns
     -------
-    IHAIndexResult
-        Dataclass containing calculated group scores and total score.
-    IHAResult
-        Dictionary containing raw yearly indicator values per group.
+    tuple[IHAResult, IHAIndexResult]
+        Tuple containing:
 
-    Raises
-    ------
-    ValueError
-        If length of `Qnat` and `Qrel` time series do not match.
+        - The altered-state values of the IHA, stored in a dictionary where each key is a group name and each value is a dictionary of indicators belonging to that group.
+        - The altered-state values of the IHA index, stored in a IHAIndexResult object with per-group values and aggregated values.
 
     Examples
     --------
+    >>> import datetime
     >>> import numpy as np
-    >>> from sarawater.indicators import compute_IHA_index
-    >>> q_nat = np.array([10.0, 12.0, 15.0])
-    >>> q_rel = np.array([8.0, 10.0, 12.0])
-    >>> index_res, iha_res = compute_IHA_index(q_nat, q_rel)
+    >>> from sarawater.IHA import compute_IHA_index
+    >>> dates = [
+    ...     datetime.datetime(2000, 1, 1) + datetime.timedelta(days=i)
+    ...     for i in range(365)
+    ... ]
+    >>> q_nat = np.linspace(10.0, 30.0, 365)
+    >>> q_rel = np.maximum(q_nat - 2.0, 0.0)
+    >>> iha_res, index_res = compute_IHA_index(
+    ...     q_nat,
+    ...     q_rel,
+    ...     dates,
+    ...     index_metric='IARI',
+    ... )
+    >>> group1_scores = index_res.groups['Group1']
+    >>> annual_scores = index_res.aggregated
+    >>> sorted(iha_res.keys())
+    ['Group1', 'Group2', 'Group3', 'Group4', 'Group5']
 
     See Also
     --------
-    :func:`~sarawater.indicators.compute_IHA` : Base indicator calculation.
+    :func:`~sarawater.IHA.compute_IHA` : Base indicator calculation.
     """
     ...
 ```
