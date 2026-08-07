@@ -79,6 +79,8 @@ Once your local environment is ready, follow this workflow for each contribution
 ## Contributing to the web Documentation
 The core of the SARAwater package documentation is written in Markdown files located in the `docs/source` directory and published on the package website: https://sara-acqua.github.io/sarawater/. To contribute to the documentation, you can edit the `.md` files directly in your branch. Whenever a change in the `.md` files is detected, the documentation will be automatically rebuilt using [Sphinx](https://www.sphinx-doc.org/en/master/index.html) and used to update the package website on GitHub Pages.
 
+This repository relies on the MyST language for all Markdown files, which allows for advanced features such as cross-references, citations, and math equations. You can find more information about MyST in the [official documentation](https://myst-parser.readthedocs.io/en/latest/).
+
 To ensure your documentation is correctly formatted after your edits, you can build the documentation locally. From the root of the repository (that is, the main directory where `pyproject.toml` is located), run:
 ```bash
 cd docs
