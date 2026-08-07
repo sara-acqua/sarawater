@@ -13,7 +13,7 @@ SARAwater helps quantify hydrological, habitat, and sediment-transport alteratio
 * **Sediment Transport:** Analyze impacts on bedload transport in impacted river reaches using standard transport capacity relationships.
 
 <p align="center">
-  <img src="tutorials/tutorial_0_SARA-mini/images/SARA_overview.png" alt="Overview of the SARAwater package" width="80%">
+  <img src="docs/source/images/SARA_overview.png" alt="Overview of the SARAwater package" width="80%">
 </p>
 
 
