@@ -374,7 +374,7 @@ class Scenario:
         species: str | list[str] | None = None,
         *,
         HQ_curve_resampling: bool = False,
-        n_resample: int = 12,
+        n_resample: int = 13,
     ) -> dict[str, HabitatIndicesResult]:
         """Compute the Habitat Index (IH) for a given species using the scenario's Qrel.
 
@@ -389,7 +389,7 @@ class Scenario:
             Whether to resample the HQ curve for habitat calculation. Default is False.
         n_resample : int, optional
             Number of points used to resample the HQ curve when
-            ``HQ_curve_resampling=True``. Default is 12.
+            ``HQ_curve_resampling=True``. Default is 13.
 
         Returns
         -------

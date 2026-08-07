@@ -33,7 +33,7 @@ def compute_h_ucut(
     H97_ref: float | None = None,
     mode: Literal["reference", "altered"] | None = None,
     HQ_curve_resampling: bool = False,
-    n_resample: int = 12,
+    n_resample: int = 13,
 ) -> tuple[
     np.ndarray,
     np.ndarray,
@@ -61,7 +61,7 @@ def compute_h_ucut(
     HQ_curve_resampling : bool, optional
         Whether to resample the HQ curve for habitat calculation. Default is False.
     n_resample : int, optional
-        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 12.
+        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 13.
 
     Returns
     -------
@@ -88,9 +88,9 @@ def compute_h_ucut(
         HQ_resampled = np.zeros((n_resample, 2))
         HQ_resampled[:, 0] = np.linspace(Qstart, Qend, n_resample)
         HQ_resampled[:, 1] = np.interp(HQ_resampled[:, 0], HQ[:, 0], HQ[:, 1])
-        HQ_interp = HQ_resampled
+        HQ_interp = np.copy(HQ_resampled)
     else:
-        HQ_interp = HQ
+        HQ_interp = np.copy(HQ)
 
     H[mask] = np.interp(Q[mask], HQ_interp[:, 0], HQ_interp[:, 1])
     H = np.round(H, 3)
@@ -228,7 +228,7 @@ def compute_IH(
 
 
 def compute_habitat_indices(
-    Qnat, Qalt, HQ, date, HQ_curve_resampling=False, n_resample=12
+    Qnat, Qalt, HQ, date, HQ_curve_resampling=False, n_resample=13
 ) -> HabitatIndicesResult:
     """
     Calculate Q97, UCUT, habitat time series and indices IH, ISH, ITH, HSD for natural and altered series.
@@ -246,7 +246,7 @@ def compute_habitat_indices(
     HQ_curve_resampling : bool, optional
         Whether to resample the HQ curve for habitat calculation. Default is False.
     n_resample : int, optional
-        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 12.
+        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 13.
 
     Returns
     -------
