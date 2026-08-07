@@ -58,6 +58,24 @@ def compute_IHA(
     IHAResult
         Indicators grouped by type. The top-level keys are ``Group1`` to
         ``Group5``. Each group maps indicator names to yearly arrays.
+
+    Examples
+    --------
+    >>> import datetime
+    >>> import numpy as np
+    >>> from sarawater.IHA import compute_IHA
+    >>> dates = [
+    ...     datetime.datetime(2000, 1, 1) + datetime.timedelta(days=i)
+    ...     for i in range(365)
+    ... ]
+    >>> q_nat = np.linspace(10.0, 30.0, 365)
+    >>> q_rel = np.maximum(q_nat - 2.0, 0.0)
+    >>> iha_res = compute_IHA(q_nat, q_rel, dates)
+    >>> sorted(iha_res.keys())
+    ['Group1', 'Group2', 'Group3', 'Group4', 'Group5']
+    >>> january_means = iha_res['Group1']['mean_january']
+    >>> january_means.shape
+    (1,)
     """
     # Force daily averaging of flow discharge data
     # Convert dates to date-only (removing time component)
@@ -250,6 +268,32 @@ def compute_IHA_index(
 
         - The altered-state values of the IHA, stored in a dictionary where each key is a group name and each value is a dictionary of indicators belonging to that group.
         - The altered-state values of the IHA index, stored in a IHAIndexResult object with per-group values and aggregated values.
+
+    Examples
+    --------
+    >>> import datetime
+    >>> import numpy as np
+    >>> from sarawater.IHA import compute_IHA_index
+    >>> dates = [
+    ...     datetime.datetime(2000, 1, 1) + datetime.timedelta(days=i)
+    ...     for i in range(365)
+    ... ]
+    >>> q_nat = np.linspace(10.0, 30.0, 365)
+    >>> q_rel = np.maximum(q_nat - 2.0, 0.0)
+    >>> iha_res, index_res = compute_IHA_index(
+    ...     q_nat,
+    ...     q_rel,
+    ...     dates,
+    ...     index_metric='IARI',
+    ... )
+    >>> group1_scores = index_res.groups['Group1']
+    >>> annual_scores = index_res.aggregated
+    >>> sorted(iha_res.keys())
+    ['Group1', 'Group2', 'Group3', 'Group4', 'Group5']
+
+    See Also
+    --------
+    :func:`~sarawater.IHA.compute_IHA` : Base indicator calculation.
     """
     # Calculate IHA indicators for both series
     if IHA_nat is None:
