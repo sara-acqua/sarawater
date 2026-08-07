@@ -1,8 +1,0 @@
-sphinx
-pydata-sphinx-theme
-myst-parser
-myst-nb
-sphinx-autoapi
-sphinxcontrib-bibtex
-sphinx-copybutton
-sphinx-design
