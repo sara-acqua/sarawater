@@ -29,6 +29,7 @@ jobs:
               - 'docs/**'
               - 'tutorials/**'
               - '.github/workflows/**'
+              - 'CONTRIBUTING.md'
 
   format:
     runs-on: ubuntu-latest
