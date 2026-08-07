@@ -5,6 +5,8 @@ tests/__pycache__/test_scenarios.cpython-312-pytest-8.3.5.pyc
 docs/build/*
 docs/output/*
 docs/make.bat
+docs/source/tutorials
+docs/source/autoapi
 _source/*
 _static/*
 *.egg-info/
@@ -13,5 +15,4 @@ dist/
 build/
 examples/*.csv
 examples/*.xlsx
-docs/source/tutorials
-.jupyter_cache/
+docs/jupyter_execute/
