@@ -76,6 +76,6 @@ The code below uses `ConstScenario` to set a minimum flow of **1.0 m³/s** for m
 Qreq_months = [1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0]
 
 # Create and attach the scenario
-my_scenario = sara.ConstScenario("Summer Reduction Scenario", Qreq_months)
+my_scenario = sara.ConstScenario("SR", "Summer Reduction Scenario", my_reach, Qreq_months)
 my_reach.add_scenario(my_scenario)
 ```
