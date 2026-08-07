@@ -1,3 +1,3 @@
-# Tutorial 3: Sediment Transport
+# Tutorial 3 - Sediment Transport
 
 Coming soon!
