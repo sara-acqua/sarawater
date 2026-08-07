@@ -1,10 +1,10 @@
-## Assessing alterations
+# Assessing alterations
 
 SARAwater provides several methods to quantify hydrological, habitat, and sediment transport alterations.
 
-### Hydrologic alteration
+## Hydrologic alteration
 
-**Indicators of Hydrologic Alteration (IHA)**
+### Indicators of Hydrologic Alteration (IHA)
 
 The IHA framework quantifies changes in flow regime by analyzing 33 parameters grouped into 5 categories:
 
@@ -14,13 +14,13 @@ The IHA framework quantifies changes in flow regime by analyzing 33 parameters g
 - **Group 4**: Frequency and duration of high/low pulses
 - **Group 5**: Rate and frequency of flow changes (rise/fall rates, number of reversals)
 
-**Computing IHA:**
+### Computing IHA
 
 Use {py:meth}`sarawater.scenarios.Scenario.compute_IHA` to calculate IHA indicators for a scenario.
 
 The method returns an {py:data}`sarawater.IHA.IHAResult` mapping with five groups (``Group1`` to ``Group5``), where each group stores yearly arrays for its IHA parameters.
 
-**IHA Indices:**
+### IHA Indices:
 
 Two aggregate indices are available:
 
@@ -38,11 +38,11 @@ Two aggregate indices are available:
     - ``groups``: per-group yearly index values
     - ``aggregated``: weighted aggregated yearly values
 
-### Habitat alteration
+## Habitat alteration
 
 Habitat alteration is quantified using habitat-discharge (HQ) curves and the UCUT (Under-threshold Cumulative Curve) methodology.
 
-**Habitat Indices:**
+### Habitat Indices:
 
 The following indices quantify habitat alteration for aquatic species:
 
@@ -55,7 +55,7 @@ The following indices quantify habitat alteration for aquatic species:
 
 Habitat outputs are returned as {py:class}`sarawater.habitat.HabitatIndicesResult` objects.
 
-**Computing Habitat Indices:**
+### Computing Habitat Indices
 
 1. Add HQ curves to the reach with {py:meth}`sarawater.reach.Reach.add_HQ_curve`
 2. Compute indices for a scenario with {py:meth}`sarawater.scenarios.Scenario.compute_IH_for_species`
@@ -68,7 +68,7 @@ Lower-level habitat computation utilities are available as:
 - {py:func}`sarawater.habitat.compute_h_ucut`
 - {py:func}`sarawater.habitat.compute_IH`
 
-### Sediment transport alteration
+## Sediment transport alteration
 
 Sediment transport alteration can be computed at scenario level and analyzed with annual summaries:
 
