@@ -4,5 +4,5 @@
     xtick.labelsize : 13
     ytick.labelsize : 13
     lines.linewidth : 2.5
-    font.sans-serif : Arial
+    font.sans-serif : DejaVu Sans, Arial
     mathtext.fontset : cm
