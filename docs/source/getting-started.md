@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to `SARAwater`! This guide will walk you through installing the package and setting up your first stream reach and scenario.
+Welcome to `SARAwater`! This guide will walk you through installing the package and setting up your first river reach and scenario.
 
 ---
 
