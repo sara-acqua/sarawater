@@ -1,4 +1,4 @@
-# Contributing to SARAwater
+# Contributing
 
 First off, thank you for considering contributing to SARAwater! We welcome contributions from everyone, whether you are fixing a bug, adding a new feature, or improving our documentation. 
 
