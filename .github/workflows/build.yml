@@ -28,6 +28,7 @@ jobs:
             docs:
               - 'docs/**'
               - 'tutorials/**'
+              - '.github/workflows/**'
 
   format:
     runs-on: ubuntu-latest
