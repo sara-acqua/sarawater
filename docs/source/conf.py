@@ -39,6 +39,7 @@ myst_enable_extensions = [
     "dollarmath",  # Enable $ inline $ and $$ display $$ math
     "amsmath",  # Enable LaTeX math environments
     "colon_fence",  # Enable ::: directive syntax
+    "alert",  # Enable Github-style admonitions (note, warning, etc.)
 ]
 
 # MyST-NB Notebook Execution Settings
