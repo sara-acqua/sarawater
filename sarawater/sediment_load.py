@@ -22,10 +22,10 @@ def wilcock_crowe_2003(theta_i, Fi, g=9.81, Delta=1.65):
 
     Parameters
     ----------
-    Fi : array-like
-        Fractional abundance of each grain size class in the bed surface (unitless, sum to 1).
     theta_i : array-like
         Dimensionless Shields parameter for each grain size class (unitless).
+    Fi : array-like
+        Fractional abundance of each grain size class in the bed surface (unitless, sum to 1).
     g : float, optional
         Gravitational acceleration (m/s^2). Default is 9.81 m/s^2.
     Delta : float, optional
@@ -34,23 +34,6 @@ def wilcock_crowe_2003(theta_i, Fi, g=9.81, Delta=1.65):
     Returns
     -------
     qsi : ndarray
-        Array of sediment transport rates for each grain size class (m^3/s).
-        Each element corresponds to the transport rate for the respective phi class.
-
-    D50 : float
-        Median grain size (meters).
-    D84 : float
-        84th percentile grain size (meters).
-    rho_w : float, optional
-        Water density (kg/m^3). Default is 1000 kg/m^3.
-    rho_s : float, optional
-        Sediment density (kg/m^3). Default is 2650 kg/m^3
-    g : float, optional
-        Gravitational acceleration (m/s^2). Default is 9.81 m/s^2.
-
-    Returns
-    -------
-    Qsi : ndarray
         Array of sediment transport rates for each grain size class (m^3/s).
         Each element corresponds to the transport rate for the respective phi class.
     """
@@ -107,7 +90,6 @@ def meyer_peter_mueller(
     -------
     np.ndarray
         Array of volumetric sediment transport per phi-class (m^3/s) if Fi is provided.
-        If Fi is None, returns a length-1 array with the total transport using D50.
     """
     phi_i = np.maximum(theta_i - theta_c, 0.0)
     qb_i = 8.0 * (phi_i**1.5) * np.sqrt(g * Delta * DMI**3)
@@ -327,7 +309,7 @@ def compute_annual_sediment_volume(
 ):
     """
     Compute annual sediment volume (m³/year) or mass (ton/year) per phi class and total
-    from the sediment transport rates computed with `compute_sediment_load`.
+    from the sediment transport rates computed with ``compute_sediment_load``.
 
     The function multiplies the transport rate time series (m³/s) by the time step
     between observations to obtain volumes (m³), then aggregates these volumes
@@ -337,25 +319,21 @@ def compute_annual_sediment_volume(
     Parameters
     ----------
     df : pandas.DataFrame
-        DataFrame containing the time series output from `compute_sediment_load`.
-        It must include:
-            - A 'Datetime' column with datetime-like objects (sorted in ascending order).
-            - Columns named 'Qs_phi_<phi>' representing sediment transport rate
-            (m³/s) for each phi size class.
-            - A 'Qs_total' column representing total sediment transport rate (m³/s).
+        DataFrame containing the time series output from
+        ``compute_sediment_load``.
+        Required columns are:
+
+        - ``Datetime`` with datetime-like objects sorted in ascending order.
+        - ``Qs_phi_<phi>`` columns with per-class transport rates (m³/s).
+        - ``Qs_total`` with total transport rate (m³/s).
 
     to_csv : str, optional
         Path to save the resulting annual sediment volume or mass table as a CSV file.
         If None (default), no file is saved.
 
     as_dict : bool, default=False
-        If True, the function returns the results as a nested Python dictionary in the form:
-        {
-            year_1: {'Qs_phi_-9.5': value, ..., 'Qs_total': total_value},
-            year_2: {...},
-            ...
-        }
-        If False (default), the function returns a pandas.DataFrame.
+        If True, return a dictionary where each key is a year and each value is a dictionary of annual sediment volumes for each phi class.
+        If False (default), return a pandas.DataFrame.
 
     to_ton : bool, default=False
         If True, the output values are converted from m³/year to ton/year using:
@@ -363,28 +341,22 @@ def compute_annual_sediment_volume(
 
     rho_s : float, default=2650
         Sediment density in kg/m³. Default corresponds to quartz density.
-        Only used if `to_ton=True`.
+        Only used if ``to_ton=True``.
 
     Returns
     -------
     pandas.DataFrame or dict
-        - If `as_dict=False` (default): a DataFrame indexed by year with one column
-        for each phi class and one for total sediment flux. Units depend on `to_ton`:
-            * m³/year if to_ton=False
-            * ton/year if to_ton=True
-
-        - If `as_dict=True`: a nested dictionary structured as:
-            {year: {phi_class_name: value, ..., 'Qs_total': total_value}}
-        where each value is either in m³/year or ton/year depending on `to_ton`.
+        Annual sediment output in DataFrame or dictionary form.
+        Units are m³/year if ``to_ton=False`` and ton/year if ``to_ton=True``.
 
     Notes
     -----
-    - The time step is inferred from the first two records in the 'Datetime' column.
-    It is assumed to be constant throughout the series.
-    - The function does not resample irregular time steps automatically — ensure
-    your input time series has a uniform time interval.
-    - The conversion to tons uses:
-        1 m³ × 2650 kg/m³ ÷ 1000 kg/ton = 2.65 ton
+        - The time step is inferred from the first two records in the
+            ``Datetime`` column and assumed constant over the series.
+        - The function does not resample irregular time steps automatically;
+            ensure the input time series has a uniform time interval.
+        - The conversion to tons uses
+            ``1 m³ * 2650 kg/m³ / 1000 kg/ton = 2.65 ton``.
     """
     phi_cols = [c for c in df.columns if c.startswith("Qs_phi_")]
     total_col = "Qs_total"

@@ -47,8 +47,6 @@ To start working on the code, you will need your own fork of the repository and 
     pip install -e .[dev,docs]
     ```
     It is recommended to run the `pip install` command within a virtual environment (e.g., `venv` or `conda`) to keep the development version of SARAwater and its dependencies isolated from other Python projects on your machine.
-6.  **Install Pandoc (for documentation):**
-    Building the documentation requires Pandoc. You can download and install it from the [official Pandoc website](https://pandoc.org/installing.html).
 
 ### Create a feature branch and submit your contribution
 
@@ -78,6 +76,16 @@ Once your local environment is ready, follow this workflow for each contribution
    ```
    Then open the repository on GitHub and click **Compare & pull request** to submit your changes for review.
 
+## Contributing to the web Documentation
+The core of the SARAwater package documentation is written in Markdown files located in the `docs/source` directory and published on the package website: https://sara-acqua.github.io/sarawater/. To contribute to the documentation, you can edit the `.md` files directly in your branch. Whenever a change in the `.md` files is detected, the documentation will be automatically rebuilt using [Sphinx](https://www.sphinx-doc.org/en/master/index.html) and used to update the package website on GitHub Pages.
+
+To ensure your documentation is correctly formatted after your edits, you can build the documentation locally. From the root of the repository (that is, the main directory where `pyproject.toml` is located), run:
+```bash
+cd docs
+sphinx-build -M html source build
+```
+You can then open the generated HTML files in the `docs/build/html` directory in your web browser.
+
 ## Coding Guidelines & Architecture
 
 To keep the SARAwater codebase clean, reliable, and easy to maintain, please adhere to the following rules when writing code:
@@ -97,42 +105,195 @@ This repository relies on `black` to ensure a consistent code style across the e
 black .
 ```
 
-## Contributing to the Documentation
+## Docstrings Guidelines for `sarawater` Contributors
+All Python code in `sarawater` must be documented using [**NumPy-style docstrings**](https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard). These docstrings must follow specific formatting rules, so that they can be effectively handled by `sphinx-autoapi` and published into the official HTML documentation (API reference page).
 
-### Docstrings
-Good documentation is just as important as good code. We use [**NumPy-style docstrings**](https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard) for all new functions, methods, and classes. 
+### Core Principles for Writing Docstrings
 
-Here is an example of what a standard NumPy-style docstring looks like:
+1. **reStructuredText Syntax:** Although descriptive docs (`.md` files) use MyST Markdown, **docstrings inside Python files must use reStructuredText (reST)**.
+2. **Imperative Mood:** Start summary lines with an imperative command (e.g., `Compute flow requirements...` instead of `Computes...` or `This function calculates...`).
+3. **Underline Length:** Section headers (like `Parameters` or `Returns`) must be underlined with hyphens (`-`) matching or exceeding the length of the section title.
+4. **Indentation:** Indent parameter and return descriptions by **4 spaces**.
+
+### Summary Line & Extended Description
+Begin with a single line describing what the object does. Leave a blank line before adding a detailed explanation or mathematical context if necessary.
 
 ```python
-def calculate_velocity(distance, time):
+def compute_Qrel(Qnat: np.ndarray, Qreq: np.ndarray, Qabs_max: float) -> np.ndarray:
+    """Compute the released flow discharge time series.
+
+    Applies the piecewise release rule based on natural incoming flow, 
+    environmental flow requirements, and maximum diversion capacity.
     """
-    Calculates the velocity of an object.
+```
+
+### Parameters
+Format each parameter as `name : type`. Append `, optional` or `, default=value` when applicable.
+
+```python
+Parameters
+----------
+Qnat : np.ndarray
+    Natural flow rate time series in m3/s.
+Qreq : np.ndarray
+    Minimum release flow requirement time series in m3/s.
+Qabs_max : float
+    Maximum water abstraction threshold in m3/s.
+k : float, default=0.2
+    Proportionality factor for environmental flow scaling.
+```
+
+### Returns / Yields
+Specify the return type on the first line, followed by a 4-space indented description.
+
+```python
+Returns
+-------
+np.ndarray
+    Time series of released discharge `Qrel` in m3/s.
+```
+
+If returning multiple values, list them explicitly:
+
+```python
+Returns
+-------
+IHAIndexResult
+    Dataclass containing calculated group scores and total score.
+IHAResult
+    Dictionary containing raw yearly indicator values per group.
+```
+
+### Raises
+List exceptions intentionally raised by the function.
+
+```python
+Raises
+------
+ValueError
+    If `Qnat` contains negative discharge values or missing dates.
+```
+
+### Examples
+Provide runnable doctest examples starting with `>>>`.
+
+```python
+Examples
+--------
+import pandas as pd
+import numpy as np
+import sarawater as sara
+minrel_df = pd.read_csv(min_release_filepath, header=None)
+Qreq_months = np.array(minrel_df[1].tolist()) / 1000.0
+MFR_scenario = sara.ConstScenario(
+    name="MFR",
+    description="Minimum Flow Requirement scenario from CSV file",
+    reach=my_reach,
+    Qreq_months=Qreq_months,
+)
+my_reach.add_scenario(MFR_scenario)
+```
+
+### Notes & References
+Include theoretical context, governing equations, or literature citations referencing keys from `references.bib`.
+
+```python
+Notes
+-----
+Calculated using the 33-indicator framework described by Richter et al. :cite:p:`richter1996`.
+```
+
+---
+
+### Formatting & Cross-Referencing Cheat Sheet
+
+Use standard Sphinx reST roles inside docstrings to generate direct links across the site:
+
+| Content Element | reST Docstring Syntax | Output Rendered in Docs |
+| :--- | :--- | :--- |
+| **Inline Variable/Code** | `` `variable` `` | Monospaced text |
+| **Class Reference** | `:class:`sarawater.Scenario`` | Link to `Scenario` API page |
+| **Short Class Reference** | `:class:`~sarawater.Scenario`` | Link displaying only `Scenario` |
+| **Function Reference** | `:func:`sarawater.compute_IHA`` | Link to function API page |
+| **Method Reference** | `:meth:`sarawater.Scenario.compute_Qrel`` | Link to method API page |
+| **External Class (NumPy)** | `:class:`numpy.ndarray`` | Link to external NumPy docs |
+| **External Class (Pandas)**| `:class:`pandas.DataFrame`` | Link to external Pandas docs |
+
+---
+
+### Complete Reference Example
+
+```python
+def compute_IHA_index(
+    Qnat: np.ndarray,
+    Qrel: np.ndarray,
+    dates: list[datetime.datetime],
+    index_metric: str,
+    weights: Sequence[float] | None = None,
+    IHA_nat: IHAResult | None = None,
+    IHA_alt: IHAResult | None = None,
+    epsilon: float = 1e-5,
+) -> tuple[IHAResult, IHAIndexResult]:
+    """Compute the IHA indicators and the related IARI index for each year.
 
     Parameters
     ----------
-    distance : float
-        The distance traveled in meters.
-    time : float
-        The time taken in seconds.
+    Qnat : np.ndarray
+        Natural flow rate time series
+    Qrel : np.ndarray
+        Released flow rate time series
+    dates : list[datetime.datetime]
+        List of datetime objects corresponding to flow rates
+    index_metric : str
+        Name of the index to compute (IARI, normalized_IHA)
+    weights : list[float], optional
+        List of 5 weights for each group of IHA parameters. Must sum to 1.
+        If None, equal weights (0.2) will be used.
+    IHA_nat : IHAResult, optional
+        Pre-computed IHA for the natural flow series. If provided, it will be used instead of computing it again.
+    IHA_alt : IHAResult, optional
+        Pre-computed IHA for the altered flow series. If provided, it will be used instead of computing it again.
+    epsilon : float, optional
+        Small value to prevent division by zero in calculations. Used only if index_metric is "normalized_IHA". Default is 1e-5.
 
     Returns
     -------
-    float
-        The calculated velocity in meters per second.
+    tuple[IHAResult, IHAIndexResult]
+        Tuple containing:
+
+        - The altered-state values of the IHA, stored in a dictionary where each key is a group name and each value is a dictionary of indicators belonging to that group.
+        - The altered-state values of the IHA index, stored in a IHAIndexResult object with per-group values and aggregated values.
+
+    Examples
+    --------
+    >>> import datetime
+    >>> import numpy as np
+    >>> from sarawater.IHA import compute_IHA_index
+    >>> dates = [
+    ...     datetime.datetime(2000, 1, 1) + datetime.timedelta(days=i)
+    ...     for i in range(365)
+    ... ]
+    >>> q_nat = np.linspace(10.0, 30.0, 365)
+    >>> q_rel = np.maximum(q_nat - 2.0, 0.0)
+    >>> iha_res, index_res = compute_IHA_index(
+    ...     q_nat,
+    ...     q_rel,
+    ...     dates,
+    ...     index_metric='IARI',
+    ... )
+    >>> group1_scores = index_res.groups['Group1']
+    >>> annual_scores = index_res.aggregated
+    >>> sorted(iha_res.keys())
+    ['Group1', 'Group2', 'Group3', 'Group4', 'Group5']
+
+    See Also
+    --------
+    :func:`~sarawater.IHA.compute_IHA` : Base indicator calculation.
     """
-    return distance / time
+    ...
 ```
 
-### Contributing to the web Documentation
-The core of the SARAwater package documentation is written in the [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) (.rst) files located in the `docs/source` directory and published on the package website: https://sara-acqua.github.io/sarawater/. To contribute to the documentation, you can edit the `.rst` files directly. Whenever a change in the `.rst` files is detected, the documentation will be automatically rebuilt using [Sphinx](https://www.sphinx-doc.org/en/master/index.html) and used to update the package website on GitHub Pages.
 
-To ensure your documentation is correctly formatted after your edits, you can build the documentation locally. From the root of the repository (that is, the main directory where `pyproject.toml` is located), run:
-```bash
-cd docs
-sphinx-build -M html source build
-```
-You can then open the generated HTML files in the `docs/build/html` directory in your web browser.
 
 ## Running Tests
 

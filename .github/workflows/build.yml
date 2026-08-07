@@ -12,18 +12,35 @@ on:
 
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v4.0.3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - 'tutorials/**'
+
   format:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.11'
       
@@ -57,10 +74,10 @@ jobs:
         python-version: ['3.11', '3.12']
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7.0.1
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7.0.0
       with:
         python-version: ${{ matrix.python-version }}
     
@@ -73,41 +90,58 @@ jobs:
       run: |
         python -m pytest tests/ -v
 
-  docs:
-    needs: format
+  docs-validate:
+    needs: [format, changes]
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7.0.1
       with:
         persist-credentials: false
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7.0.0
       with:
         python-version: '3.11'
-    
-    - name: Install Pandoc
-      run: sudo apt-get update && sudo apt-get install -y pandoc
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r docs/requirements.txt
+        pip install -e ".[docs]"
     
     - name: Build HTML
       run: |
         cd docs && make html
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7.0.1
       with:
         name: html-docs
         path: docs/build/html/
-    - name: Deploy
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main'
+
+  docs-deploy:
+    needs: docs-validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.docs-validate.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v8.0.1
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: docs/build/html
+        name: html-docs
+        path: docs/build/html/
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v6.0.0
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v5.0.0
+      with:
+        path: docs/build/html
+
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v5.0.0

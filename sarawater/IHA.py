@@ -36,11 +36,11 @@ def compute_IHA(
     dates: list[datetime.datetime],
     zero_flow_threshold: float = 0.001,
 ) -> IHAResult:
-    """Compute Indicators of Hydrologic Alteration (IHA) for a given flow time series Qrel with respect to a natural time series Qnat.
-    Each indicator is computed yearly. The indicators are grouped into 5 groups as per IHA methodology.
+    """Compute Indicators of Hydrologic Alteration (IHA) for a flow series.
 
-    Note: If the input data has sub-daily resolution (e.g., hourly), it will be automatically aggregated to daily averages
-    before computing IHA parameters, as IHA methodology requires daily time series data.
+    Indicators are computed yearly and grouped into five IHA groups.
+    If the input data has sub-daily resolution (e.g., hourly), it is
+    aggregated to daily averages before computing IHA parameters.
 
     Parameters
     ----------
@@ -56,21 +56,26 @@ def compute_IHA(
     Returns
     -------
     IHAResult
-        Indicators grouped by type
-        {
-            'Group1': {
-                'mean_january': np.array([yearly values]),
-                ...
-                'mean_december': np.array([yearly values])
-            },
-            'Group2': {
-                'base_flow': np.array([yearly values]),
-                'moving_avg_1d_min': np.array([yearly values]),
-                ...
-            },
-            ...
-            'Group5': {...}
-        }
+        Indicators grouped by type. The top-level keys are ``Group1`` to
+        ``Group5``. Each group maps indicator names to yearly arrays.
+
+    Examples
+    --------
+    >>> import datetime
+    >>> import numpy as np
+    >>> from sarawater.IHA import compute_IHA
+    >>> dates = [
+    ...     datetime.datetime(2000, 1, 1) + datetime.timedelta(days=i)
+    ...     for i in range(365)
+    ... ]
+    >>> q_nat = np.linspace(10.0, 30.0, 365)
+    >>> q_rel = np.maximum(q_nat - 2.0, 0.0)
+    >>> iha_res = compute_IHA(q_nat, q_rel, dates)
+    >>> sorted(iha_res.keys())
+    ['Group1', 'Group2', 'Group3', 'Group4', 'Group5']
+    >>> january_means = iha_res['Group1']['mean_january']
+    >>> january_means.shape
+    (1,)
     """
     # Force daily averaging of flow discharge data
     # Convert dates to date-only (removing time component)
@@ -249,35 +254,46 @@ def compute_IHA_index(
     weights : list[float], optional
         List of 5 weights for each group of IHA parameters. Must sum to 1.
         If None, equal weights (0.2) will be used.
-    IHA_nat : dict, optional
+    IHA_nat : IHAResult, optional
         Pre-computed IHA for the natural flow series. If provided, it will be used instead of computing it again.
-    IHA_alt : dict, optional
+    IHA_alt : IHAResult, optional
         Pre-computed IHA for the altered flow series. If provided, it will be used instead of computing it again.
     epsilon : float, optional
         Small value to prevent division by zero in calculations. Used only if index_metric is "normalized_IHA". Default is 1e-5.
 
     Returns
     -------
-    tuple[dict[str, dict[str, np.ndarray]], IHAIndexResult]
-        A tuple containing:
-        1. IHAResult containing indicators grouped by type for the altered state:
-           {
-               'Group1': {
-                   'mean_january': np.array([yearly values]),
-                   ...
-               },
-               ...
-               'Group5': {...}
-           }
-        2. IHAIndexResult containing IHA indexes per group and aggregated:
-           {
-               'groups': {
-                   'Group1': np.array([yearly values]),
-                   ...
-                   'Group5': np.array([yearly values])
-               },
-               'aggregated': np.array([yearly values])
-           }
+    tuple[IHAResult, IHAIndexResult]
+        Tuple containing:
+
+        - The altered-state values of the IHA, stored in a dictionary where each key is a group name and each value is a dictionary of indicators belonging to that group.
+        - The altered-state values of the IHA index, stored in a IHAIndexResult object with per-group values and aggregated values.
+
+    Examples
+    --------
+    >>> import datetime
+    >>> import numpy as np
+    >>> from sarawater.IHA import compute_IHA_index
+    >>> dates = [
+    ...     datetime.datetime(2000, 1, 1) + datetime.timedelta(days=i)
+    ...     for i in range(365)
+    ... ]
+    >>> q_nat = np.linspace(10.0, 30.0, 365)
+    >>> q_rel = np.maximum(q_nat - 2.0, 0.0)
+    >>> iha_res, index_res = compute_IHA_index(
+    ...     q_nat,
+    ...     q_rel,
+    ...     dates,
+    ...     index_metric='IARI',
+    ... )
+    >>> group1_scores = index_res.groups['Group1']
+    >>> annual_scores = index_res.aggregated
+    >>> sorted(iha_res.keys())
+    ['Group1', 'Group2', 'Group3', 'Group4', 'Group5']
+
+    See Also
+    --------
+    :func:`~sarawater.IHA.compute_IHA` : Base indicator calculation.
     """
     # Calculate IHA indicators for both series
     if IHA_nat is None:
