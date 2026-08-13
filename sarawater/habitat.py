@@ -71,7 +71,7 @@ def compute_h_ucut(
     UCUT_cumpes : np.ndarray
         Cumulative frequency of under-threshold events, normalized.
     extra : dict
-        Dictionary with Q97, H97, Qfit, splineHQ.
+        Dictionary with Q97, H97, Qfit.
     """
     HQ = np.asarray(HQ)
     Q = np.asarray(Q)
@@ -80,8 +80,6 @@ def compute_h_ucut(
     Qend = HQ[-1, 0]
 
     Qfit = np.linspace(Qstart, Qend, n + 1)
-    # pp = CubicSpline(HQ[:, 0], HQ[:, 1])
-    # splineHQ = pp(Qfit)
 
     H = np.full(Q.shape, np.nan, dtype=np.float64)
     mask = Q < Qend
@@ -104,7 +102,7 @@ def compute_h_ucut(
     else:
         raise ValueError("mode must be 'reference' or 'altered'")
 
-    # H_under_threshold takes value True if H<H97, value False if H>=H97 or if H is NaN
+    # H_UT (Under Threshold) takes value True if H<H97, value False if H>=H97 or if H is NaN
     H_UT = H < H97
     UT_days = compute_consecutive_lengths(H_UT)
 
@@ -116,7 +114,7 @@ def compute_h_ucut(
             np.array([], dtype=np.int64),
             H,
             np.array([], dtype=float),
-            {"Q97": Q97, "H97": H97, "Qfit": Qfit, "splineHQ": None},
+            {"Q97": Q97, "H97": H97, "Qfit": Qfit},
         )
 
     # sort the array in descending order
@@ -150,7 +148,7 @@ def compute_h_ucut(
     # Normalized version on total number of days
     UCUT_cumpes = UCUT_cumsum / days_tot
 
-    extra = {"Q97": Q97, "H97": H97, "Qfit": Qfit, "splineHQ": None}
+    extra = {"Q97": Q97, "H97": H97, "Qfit": Qfit}
     return UCUT_cumsum, UCUT_events, H, UCUT_cumpes, extra
 
 
