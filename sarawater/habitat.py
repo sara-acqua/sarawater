@@ -109,7 +109,7 @@ def compute_h_ucut(
     else:
         raise ValueError("mode must be 'reference' or 'altered'")
 
-    # H_under_threshold takes value True if H<H97, value False if H>=H97 or if H is NaN
+    # H_UT (Under Threshold) takes value True if H<H97, value False if H>=H97 or if H is NaN
     H_UT = H < H97
     UT_days = compute_consecutive_lengths(H_UT)
 
