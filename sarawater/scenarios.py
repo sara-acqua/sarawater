@@ -370,7 +370,11 @@ class Scenario:
         return [np.sum(case1) / total, np.sum(case2) / total, np.sum(case3) / total]
 
     def compute_IH_for_species(
-        self, species: str | list[str] | None = None, **kwargs
+        self,
+        species: str | list[str] | None = None,
+        *,
+        HQ_curve_resampling: bool = False,
+        n_resample: int = 13,
     ) -> dict[str, HabitatIndicesResult]:
         """Compute the Habitat Index (IH) for a given species using the scenario's Qrel.
 
@@ -381,11 +385,16 @@ class Scenario:
             If None (default), computes IH for all available species.
             If str, computes IH for a single species.
             If list[str], computes IH for the specified list of species.
+        HQ_curve_resampling : bool, optional
+            Whether to resample the HQ curve for habitat calculation. Default is False.
+        n_resample : int, optional
+            Number of points used to resample the HQ curve when
+            ``HQ_curve_resampling=True``. Default is 13.
 
         Returns
         -------
         dict[str, HabitatIndicesResult]
-            Dictionary mapping species names to habitat outputs.
+            Dictionary mapping species names to habitat outputs (:class:`HabitatIndicesResult`).
         """
         Qrel = self._require_Qrel()
 
@@ -401,11 +410,15 @@ class Scenario:
         for sp in species_list:
             HQ = self.reach.get_HQ_curve(sp)
             IH_values = compute_habitat_indices(
-                self.Qnat, Qrel, HQ, self.dates, **kwargs
+                self.Qnat,
+                Qrel,
+                HQ,
+                self.dates,
+                HQ_curve_resampling=HQ_curve_resampling,
+                n_resample=n_resample,
             )
             self.IH[sp] = IH_values
 
-        # Return the last computed values for backwards compatibility
         return self.IH
 
     def compute_sediment_load(self, to_csv=None, **kwargs):

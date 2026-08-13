@@ -146,7 +146,7 @@ def test_habitat_computation():
 
 
 def test_habitat_index_values():
-    """Test that computed IH values are in reasonable range and document the computed values."""
+    """Test that computed IH values are in reasonable range and that the minimum (among the species) corresponds to the expected value from SimStream."""
     tolerance = 0.01
 
     test_reach = setup_reach_with_dmv_scenario()
@@ -169,17 +169,21 @@ def test_habitat_index_values():
     available_species = test_reach.get_list_available_HQ_curves()
 
     # Compute habitat for all available species using default behavior
-    dmv_scenario.compute_IH_for_species()
+    dmv_scenario.compute_IH_for_species(
+        HQ_curve_resampling=True,
+    )  # HQ resampling is needed for SimStream comparison
 
     # Collect computed IH values
-    computed_IH_values = {}
+    computed_IH_values: dict[str, float] = {}
     for species in available_species:
         ih_value = dmv_scenario.IH[species].IH
         computed_IH_values[species] = ih_value
         print(f"Computed IH for {species}: {ih_value:.3f}")
 
     # Get the minimum IH value among all species
-    min_IH_species = min(computed_IH_values, key=computed_IH_values.get)
+    min_IH_species = min(
+        computed_IH_values, key=lambda species: computed_IH_values[species]
+    )
     min_computed_IH = computed_IH_values[min_IH_species]
 
     print(f"\nMinimum IH value: {min_computed_IH:.3f} (species: {min_IH_species})")
@@ -193,7 +197,7 @@ def test_habitat_index_values():
         # Test that IH is not NaN
         assert not np.isnan(ih_value), f"IH value for {species} is NaN"
 
-    # Expected value from synopsis file (relaxed tolerance for now)
+    # Expected value from SimStream (relaxed tolerance for now)
     expected_value = expected_IH["ALTERED_1"]
     print(f"Expected IH from SimStream software: {expected_value:.3f}")
 
@@ -220,20 +224,18 @@ def test_compute_h_ucut_function():
     Q97 = np.percentile(test_Q, 3)
 
     # Test reference mode
-    UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_pes_ref, extra_ref = compute_h_ucut(
+    UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_pes_ref, H97_ref = compute_h_ucut(
         HQ, test_dates, test_Q, Q97, mode="reference"
     )
 
     # Verify outputs
     assert isinstance(H_ref, np.ndarray)
     assert len(H_ref) == len(test_Q)
-    assert isinstance(extra_ref, dict)
-    assert "Q97" in extra_ref
-    assert "H97" in extra_ref
+    assert isinstance(H97_ref, (float, np.floating, int, np.integer))
 
     # Test altered mode
-    UCUT_cum_alt, UCUT_events_alt, H_alt, UCUT_cum_pes_alt, extra_alt = compute_h_ucut(
-        HQ, test_dates, test_Q * 0.5, Q97, H97_ref=extra_ref["H97"], mode="altered"
+    UCUT_cum_alt, UCUT_events_alt, H_alt, UCUT_cum_pes_alt, H97_alt = compute_h_ucut(
+        HQ, test_dates, test_Q * 0.5, Q97, H97_ref=float(H97_ref), mode="altered"
     )
 
     # Verify outputs
@@ -350,6 +352,36 @@ def test_compute_IH_species_list():
         assert species in dmv_scenario.IH, f"Missing IH for species {species}"
         ih_value = dmv_scenario.IH[species].IH
         assert 0 <= ih_value <= 1
+
+
+def test_compute_IH_for_species_hq_resampling_options_forwarded():
+    """Test Scenario-level habitat options are forwarded to compute_habitat_indices."""
+    test_reach = setup_reach_with_dmv_scenario()
+    dmv_scenario = test_reach.scenarios[0]
+    dmv_scenario.compute_Qrel()
+
+    species = "BROW_A_R"
+    hq_data = test_reach.get_HQ_curve(species)
+    HQ = hq_data[["DIS", species]].values
+
+    scenario_result = dmv_scenario.compute_IH_for_species(
+        species=species,
+        HQ_curve_resampling=True,
+        n_resample=9,
+    )[species]
+    direct_result = compute_habitat_indices(
+        dmv_scenario.Qnat,
+        dmv_scenario.Qrel,
+        HQ,
+        dmv_scenario.dates,
+        HQ_curve_resampling=True,
+        n_resample=9,
+    )
+
+    assert np.isclose(scenario_result.IH, direct_result.IH, equal_nan=True)
+    assert np.isclose(scenario_result.ITH, direct_result.ITH, equal_nan=True)
+    assert np.isclose(scenario_result.ISH, direct_result.ISH, equal_nan=True)
+    assert np.allclose(scenario_result.H_alt, direct_result.H_alt, equal_nan=True)
 
 
 if __name__ == "__main__":

@@ -12,25 +12,6 @@ on:
 
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      docs: ${{ steps.filter.outputs.docs }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-
-      - uses: dorny/paths-filter@v4.0.3
-        id: filter
-        with:
-          filters: |
-            docs:
-              - 'docs/**'
-              - 'tutorials/**'
-              - '.github/workflows/**'
-              - 'CONTRIBUTING.md'
-
   format:
     runs-on: ubuntu-latest
     permissions:
@@ -93,8 +74,7 @@ jobs:
         python -m pytest tests/ -v
 
   docs-validate:
-    needs: [format, changes]
-    if: needs.changes.outputs.docs == 'true'
+    needs: format
     runs-on: ubuntu-latest
     permissions:
       contents: read
