@@ -17,7 +17,8 @@ docs = [
     "sphinxcontrib-bibtex",
     "sphinx-copybutton",
     "sphinx-design",
-    "pydata-sphinx-theme"
+    "pydata-sphinx-theme",
+    "nbformat"
 ]
 
 [tool.setuptools]

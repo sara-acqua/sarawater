@@ -10,6 +10,7 @@ exclude_patterns = []
 
 # ---------- Sync tutorials from root to docs/tutorials during build --------- #
 import shutil
+import nbformat
 from pathlib import Path
 
 # Automatically sync tutorials from repo root to docs/tutorials during build
@@ -18,10 +19,23 @@ REPO_ROOT = DOCS_DIR.parent.parent
 SRC_TUTORIALS = REPO_ROOT / "tutorials"
 DST_TUTORIALS = DOCS_DIR / "tutorials"
 
+
+def _add_download_link(nb_path: Path) -> None:
+    """Add a download link for the raw .ipynb at the top of the tutorial notebook."""
+    nb = nbformat.read(nb_path, as_version=4)
+    link_cell = nbformat.v4.new_markdown_cell(
+        f"{{download}}`Download this notebook <{nb_path.name}>`"
+    )
+    nb.cells.insert(0, link_cell)
+    nbformat.write(nb, nb_path)
+
+
 if SRC_TUTORIALS.exists():
     if DST_TUTORIALS.exists():
         shutil.rmtree(DST_TUTORIALS)
     shutil.copytree(SRC_TUTORIALS, DST_TUTORIALS, dirs_exist_ok=True)
+    for nb_path in DST_TUTORIALS.rglob("*.ipynb"):
+        _add_download_link(nb_path)
 
 # ------------------------- Extension configurations ------------------------- #
 extensions = [
