@@ -40,7 +40,7 @@ jobs:
           fi
       
       - name: Run black formatter and commit (own repo)
-        if: github.event.pull_request.head.repo.fork == false || github.event_name == 'push'
+        if: (github.event.pull_request.head.repo.fork == false && github.event_name == 'pull_request') || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         run: |
           black .
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
