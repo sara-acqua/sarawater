@@ -42,6 +42,10 @@ Two aggregate indices are available:
 
 Habitat alteration is quantified using habitat-discharge (HQ) curves and the UCUT (Under-threshold Cumulative Curve) methodology.
 
+```{warning}
+The Habitat Index (IH) implementation provided by SARAwater is based on published literature and is intended for research, educational, and exploratory purposes only. The results produced by SARAwater are not certified by competent public authorities. SARAwater is therefore not suitable for use as a tool in administrative or regulatory procedures requiring an official IH calculation, for which officially recognized procedures and tools, such as the use of the [SimStream platform](https://mesohabsim.isprambiente.it/app/home/), provided by the Italian ISPRA institute, should be adopted.
+```
+
 ### Habitat Indices:
 
 The following indices quantify habitat alteration for aquatic species:

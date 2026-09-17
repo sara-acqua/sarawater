@@ -50,6 +50,12 @@ If you use SARAwater in your research, please cite the Zenodo release:
   doi          = {https://doi.org/10.5281/zenodo.18183767},
 }
 ```
+
+## Disclaimer
+SARAwater is based on published literature and is intended for research, educational, and exploratory purposes only.
+
+Concerning the Habitat Index (IH) implementation, the results produced by SARAwater are not certified by competent public authorities. SARAwater is therefore not suitable for use as a tool in administrative or regulatory procedures requiring an official IH calculation, for which officially recognized procedures and tools, such as the use of the [SimStream platform](https://mesohabsim.isprambiente.it/app/home/), provided by the Italian ISPRA institute, should be adopted.
+
 ## License
 
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
