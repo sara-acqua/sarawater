@@ -76,3 +76,10 @@ When adding a feature, add tests to the relevant file. Follow the existing patte
 ## Documentation
 
 Docs source is in `docs/source/` (markdown + Sphinx). Tutorials are Jupyter notebooks in `tutorials/` and mirrored under `docs/source/tutorials/`. See [docs/source/user-guide.md](../docs/source/user-guide.md) for the full API narrative.
+
+## Tutorial notebooks
+
+Tutorial notebooks target domain scientists (e.g. environmental engineers) who may only know Python basics:
+- **No `try`/`except` blocks** — they can be intimidating for non-programmers. Prefer simple, linear cells (e.g. plain `if`/`else` checks, or a commented-out install/download line) over exception handling.
+- Explain any non-obvious step (data loading, optional installs) in a short markdown cell right before the code, in plain language, rather than relying on code comments alone.
+
