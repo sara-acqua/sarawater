@@ -19,6 +19,9 @@ REPO_ROOT = DOCS_DIR.parent.parent
 SRC_TUTORIALS = REPO_ROOT / "tutorials"
 DST_TUTORIALS = DOCS_DIR / "tutorials"
 
+GITHUB_REPO_SLUG = "sara-acqua/sarawater"
+GITHUB_BRANCH = "main"
+
 
 def _add_download_link(nb_path: Path) -> None:
     """Add a download link for the raw .ipynb at the top of the tutorial notebook."""
@@ -30,12 +33,29 @@ def _add_download_link(nb_path: Path) -> None:
     nbformat.write(nb, nb_path)
 
 
+def _add_colab_badge(nb_path: Path, tutorial_rel: str) -> None:
+    """Add an "Open in Colab" badge linking to the notebook on GitHub."""
+    colab_url = (
+        f"https://colab.research.google.com/github/{GITHUB_REPO_SLUG}/blob/"
+        f"{GITHUB_BRANCH}/tutorials/{tutorial_rel}/{nb_path.name}"
+    )
+    nb = nbformat.read(nb_path, as_version=4)
+    badge_cell = nbformat.v4.new_markdown_cell(
+        f"[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)]({colab_url})"
+    )
+    nb.cells.insert(0, badge_cell)
+    nbformat.write(nb, nb_path)
+
+
 if SRC_TUTORIALS.exists():
     if DST_TUTORIALS.exists():
         shutil.rmtree(DST_TUTORIALS)
     shutil.copytree(SRC_TUTORIALS, DST_TUTORIALS, dirs_exist_ok=True)
     for nb_path in DST_TUTORIALS.rglob("*.ipynb"):
+        tutorial_dir = nb_path.parent
+        tutorial_rel = tutorial_dir.relative_to(DST_TUTORIALS).as_posix()
         _add_download_link(nb_path)
+        _add_colab_badge(nb_path, tutorial_rel)
 
 # ------------------------- Extension configurations ------------------------- #
 extensions = [

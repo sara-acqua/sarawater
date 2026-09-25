@@ -759,8 +759,8 @@ class ReachPlotter:
             plt.plot(curve["DIS"], curve[species], label=f"{species}")
 
         # LABELS AND TITLE
-        plt.xlabel(r"Q $[\mathrm{m}^3/\mathrm{s}]$")
-        plt.ylabel(r"Available area $[\mathrm{m}^2]$")
+        plt.xlabel(r"Flow discharge $[\mathrm{m}^3/\mathrm{s}]$")
+        plt.ylabel(r"Available habitat area $[\mathrm{m}^2]$")
         plt.title("Habitat-Discharge (HQ) curves")
 
         if xlim is not None:
@@ -810,19 +810,16 @@ class ReachPlotter:
 
         plt.figure()
         dates = np.array(self.reach.dates)
-        for scenario in self.reach.scenarios:
+        for i, scenario in enumerate(self.reach.scenarios):
             plt.plot(
                 dates,
                 scenario.IH[species].H_alt,
                 label=f"{scenario.name} - {species}",
-                # color="tab:orange",
+                color=self.scenario_colors[i],
             )
 
         plt.plot(
-            dates,
-            scenario.IH[species].H_ref,
-            label=f"Reference Q",
-            # color="tab:blue",
+            dates, scenario.IH[species].H_ref, label=f"Reference Q", color="tab:blue"
         )
 
         plt.xlim(
@@ -860,19 +857,19 @@ class ReachPlotter:
         """
 
         plt.figure()
-        for scenario in self.reach.scenarios:
+        for i, scenario in enumerate(self.reach.scenarios):
             plt.plot(
                 scenario.IH[species].UCUT_cum_alt,
                 scenario.IH[species].UCUT_events_alt,
                 label=f"{scenario.name} - {species}",
-                # color="tab:orange",
+                color=self.scenario_colors[i],
             )
 
         plt.plot(
             scenario.IH[species].UCUT_cum_ref,
             scenario.IH[species].UCUT_events_ref,
             label=f"Reference Q",
-            # color="tab:blue",
+            color="tab:blue",
         )
 
         plt.xticks(rotation=45)
