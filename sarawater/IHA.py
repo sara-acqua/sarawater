@@ -77,6 +77,7 @@ def compute_IHA(
     >>> january_means.shape
     (1,)
     """
+    # ------------------------------- Preprocessing ------------------------------ #
     # Force daily averaging of flow discharge data
     # Convert dates to date-only (removing time component)
 
@@ -93,18 +94,26 @@ def compute_IHA(
     Qnat_daily = df_daily["Qnat"].to_numpy(dtype=float)
     Qrel_daily = df_daily["Qrel"].to_numpy(dtype=float)
 
-    IHA_groups: IHAResult = {f"Group{i+1}": {} for i in range(5)}
-    years = np.unique([d.year for d in dates_daily])
+    # Precompute arrays with month and year of each daily date for efficient grouping
+    years_daily = np.array([d.year for d in dates_daily])
+    months_daily = np.array([d.month for d in dates_daily])
+    dates_daily_arr = np.array(dates_daily)
+    years = np.unique(years_daily)
     n_years = len(years)
+
+    # Precompute per-year boolean masks once, reused across all groups below
+    year_masks = {year: years_daily == year for year in years}
+
+    # ---------------------------- Computation of IHA ---------------------------- #
+    # Initialize the IHA result structure
+    IHA_groups: IHAResult = {f"Group{i+1}": {} for i in range(5)}
 
     # Group 1: Monthly statistics
     for month in range(1, 13):
         month_name = datetime.datetime(2000, month, 1).strftime("%B").lower()
         yearly_means = np.zeros(n_years)
         for i, year in enumerate(years):
-            year_month_mask = np.array(
-                [d.month == month and d.year == year for d in dates_daily]
-            )
+            year_month_mask = year_masks[year] & (months_daily == month)
             if np.any(year_month_mask):
                 yearly_means[i] = np.mean(Qrel_daily[year_month_mask])
         IHA_groups["Group1"][f"mean_{month_name}"] = yearly_means
@@ -118,7 +127,7 @@ def compute_IHA(
     yearly_zero_flow_days = np.zeros(n_years)
 
     for i, year in enumerate(years):
-        year_mask = np.array([d.year == year for d in dates_daily])
+        year_mask = year_masks[year]
         year_data = Qrel_daily[year_mask]
         yearly_base_flow[i] = np.mean(year_data)
         yearly_zero_flow_days[i] = np.sum(year_data < zero_flow_threshold)
@@ -142,9 +151,9 @@ def compute_IHA(
     julian_days_max = np.zeros(n_years)
     julian_days_min = np.zeros(n_years)
     for i, year in enumerate(years):
-        year_mask = np.array([d.year == year for d in dates_daily])
+        year_mask = year_masks[year]
         year_data = Qrel_daily[year_mask]
-        year_dates = [d for d in dates_daily if d.year == year]
+        year_dates = dates_daily_arr[year_mask]
 
         max_idx = np.argmax(year_data)
         min_idx = np.argmin(year_data)
@@ -164,7 +173,7 @@ def compute_IHA(
     }
 
     for i, year in enumerate(years):
-        year_mask = np.array([d.year == year for d in dates_daily])
+        year_mask = year_masks[year]
         year_data = Qrel_daily[year_mask]
         year_nat = Qnat_daily[year_mask]
 
@@ -203,7 +212,7 @@ def compute_IHA(
     }
 
     for i, year in enumerate(years):
-        year_mask = np.array([d.year == year for d in dates_daily])
+        year_mask = year_masks[year]
         year_data = Qrel_daily[year_mask]
         flow_changes = np.diff(year_data)
 
