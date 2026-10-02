@@ -1,4 +1,43 @@
+from datetime import datetime
+from typing import Optional, Union
+
 import numpy as np
+import pandas as pd
+
+
+def _compute_date_mask(
+    dates: list[datetime],
+    start_date: str | datetime | None = None,
+    end_date: str | datetime | None = None,
+) -> np.ndarray:
+    """Build a boolean mask selecting dates within an inclusive range.
+
+    Either bound may be omitted. If neither is given, all dates are selected.
+
+    Parameters
+    ----------
+    dates : list of datetime
+        Dates to filter.
+    start_date : str or datetime, optional
+        Inclusive lower bound ('YYYY-MM-DD' string or datetime).
+    end_date : str or datetime, optional
+        Inclusive upper bound ('YYYY-MM-DD' string or datetime).
+
+    Returns
+    -------
+    np.ndarray
+        Boolean array with the same length as ``dates``.
+    """
+    mask = np.ones(len(dates), dtype=bool)
+    if start_date is None and end_date is None:
+        return mask
+
+    dates_index = pd.DatetimeIndex(dates)
+    if start_date is not None:
+        mask &= np.asarray(dates_index >= pd.to_datetime(start_date))
+    if end_date is not None:
+        mask &= np.asarray(dates_index <= pd.to_datetime(end_date))
+    return mask
 
 
 def compute_consecutive_lengths(array: np.ndarray) -> list:

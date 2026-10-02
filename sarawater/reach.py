@@ -10,6 +10,10 @@ from typing import Any
 
 from sarawater.scenarios import Scenario, ConstScenario, PropScenario
 from sarawater.IHA import compute_IHA
+from sarawater.sediment_load import (
+    compute_annual_sediment_volume,
+    compute_sediment_load,
+)
 from sarawater.utils import _validate_positive_numeric
 
 
@@ -46,6 +50,23 @@ class Reach:
         self.Qabs_max = Qabs_max
         self.scenarios: list[Scenario] = []
         self.IHA_nat = compute_IHA(Qnat, Qnat, dates)
+        self.natural_sediment_load_df: DataFrame | None = None
+        self.natural_annual_sediment_budget: DataFrame | dict | None = None
+
+    def _require_natural_annual_sediment_budget(self) -> DataFrame:
+        """Return the natural annual sediment budget, ensuring it was computed."""
+        budget = self.natural_annual_sediment_budget
+        if budget is None:
+            raise ValueError(
+                "Reach has no natural sediment budget. Run Reach.compute_natural_sediment_budget() first."
+            )
+        if isinstance(budget, dict):
+            return pd.DataFrame.from_dict(budget, orient="index")
+        return budget
+
+    def _invalidate_natural_sediment_results(self) -> None:
+        self.natural_sediment_load_df = None
+        self.natural_annual_sediment_budget = None
 
     def __str__(self):
         return f"{self.name} is a Reach object with a flow time series with {len(self.Qnat)} elements. The date range starts from {min(self.dates)} and has {len(self.dates)} elements. The maximum flow abstraction is Qabs_max={self.Qabs_max} m3/s. So far, {len(self.scenarios)} scenarios have been added."
@@ -181,10 +202,10 @@ class Reach:
 
     def add_cross_section_geometry(
         self,
-        slope,
-        ks,
-        width=None,
-        section=None,
+        slope: float,
+        ks: float,
+        width: float | None = None,
+        section: str | DataFrame | None = None,
     ):
         """Add cross-section geometry, channel roughness and bed slope to the reach. Either coordinate pairs (composite cross section) or channel width (rectangular cross section) must be provided. When a width is provided, a two-point simple rectangular cross-section is created with a flat bed at elevation 0, corresponding to the coordinate pairs y [m] = [0, width] and z [m] = [0, 0]. When section coordinates are provided, they must be in the form of a CSV file or a DataFrame with columns 'y [m]' (transverse coordinate) and 'z [m]' (bed elevation).
 
@@ -261,6 +282,7 @@ class Reach:
                 raise ValueError("y coordinates must be monotonically increasing")
 
         self.cross_section_coordinates = cross_section_coordinates
+        self._invalidate_natural_sediment_results()
         return self
 
     def add_grain_size_distribution(self, grain_data):
@@ -408,7 +430,59 @@ class Reach:
 
         self.grain_size_data = dfphi
         self.phi_percentages = phi_percentages
+        self._invalidate_natural_sediment_results()
         return self
+
+    def compute_natural_sediment_budget(self, to_csv=None, **kwargs):
+        """Compute the natural sediment load time series and annual budget.
+
+        The time series is computed from ``Qnat`` using the cross-section
+        geometry and grain-size distribution attached to this reach. The annual
+        budget is stored in ``natural_annual_sediment_budget``.
+
+        Parameters
+        ----------
+        to_csv : str, optional
+            File path to save the annual sediment budget table.
+        kwargs : dict, optional
+            Additional keyword arguments forwarded to
+            :func:`sarawater.sediment_load.compute_sediment_load`.
+
+        Returns
+        -------
+        pandas.DataFrame or dict
+            Natural annual sediment budget per phi class and total, in m³/year.
+
+        Raises
+        ------
+        ValueError
+            If cross-section geometry or grain-size data have not been added.
+        """
+        if not hasattr(self, "cross_section_coordinates"):
+            raise ValueError(
+                "Reach is missing 'cross_section_coordinates'. Run Reach.add_cross_section_geometry() first."
+            )
+        if not hasattr(self, "phi_percentages"):
+            raise ValueError(
+                "Reach is missing grain size information. Run Reach.add_grain_size_distribution() first."
+            )
+
+        self.natural_sediment_load_df = compute_sediment_load(
+            self.Qnat,
+            self.dates,
+            self.cross_section_coordinates["y [m]"].values,
+            self.cross_section_coordinates["z [m]"].values,
+            self.slope,
+            self.ks,
+            self.phi_percentages.values,
+            **kwargs,
+        )
+        annual_budget = compute_annual_sediment_volume(
+            self.natural_sediment_load_df,
+            to_csv=to_csv,
+        )
+        self.natural_annual_sediment_budget = annual_budget
+        return annual_budget
 
     def export_scenarios_summary(
         self, output_path: str | None = None, format: str = "csv"

@@ -4,13 +4,15 @@ This module provides plotting functionality for comparing scenarios in a reach.
 
 import os
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from matplotlib.axes import Axes
+from matplotlib.ticker import MaxNLocator
 from typing import List, Optional, Union
 from datetime import datetime
 
 from sarawater.reach import Reach
+from sarawater.utils import _compute_date_mask
 
 
 class ReachPlotter:
@@ -87,17 +89,7 @@ class ReachPlotter:
         plot_Qnat : bool, default=True
             Whether to plot the natural flow (Qnat)
         """
-        if isinstance(start_date, str):
-            start_date = pd.to_datetime(start_date)
-        if isinstance(end_date, str):
-            end_date = pd.to_datetime(end_date)
-
-        if start_date and end_date:
-            mask = [(dt >= start_date) and (dt <= end_date) for dt in self.reach.dates]
-        else:
-            start_date = self.reach.dates[0]
-            end_date = self.reach.dates[-1]
-            mask = [True] * len(self.reach.dates)
+        mask = _compute_date_mask(self.reach.dates, start_date, end_date)
 
         plt.figure()
         for color, scenario in zip(self.scenario_colors, self.reach.scenarios):
@@ -965,6 +957,89 @@ class ReachPlotter:
             )
         return plt.gca()
 
+    def plot_sediment_budget_vs_volume(self, save: bool = False) -> Axes:
+        """Plot normalized annual sediment budgets against abstracted volumes.
+
+        Each scenario's annual sediment budget is divided by the natural budget
+        for the same year. The plot shows the mean and standard deviation of
+        these annual ratios, alongside the scenario's normalized abstracted
+        volume statistics.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+
+        scenario_budgets = [
+            (scenario, scenario._require_annual_sediment_budget())
+            for scenario in self.reach.scenarios
+        ]
+        if self.reach.natural_annual_sediment_budget is None:
+            self.reach.compute_natural_sediment_budget()
+        natural_budget = self.reach._require_natural_annual_sediment_budget()
+
+        plt.figure()
+        for i, (scenario, scenario_budget) in enumerate(scenario_budgets):
+            years = scenario_budget.index.intersection(natural_budget.index)
+            if len(years) == 0:
+                raise ValueError(
+                    f"Scenario '{scenario.name}' has no annual sediment budget years in common with the natural budget."
+                )
+
+            natural_values = natural_budget.loc[years, "Qs_total"].to_numpy(dtype=float)
+            scenario_values = scenario_budget.loc[years, "Qs_total"].to_numpy(
+                dtype=float
+            )
+            valid = (
+                np.isfinite(natural_values)
+                & np.isfinite(scenario_values)
+                & (natural_values > 0)
+            )
+            if not np.any(valid):
+                raise ValueError(
+                    f"Scenario '{scenario.name}' has no years with a positive natural sediment budget."
+                )
+
+            normalized_sediment_budget = scenario_values[valid] / natural_values[valid]
+            sediment_mean = np.mean(normalized_sediment_budget)
+            sediment_std = np.std(normalized_sediment_budget)
+
+            if (
+                getattr(scenario, "yearly_abs_volumes", None) is None
+                or getattr(scenario, "yearly_nat_volumes", None) is None
+            ):
+                scenario.compute_natural_abstracted_volumes()
+            volume_values = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
+
+            plt.errorbar(
+                sediment_mean,
+                np.median(volume_values),
+                xerr=sediment_std,
+                yerr=np.std(volume_values),
+                fmt="^",
+                color=self.scenario_colors[i],
+                label=scenario.name,
+                capsize=5,
+                elinewidth=1,
+                markersize=10,
+            )
+
+        plt.xlabel("Normalized sediment budget (scenario / natural) [-]")
+        plt.ylabel(r"Normalized abstracted volume $V_{der}/V_{nat}$ [-]")
+        plt.grid(True)
+        plt.legend()
+        plt.title(f"{self.reach.name} - Sediment Budget vs Abstracted Volume")
+
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "sediment_budget_vs_volume.png"),
+                bbox_inches="tight",
+            )
+        return plt.gca()
+
     def plot_nIHA_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and nIHA indexes.
@@ -1041,24 +1116,19 @@ class ReachPlotter:
         save : bool, default=False
             Whether to save the plot
         """
-        if isinstance(start_date, str):
-            start_date = pd.to_datetime(start_date)
-        if isinstance(end_date, str):
-            end_date = pd.to_datetime(end_date)
+        mask = _compute_date_mask(self.reach.dates, start_date, end_date)
 
-        if start_date and end_date:
-            mask = [(dt >= start_date) and (dt <= end_date) for dt in self.reach.dates]
-        else:
-            mask = [True] * len(self.reach.dates)
+        sediment_loads = [
+            (scenario, scenario._require_sediment_load_df())
+            for scenario in self.reach.scenarios
+        ]
 
         plt.figure()
-        for i, scenario in enumerate(self.reach.scenarios):
-            sediment_load = getattr(scenario, "sediment_load", None)
-            if sediment_load is None:
-                continue
+        for i, (scenario, sediment_load) in enumerate(sediment_loads):
+            Qs_total = sediment_load["Qs_total"].to_numpy(dtype=float)
             plt.plot(
                 np.array(self.reach.dates)[mask],
-                sediment_load["Qs_total"].values[mask],
+                Qs_total[mask],
                 label=scenario.name,
                 color=self.scenario_colors[i],
             )
@@ -1066,7 +1136,7 @@ class ReachPlotter:
         if log_scale:
             plt.yscale("log")
         plt.xlabel("Date")
-        plt.ylabel("Total Sediment Load (kg/s)")
+        plt.ylabel("Total Sediment Load (m³/s)")
         plt.title(f"{self.reach.name} - Total Sediment Load")
         plt.grid(True)
         plt.legend()
@@ -1078,55 +1148,124 @@ class ReachPlotter:
             )
         return plt.gca()
 
-    def plot_sediment_load_fractions(
+    def plot_annual_sediment_budget_by_class(
         self,
-        scenario_index: int = 0,
-        start_date: Optional[Union[str, datetime]] = None,
-        end_date: Optional[Union[str, datetime]] = None,
+        start_year: Optional[int] = None,
+        end_year: Optional[int] = None,
         save: bool = False,
     ) -> Axes:
         """
-        Plot sediment load fractions per phi class as stacked area for a scenario.
+        Plot the annual sediment budget per grain-size class as year-by-size heatmaps.
+
+        Each scenario gets a panel with one column per year and one row per phi
+        class, using the table stored in ``scenario.annual_sediment_budget``
+        (see ``Scenario.compute_annual_sediment_budget``). The colour scale is
+        shared across scenarios and expressed in the units of the stored budget.
 
         Parameters
         ----------
-        scenario_index : int, default=0
-            Index of the scenario to plot
-        start_date : str or datetime, optional
-            Start date for the plot
-        end_date : str or datetime, optional
-            End date for the plot
+        start_year : int, optional
+            First year to plot
+        end_year : int, optional
+            Last year to plot
         save : bool, default=False
             Whether to save the plot
+
+        Returns
+        -------
+        Axes
+            The first scenario panel. The other panels and colorbar are
+            available from ``ax.figure.axes``.
         """
-        scenario = self.reach.scenarios[scenario_index]
-        sediment_load = getattr(scenario, "sediment_load", None)
-        if sediment_load is None:
-            raise ValueError(f"Scenario {scenario.name} has no sediment_load data.")
+        budgets = [
+            (scenario, scenario._require_annual_sediment_budget())
+            for scenario in self.reach.scenarios
+        ]
+        if not budgets:
+            raise ValueError("The reach has no scenarios to plot.")
 
-        df = sediment_load.copy()
-        if isinstance(start_date, str):
-            start_date = pd.to_datetime(start_date)
-        if isinstance(end_date, str):
-            end_date = pd.to_datetime(end_date)
-        if start_date and end_date:
-            mask = (df["Datetime"] >= start_date) & (df["Datetime"] <= end_date)
-            df = df.loc[mask]
+        phi_cols = [
+            column for column in budgets[0][1].columns if column.startswith("Qs_phi_")
+        ]
+        if not phi_cols:
+            raise ValueError("Annual budgets contain no per-class data.")
 
-        phi_cols = [c for c in df.columns if c.startswith("Qs_phi_")]
-        plt.figure(figsize=(12, 6))
-        plt.stackplot(df["Datetime"], df[phi_cols].T, labels=phi_cols, alpha=0.8)
-        plt.xlabel("Date")
-        plt.ylabel("Sediment Load per Phi Class (kg/s)")
-        plt.title(f"{self.reach.name} - Sediment Load Fractions - {scenario.name}")
-        plt.legend(loc="upper right", ncol=2)
-        plt.grid(True)
+        diameters_mm = np.array(
+            [2 ** (-float(column[len("Qs_phi_") :])) for column in phi_cols]
+        )
+        size_order = np.argsort(diameters_mm)
+        phi_cols = [phi_cols[index] for index in size_order]
+        diameters_mm = diameters_mm[size_order]
+
+        # Keep only the classes overlapping the user-provided grain size range
+        grain_size_data = getattr(self.reach, "grain_size_data", None)
+        if grain_size_data is not None:
+            d_min = float(grain_size_data["di[mm]"].min())
+            d_max = float(grain_size_data["di[mm]"].max())
+            keep = (diameters_mm * np.sqrt(2) >= d_min) & (
+                diameters_mm / np.sqrt(2) <= d_max
+            )
+            if keep.any():
+                phi_cols = [c for c, k in zip(phi_cols, keep) if k]
+                diameters_mm = diameters_mm[keep]
+        # Every class gets the same vertical space (unit-height rows)
+        row_edges = np.arange(len(diameters_mm) + 1)
+
+        filtered_budgets = []
+        for scenario, budget in budgets:
+            df = budget
+            if start_year is not None:
+                df = df.loc[df.index >= start_year]
+            if end_year is not None:
+                df = df.loc[df.index <= end_year]
+            if df.empty:
+                raise ValueError("No annual budget falls within the requested years.")
+            filtered_budgets.append((scenario, df))
+
+        max_budget = max(
+            float(df[phi_cols].to_numpy(dtype=float).max())
+            for _, df in filtered_budgets
+        )
+        if max_budget == 0:
+            max_budget = 1.0
+
+        fig, axes = plt.subplots(
+            len(filtered_budgets),
+            1,
+            figsize=(12, 3.5 * len(filtered_budgets)),
+            sharex=True,
+            sharey=True,
+            squeeze=False,
+        )
+        axes = axes[:, 0]
+        for ax, (scenario, df) in zip(axes, filtered_budgets):
+            years = np.asarray(df.index, dtype=float)
+            year_edges = np.append(years - 0.5, years[-1] + 0.5)
+            mesh = ax.pcolormesh(
+                year_edges,
+                row_edges,
+                df[phi_cols].to_numpy(dtype=float).T,
+                shading="flat",
+                cmap="Oranges",
+                vmin=0,
+                vmax=max_budget,
+            )
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.set_yticks(row_edges[:-1] + 0.5)
+            ax.set_yticklabels([f"{d:.1e}" for d in diameters_mm])
+            ax.set_title(scenario.name)
+            ax.set_ylabel("Grain diameter (mm)")
+
+        axes[-1].set_xlabel("Year")
+        fig.suptitle(f"{self.reach.name} - Annual Sediment Budget by Grain-Size Class")
+        # Reserve the right-hand strip of the figure for the colorbar
+        fig.tight_layout(rect=(0, 0, 0.9, 0.96))
+        cbar_ax = fig.add_axes((0.92, 0.12, 0.02, 0.76))
+        fig.colorbar(mesh, cax=cbar_ax, label="Annual sediment budget (m³/year)")
 
         if save:
-            plt.savefig(
-                os.path.join(
-                    self.output_dir, f"sediment_load_fractions_{scenario.name}.png"
-                ),
+            fig.savefig(
+                os.path.join(self.output_dir, "annual_sediment_budget_by_class.png"),
                 bbox_inches="tight",
             )
-        return plt.gca()
+        return axes[0]

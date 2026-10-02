@@ -304,17 +304,14 @@ def compute_sediment_load(
     return df
 
 
-def compute_annual_sediment_volume(
-    df, to_csv=None, as_dict=False, to_ton=False, rho_s=2650
-):
+def compute_annual_sediment_volume(df, to_csv=None):
     """
-    Compute annual sediment volume (m³/year) or mass (ton/year) per phi class and total
+    Compute annual sediment volume (m³/year) per phi class and total
     from the sediment transport rates computed with ``compute_sediment_load``.
 
     The function multiplies the transport rate time series (m³/s) by the time step
     between observations to obtain volumes (m³), then aggregates these volumes
-    on an annual basis. Optionally, it can also convert volumes to mass using a
-    specified sediment density.
+    on an annual basis. To obtain mass, multiply the result by the sediment density.
 
     Parameters
     ----------
@@ -331,23 +328,10 @@ def compute_annual_sediment_volume(
         Path to save the resulting annual sediment volume or mass table as a CSV file.
         If None (default), no file is saved.
 
-    as_dict : bool, default=False
-        If True, return a dictionary where each key is a year and each value is a dictionary of annual sediment volumes for each phi class.
-        If False (default), return a pandas.DataFrame.
-
-    to_ton : bool, default=False
-        If True, the output values are converted from m³/year to ton/year using:
-        mass (ton) = volume (m³) × rho_s (kg/m³) / 1000.
-
-    rho_s : float, default=2650
-        Sediment density in kg/m³. Default corresponds to quartz density.
-        Only used if ``to_ton=True``.
-
     Returns
     -------
     pandas.DataFrame or dict
-        Annual sediment output in DataFrame or dictionary form.
-        Units are m³/year if ``to_ton=False`` and ton/year if ``to_ton=True``.
+        Annual sediment volumes in m³/year, in DataFrame or dictionary form.
 
     Notes
     -----
@@ -355,8 +339,6 @@ def compute_annual_sediment_volume(
             ``Datetime`` column and assumed constant over the series.
         - The function does not resample irregular time steps automatically;
             ensure the input time series has a uniform time interval.
-        - The conversion to tons uses
-            ``1 m³ * 2650 kg/m³ / 1000 kg/ton = 2.65 ton``.
     """
     phi_cols = [c for c in df.columns if c.startswith("Qs_phi_")]
     total_col = "Qs_total"
@@ -370,13 +352,6 @@ def compute_annual_sediment_volume(
     vol_df["Year"] = vol_df["Datetime"].dt.year
     annual = vol_df.groupby("Year")[phi_cols + [total_col]].sum()
 
-    if to_ton:
-        annual = annual * (rho_s / 1000.0)  # convert m³ to ton
-
     if to_csv is not None:
         annual.to_csv(to_csv)
-
-    if as_dict:
-        return annual.to_dict(orient="index")
-
     return annual

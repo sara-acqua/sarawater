@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from numpy import ndarray
 
 from sarawater.IHA import IHAIndexResult, IHAResult, compute_IHA_index, compute_IHA
+from sarawater.utils import _compute_date_mask
 from sarawater.habitat import HabitatIndicesResult, compute_habitat_indices
 from sarawater.sediment_load import (
     compute_sediment_load,
@@ -51,7 +52,7 @@ class Scenario:
         self.IARI: IHAIndexResult | None = None
         self.normalized_IHA: IHAIndexResult | None = None
         self.sediment_load_df: pd.DataFrame | None = None
-        self.annual_sediment_budget: pd.DataFrame | dict | None = None
+        self.annual_sediment_budget: pd.DataFrame | None = None
 
     def __repr__(self):
         return f"Scenario(name={self.name}, description={self.description}, reach={self.reach.name})"
@@ -111,6 +112,17 @@ class Scenario:
             )
         return sediment_load_df
 
+    def _require_annual_sediment_budget(self) -> pd.DataFrame:
+        """Return the annual sediment budget table, ensuring it has been computed."""
+        annual_budget = self.annual_sediment_budget
+        if annual_budget is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no annual sediment budget. Run scenario.compute_annual_sediment_budget() first."
+            )
+        if isinstance(annual_budget, dict):
+            return pd.DataFrame.from_dict(annual_budget, orient="index")
+        return annual_budget
+
     def compute_Qrel(self) -> ndarray:
         """Compute the released flow rate time series for the scenario.
 
@@ -150,17 +162,7 @@ class Scenario:
         plt.Axes
             The current Axes instance
         """
-        # Convert string dates to datetime if provided
-        if isinstance(start_date, str):
-            start_date = pd.to_datetime(start_date)
-        if isinstance(end_date, str):
-            end_date = pd.to_datetime(end_date)
-
-        # Create date mask
-        if start_date is not None and end_date is not None:
-            mask = [(dt >= start_date) and (dt <= end_date) for dt in self.dates]
-        else:
-            mask = [True] * len(self.dates)
+        mask = _compute_date_mask(self.dates, start_date, end_date)
 
         # If label is not provided in kwargs, use scenario name
         if "label" not in kwargs:
@@ -475,7 +477,7 @@ class Scenario:
         return self.sediment_load_df
 
     def plot_scenario_sediment_transport(
-        self, start_date=None, end_date=None, unit="m3_per_day", rho_s=2650, **kwargs
+        self, start_date=None, end_date=None, **kwargs
     ) -> Axes:
         """Plot sediment transport capacity for a given scenario within a specified date range.
 
@@ -485,10 +487,6 @@ class Scenario:
             Start date in format 'YYYY-MM-DD' or datetime object
         end_date : str or datetime, optional
             End date in format 'YYYY-MM-DD' or datetime object
-        unit : str, optional
-            Unit for sediment transport: 'm3_per_day' (default), 'm3_per_s', or 'ton_per_day'
-        rho_s : float, optional
-            Sediment density in kg/m³ used when converting to mass (ton/day). Default 2650.
         kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.plot
 
@@ -502,51 +500,23 @@ class Scenario:
             # Compute it if not available
             self.compute_sediment_load()
 
-        # Convert string dates to datetime if provided
-        if isinstance(start_date, str):
-            start_date = pd.to_datetime(start_date)
-        if isinstance(end_date, str):
-            end_date = pd.to_datetime(end_date)
-
-        # Create date mask
-        if start_date is not None and end_date is not None:
-            mask = [(dt >= start_date) and (dt <= end_date) for dt in self.dates]
-        else:
-            mask = [True] * len(self.dates)
-        mask = np.array(mask, dtype=bool)
+        mask = _compute_date_mask(self.dates, start_date, end_date)
 
         # Extract sediment transport data and convert units
         sediment_load_df = self._require_sediment_load_df()
         Qs_total = np.asarray(sediment_load_df["Qs_total"].values)
-
-        if unit == "m3_per_day":
-            Qs_plot = Qs_total * 86400  # Convert m³/s to m³/day
-            ylabel = "Sediment transport [m³/day]"
-        elif unit in ("m3_per_s", "m3/s", "m3_per_second"):
-            Qs_plot = Qs_total
-            ylabel = "Sediment transport [m³/s]"
-        elif unit == "ton_per_day":
-            # Convert m³/s -> m³/day -> kg/day (rho_s kg/m³) -> ton/day (divide by 1000)
-            Qs_plot = Qs_total * 86400 * rho_s / 1000.0
-            ylabel = "Sediment transport [ton/day]"
-        else:
-            raise ValueError(
-                "Unknown unit '{}'. Supported units: 'm3_per_day', 'm3_per_s' (or 'm3/s'), 'ton_per_day'.".format(
-                    unit
-                )
-            )
 
         # If label is not provided in kwargs, use scenario name
         if "label" not in kwargs:
             kwargs["label"] = self.name
 
         # Plot the data with any additional keyword arguments
-        plt.plot(np.array(self.dates)[mask], Qs_plot[mask], **kwargs)
+        plt.plot(np.array(self.dates)[mask], Qs_total[mask], **kwargs)
 
         # Customize the plot
         plt.title(f"Sediment transport capacity for {self.reach.name}")
         plt.xlabel("Date")
-        plt.ylabel(ylabel)
+        plt.ylabel("Sediment transport capacity [m³/s]")
         plt.grid(True)
 
         # Rotate x-axis labels for better readability
@@ -557,30 +527,22 @@ class Scenario:
 
         return plt.gca()
 
-    def compute_annual_sediment_budget(
-        self, to_ton=False, rho_s=2650, to_csv=None, as_dict=False
-    ):
+    def compute_annual_sediment_budget(self, to_csv=None) -> pd.DataFrame:
         """
-        Compute annual sediment volume or mass (ton/year) from the scenario's sediment load.
+        Compute annual sediment volume (m³/year) from the scenario's sediment load.
 
         If sediment load has not been computed yet, this method will compute it first by calling
-        compute_sediment_load_from_reach(). The annual budget is stored in self.annual_sediment_budget.
+        compute_sediment_load(). The annual budget is then stored as the annual_sediment_budget attribute of the scenario.
 
         Parameters
         ----------
-        to_ton : bool, optional
-            If True, convert m³ to ton using rho_s.
-        rho_s : float, optional
-            Sediment density in kg/m³. Default is 2650 kg/m³.
         to_csv : str, optional
             File path to save the annual sediment budget table.
-        as_dict : bool, optional
-            If True, return a dictionary instead of a DataFrame.
 
         Returns
         -------
-        pd.DataFrame or dict
-            Annual sediment budget (per phi class and total) in m³/year or ton/year.
+        pd.DataFrame
+            Annual sediment budget (per phi class and total) in m³/year.
             Also stored in self.annual_sediment_budget.
         """
         # Ensure sediment load time series has been computed
@@ -588,14 +550,8 @@ class Scenario:
             self.compute_sediment_load(to_csv=None)
         sediment_load_df = self._require_sediment_load_df()
 
-        # Compute annual volumes or tons (save to CSV here if requested)
-        annual_budget = compute_annual_sediment_volume(
-            sediment_load_df,
-            to_csv=to_csv,
-            as_dict=as_dict,
-            to_ton=to_ton,
-            rho_s=rho_s,
-        )
+        # Compute annual volumes (save to CSV here if requested)
+        annual_budget = compute_annual_sediment_volume(sediment_load_df, to_csv=to_csv)
         self.annual_sediment_budget = annual_budget
         return annual_budget
 
