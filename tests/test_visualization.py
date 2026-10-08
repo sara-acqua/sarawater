@@ -122,6 +122,104 @@ def test_iari_vs_volume_plot():
     plotter.plot_iari_vs_volume()
 
 
+def _make_local_reach():
+    """Build a fresh reach with one scenario and no sediment results computed."""
+    local_reach = rch.Reach("Local Reach", dates, Qnat, 50.0)
+    local_scenario = sc.ConstScenario(
+        "Constant Flow", "A constant flow scenario", local_reach, [10] * 12
+    )
+    local_reach.add_scenario(local_scenario)
+    local_scenario.compute_Qrel()
+    return local_reach, local_scenario
+
+
+def test_sediment_load_total_requires_data_for_every_scenario():
+    """Test total sediment plotting reports scenarios without computed data."""
+    local_reach, _ = _make_local_reach()
+    plotter = ReachPlotter(local_reach)
+    with pytest.raises(ValueError, match="Constant Flow.*compute_sediment_load"):
+        plotter.plot_sediment_load_total()
+    with pytest.raises(
+        ValueError, match="Constant Flow.*compute_annual_sediment_budget"
+    ):
+        plotter.plot_annual_sediment_budget_by_class()
+
+
+def test_scenario_sediment_transport_plot_auto_computes_data():
+    """Test scenario sediment plotting computes missing data and respects dates."""
+    plt.close("all")
+    local_reach, scenario = _make_local_reach()
+    local_reach.add_cross_section_geometry(0.002, 20, width=10.0)
+    local_reach.add_grain_size_distribution(4.0)
+    assert scenario.sediment_load_df is None
+
+    ax = scenario.plot_scenario_sediment_transport(
+        start_date=scenario.dates[1], end_date=scenario.dates[3]
+    )
+
+    assert scenario.sediment_load_df is not None
+    assert len(ax.lines) == 1
+    assert len(ax.lines[0].get_xdata()) == 3
+    assert ax.lines[0].get_label() == scenario.name
+    assert ax.get_ylabel() == "Sediment transport capacity [m³/s]"
+    plt.close("all")
+
+
+def test_sediment_load_plots_use_computed_scenario_data():
+    """Test sediment plots read the scenario sediment-load DataFrame."""
+    test_visualization_reach.add_cross_section_geometry(0.002, 20, width=10.0)
+    test_visualization_reach.add_grain_size_distribution(4.0)
+    for scenario in test_visualization_reach.scenarios:
+        scenario.compute_sediment_load()
+        scenario.compute_annual_sediment_budget()
+
+    plotter = ReachPlotter(test_visualization_reach)
+    total_ax = plotter.plot_sediment_load_total(log_scale=False)
+    class_ax = plotter.plot_annual_sediment_budget_by_class()
+    budget_ax = plotter.plot_sediment_budget_vs_volume()
+
+    assert len(total_ax.lines) == len(test_visualization_reach.scenarios)
+    assert total_ax.get_ylabel() == "Total Sediment Load (m³/s)"
+    scenario_axes = class_ax.figure.axes[:-1]
+    colorbar_ax = class_ax.figure.axes[-1]
+    assert len(scenario_axes) == len(test_visualization_reach.scenarios)
+    assert all(ax.collections for ax in scenario_axes)
+    assert all(
+        len(ax.get_yticks()) == len(ax.get_yticklabels()) for ax in scenario_axes
+    )
+    assert colorbar_ax.get_ylabel() == "Annual sediment budget (m³/year)"
+    assert all(ax.get_shared_x_axes().joined(ax, class_ax) for ax in scenario_axes)
+    assert test_visualization_reach.natural_annual_sediment_budget is not None
+    assert len(budget_ax.containers) == len(test_visualization_reach.scenarios)
+    assert (
+        budget_ax.get_xlabel() == "Normalized sediment budget (scenario / natural) [-]"
+    )
+    assert (
+        budget_ax.get_ylabel() == r"Normalized abstracted volume $V_{der}/V_{nat}$ [-]"
+    )
+    scenario = test_visualization_reach.scenarios[0]
+    scenario_budget = scenario._require_annual_sediment_budget()
+    natural_budget = test_visualization_reach._require_natural_annual_sediment_budget()
+    common_years = scenario_budget.index.intersection(natural_budget.index)
+    normalized_budget = scenario_budget.loc[common_years, "Qs_total"].to_numpy(
+        dtype=float
+    ) / natural_budget.loc[common_years, "Qs_total"].to_numpy(dtype=float)
+    errorbar = budget_ax.containers[0]
+    data_line, _, errorbar_lines = errorbar.lines
+    np.testing.assert_allclose(
+        np.asarray(data_line.get_xdata(), dtype=float), [np.mean(normalized_budget)]
+    )
+    volume_values = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
+    np.testing.assert_allclose(
+        np.asarray(data_line.get_ydata(), dtype=float), [np.median(volume_values)]
+    )
+    x_error_segment = errorbar_lines[0].get_segments()[0]
+    np.testing.assert_allclose(
+        (x_error_segment[1, 0] - x_error_segment[0, 0]) / 2,
+        np.std(normalized_budget),
+    )
+
+
 if __name__ == "__main__":
     test_plotter_initialization()
     test_scenario_discharge_plot()
