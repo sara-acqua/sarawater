@@ -39,6 +39,12 @@ The ``output_dir`` argument must be a valid directory path string (``None`` is n
 - {py:meth}`sarawater.visualization.ReachPlotter.plot_ih_vs_volume`: Trade-off between habitat alteration (IH) and water abstraction
 - {py:meth}`sarawater.visualization.ReachPlotter.plot_nIHA_vs_volume`: Trade-off between normalized IHA and water abstraction
 
+### Sediment Transport
+
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_load_total`: Compare total sediment transport time series across scenarios
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_annual_sediment_budget_by_class`: Compare annual sediment budgets by grain-size class
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_budget_vs_volume`: Plot mean normalized annual sediment budget against normalized abstracted volume. The natural budget is computed automatically when needed; scenario annual budgets must already be computed.
+
 ## Plot Options
 
 All plotting methods support saving plots to the configured output directory by setting ``save=True``. Additional keyword arguments can be passed to customize the plots (e.g., figure size, colors, labels).

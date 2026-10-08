@@ -10,6 +10,8 @@ The {py:class}`sarawater.reach.Reach` class is the central object in SARAwater, 
 - ``Qabs_max``: Maximum water abstraction threshold (m3/s)
 - ``scenarios``: List of scenarios added to the reach
 - ``IHA_nat``: Natural-flow IHA indicators (computed automatically at construction)
+- ``natural_sediment_load_df``: Natural-flow sediment transport time series, populated by ``compute_natural_sediment_budget``
+- ``natural_annual_sediment_budget``: Natural-flow annual sediment volumes, populated by ``compute_natural_sediment_budget``
 
 ### Main Methods
 - {py:meth}`sarawater.reach.Reach.add_scenario`: Add a scenario to the reach
@@ -17,6 +19,7 @@ The {py:class}`sarawater.reach.Reach` class is the central object in SARAwater, 
 - {py:meth}`sarawater.reach.Reach.add_HQ_curve`: Add habitat-discharge curves for different species/life stages
 - {py:meth}`sarawater.reach.Reach.get_list_available_HQ_curves`: Get list of available habitat curves
 - {py:meth}`sarawater.reach.Reach.get_HQ_curve`: Retrieve a specific habitat-discharge curve
+- {py:meth}`sarawater.reach.Reach.compute_natural_sediment_budget`: Compute and store the natural sediment load time series and annual budget
 - {py:meth}`sarawater.reach.Reach.print_scenarios`: Print a list of all scenarios added to the reach
 - {py:meth}`sarawater.reach.Reach.export_scenarios_summary`: Export a comprehensive summary table of all scenarios with their parameters and indices
 

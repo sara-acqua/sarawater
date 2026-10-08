@@ -77,5 +77,8 @@ Lower-level habitat computation utilities are available as:
 Sediment transport alteration can be computed at scenario level and analyzed with annual summaries:
 
 - {py:meth}`sarawater.scenarios.Scenario.compute_sediment_load`: computes and stores a sediment transport table (see {py:func}`sarawater.sediment_load.compute_sediment_load`)
-- {py:meth}`sarawater.scenarios.Scenario.compute_annual_sediment_budget`: aggregates annual sediment budgets (via {py:func}`sarawater.sediment_load.compute_annual_sediment_volume`)
+- {py:meth}`sarawater.scenarios.Scenario.compute_annual_sediment_budget`: aggregates annual sediment budgets in m³/year (via {py:func}`sarawater.sediment_load.compute_annual_sediment_volume`); multiply by the sediment density (e.g. 2650 kg/m³) to obtain mass
+- {py:meth}`sarawater.reach.Reach.compute_natural_sediment_budget`: computes and stores the reference sediment load time series and annual budget from natural flow. Add cross-section geometry and a grain-size distribution before calling it.
 - {py:meth}`sarawater.scenarios.Scenario.plot_scenario_sediment_transport`: plots time series of sediment transport capacity
+
+Use {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_budget_vs_volume` to compare each scenario's annual sediment budget with the natural budget for the same years. The plot reports the mean and standard deviation of the annual scenario-to-natural budget ratios. It computes the natural budget if it has not already been computed; scenario annual budgets must be available first.
