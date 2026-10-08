@@ -8,5 +8,5 @@ This section contains a series of tutorials that will guide you through various 
 tutorial_0_SARA-mini/tutorial_0_SARA-mini.ipynb
 tutorial_1_IHA/tutorial_1_IHA.ipynb
 tutorial_2_habitat/tutorial_2_habitat.ipynb
-tutorial_3_sedtrans.md
+tutorial_3_sediment_transport/tutorial_3_sediment_transport.ipynb
 ```
