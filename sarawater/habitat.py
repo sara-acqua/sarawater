@@ -181,9 +181,9 @@ def compute_IH(
         UCUT curve in reference conditions.
     ucut_alt : UCUTCurve
         UCUT curve in altered conditions.
-    H_ref : array-like
+    H_ref : np.ndarray
         Habitat time series in reference conditions.
-    H_alt : array-like
+    H_alt : np.ndarray
         Habitat time series in altered conditions.
 
     Returns
@@ -195,10 +195,6 @@ def compute_IH(
     """
     cum_days_ref = np.asarray(ucut_ref.cum_days)
     cum_days_alt = np.asarray(ucut_alt.cum_days)
-    max_duration_ref = np.max(ucut_ref.durations)
-    H_ref = np.asarray(H_ref)
-    H_alt = np.asarray(H_alt)
-
     l_ref = len(cum_days_ref)
     l_alt = len(cum_days_alt)
 
@@ -206,17 +202,13 @@ def compute_IH(
     if l_alt == 1:
         HSD = np.nan
     elif l_alt < l_ref:
-        HSD = (
-            np.nansum(
-                np.abs(cum_days_alt - cum_days_ref[-l_alt:]) / cum_days_ref[-l_alt:]
-            )
-            / max_duration_ref
-        )
+        HSD = np.nansum(
+            np.abs(cum_days_alt - cum_days_ref[-l_alt:]) / cum_days_ref[-l_alt:]
+        ) / np.max(ucut_alt.durations)
     elif l_alt >= l_ref:
-        HSD = (
-            np.nansum(np.abs(cum_days_alt[-l_ref:] - cum_days_ref) / cum_days_ref)
-            / max_duration_ref
-        )
+        HSD = np.nansum(
+            np.abs(cum_days_alt[-l_ref:] - cum_days_ref) / cum_days_ref
+        ) / np.max(ucut_ref.durations)
 
     # ITH Index
     ITH = np.exp(-0.38 * HSD)
@@ -232,7 +224,7 @@ def compute_IH(
         ISH = 0
 
     # IH Index
-    if np.isnan(ITH):
+    if np.isnan(ITH) or np.isnan(ISH):
         IH = np.nan
     else:
         IH = min(ISH, ITH)
@@ -241,18 +233,22 @@ def compute_IH(
 
 
 def compute_habitat_indices(
-    Qnat, Qalt, HQ, HQ_curve_resampling=False, n_resample=13
+    Qnat: np.ndarray,
+    Qalt: np.ndarray,
+    HQ: np.ndarray,
+    HQ_curve_resampling=False,
+    n_resample=13,
 ) -> HabitatIndicesResult:
     """
     Calculate Q_threshold, UCUT, habitat time series and indices IH, ISH, ITH, HSD for natural and altered series.
 
     Parameters
     ----------
-    Qnat : array-like
+    Qnat : np.ndarray
         Natural discharge time series.
-    Qalt : array-like
+    Qalt : np.ndarray
         Altered discharge time series.
-    HQ : array-like
+    HQ : np.ndarray
         Habitat-discharge table (Q, H).
     HQ_curve_resampling : bool, optional
         Whether to resample the HQ curve for habitat calculation. Default is False.
@@ -264,10 +260,6 @@ def compute_habitat_indices(
     HabitatIndicesResult
         Dataclass containing the reference thresholds, habitat time series, UCUT curves, and IH indices.
     """
-    Qnat = np.asarray(Qnat)
-    Qalt = np.asarray(Qalt)
-    HQ = np.asarray(HQ)
-
     # Threshold discharge: 3rd percentile of the natural discharge (Q97 exceedance)
     Q_threshold = float(np.percentile(Qnat, 3))
 
