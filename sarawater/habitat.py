@@ -111,9 +111,9 @@ def compute_h_ucut(
 
     # H_UT (Under Threshold) takes value True if H<H97, value False if H>=H97 or if H is NaN
     H_UT = H < H97
-    UT_days = compute_consecutive_lengths(H_UT)
-
-    UT_days = np.array(UT_days)
+    UT_days = np.array(
+        compute_consecutive_lengths(H_UT)
+    )  # spans the habitat time series and extracts the duration of continuous under-threshold periods
     if UT_days.size == 0:
         # No under-threshold events
         return (
@@ -124,11 +124,10 @@ def compute_h_ucut(
             H97,
         )
 
-    # sort the array in descending order
-    UT_days_sorted = np.sort(UT_days)[::-1]
-
-    # create an array that starts from UT_days_sorted[0] and ends with UT_days_sorted[-1] with a step of 1
-    UCUT_events = np.arange(UT_days_sorted[0], 0, -1, dtype=np.int64)
+    UT_days_sorted = np.sort(UT_days)[::-1]  # sort the array in descending order
+    UCUT_events = np.arange(
+        UT_days_sorted[0], 0, -1, dtype=np.int64
+    )  # generate the y-axis values for the UCUT curve (from the max duration to 0)
 
     # create an array that contains the number of durations of each event and an array that contains the number of counts of each event
     durations, counts = np.unique(UT_days_sorted, return_counts=True)
@@ -136,15 +135,10 @@ def compute_h_ucut(
     counts = counts[::-1]
     # e.g., durations = [11,  7,  5,  4,  3,  2,  1], counts = [1, 1, 1, 1, 2, 1, 1]
 
-    # UT_days_sum = array that contains the sum of durations multiplied by counts
-    UT_days_sum = durations * counts
-    # e.g., UT_days_sum = [11, 7, 5, 4, 6, 2, 1]
-
-    # Create an array of zeros with length equal to the max value in UT_days_sum
-    out1 = np.zeros(UCUT_events[0])
-    # e.g., out1 = [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+    UT_days_sum = durations * counts  # e.g., UT_days_sum = [11, 7, 5, 4, 6, 2, 1]
 
     # Place each value at its corresponding index (arr[i] at index i)
+    out1 = np.zeros(UCUT_events[0])
     for i, v in enumerate(durations):
         out1[v - 1] = UT_days_sum[i]
 
@@ -205,6 +199,9 @@ def compute_IH(
             np.abs(UCUT_cum_alt[-l_ref:] - UCUT_cum_ref) / UCUT_cum_ref
         ) / np.max(UCUT_events_ref)
 
+    # ITH Index
+    ITH = np.exp(-0.38 * HSD)
+
     # ISH Index
     H_avg_ref = np.nanmean(H_ref)
     H_avg_alt = np.nanmean(H_alt)
@@ -214,9 +211,6 @@ def compute_IH(
         ISH = 1 - ISH_cond
     else:
         ISH = 0
-
-    # ITH Index
-    ITH = np.exp(-0.38 * HSD)
 
     # IH Index
     if np.isnan(ITH):
