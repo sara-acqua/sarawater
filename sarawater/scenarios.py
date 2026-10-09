@@ -415,7 +415,6 @@ class Scenario:
                 self.Qnat,
                 Qrel,
                 HQ,
-                self.dates,
                 HQ_curve_resampling=HQ_curve_resampling,
                 n_resample=n_resample,
             )

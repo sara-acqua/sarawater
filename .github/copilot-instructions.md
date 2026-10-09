@@ -55,7 +55,7 @@ The typical workflow is:
 - **No `verbose` parameter** — do not add verbosity controls.
 - **Plotting type annotations** — plotting functions should return a Matplotlib axis and be annotated consistently: import `Axes` via `from matplotlib.axes import Axes`, annotate plotting methods as `-> Axes`, and ensure methods annotated as `Axes` always return an axis (do not mix `-> None` annotations with `return plt.gca()`).
 - **Typing conventions** — prefer explicit, readable project-level types: use `np.ndarray` for NumPy arrays, `list[datetime]` for date series, and custom aliases/dataclasses for structured outputs (`IHAResult`, `IHAIndexResult`, `HabitatIndicesResult`).
-- **Structured results** — for fixed-schema scientific outputs, prefer `@dataclass` containers over dictionaries. Current standard outputs are `IHAIndexResult` (IHA index groups + aggregated values) and `HabitatIndicesResult` (Q97/H97, UCUT series, and IH metrics). In consumers (plotting, exports, summaries), use attribute access (e.g. `result.aggregated`, `result.IH`) instead of dictionary-key indexing.
+- **Structured results** — for fixed-schema scientific outputs, prefer `@dataclass` containers over dictionaries. Current standard outputs are `IHAIndexResult` (IHA index groups + aggregated values) and `HabitatIndicesResult` (thresholds, UCUT curves, and IH metrics). In consumers (plotting, exports, summaries), use attribute access (e.g. `result.aggregated`, `result.IH`) instead of dictionary-key indexing.
 - **Scenario computed-attribute guards** — when adding new Scenario attributes that are populated only after a compute step (for example indices, tables, or budgets), always follow the same contract:
 	1. initialize the attribute in `Scenario.__init__` with an explicit nullable type (`... | None`) instead of creating it dynamically with `hasattr` patterns;
 	2. add a private `_require_<attribute>()` helper that returns the non-null typed value and raises a clear `ValueError` explaining which compute method must be run first;
@@ -75,7 +75,7 @@ When adding a feature, add tests to the relevant file. Follow the existing patte
 
 ## Documentation
 
-Docs source is in `docs/source/` (markdown + Sphinx). Tutorials are Jupyter notebooks in `tutorials/` and mirrored under `docs/source/tutorials/`. See [docs/source/user-guide.md](../docs/source/user-guide.md) for the full API narrative.
+Docs source is in `docs/source/` (markdown + Sphinx). Tutorials are Jupyter notebooks in `tutorials/` and mirrored under `docs/source/tutorials/`. See [docs/source/user-guide](../docs/source/user-guide) for the full API narrative.
 
 ## Tutorial notebooks
 

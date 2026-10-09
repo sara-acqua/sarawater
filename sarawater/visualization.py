@@ -851,15 +851,15 @@ class ReachPlotter:
         plt.figure()
         for i, scenario in enumerate(self.reach.scenarios):
             plt.plot(
-                scenario.IH[species].UCUT_cum_alt,
-                scenario.IH[species].UCUT_events_alt,
+                scenario.IH[species].ucut_alt.cum_freq * 100,
+                scenario.IH[species].ucut_alt.durations,
                 label=f"{scenario.name} - {species}",
                 color=self.scenario_colors[i],
             )
 
         plt.plot(
-            scenario.IH[species].UCUT_cum_ref,
-            scenario.IH[species].UCUT_events_ref,
+            scenario.IH[species].ucut_ref.cum_freq * 100,
+            scenario.IH[species].ucut_ref.durations,
             label=f"Reference Q",
             color="tab:blue",
         )

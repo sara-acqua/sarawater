@@ -50,14 +50,14 @@ The Habitat Index (IH) implementation provided by SARAwater is based on publishe
 
 The following indices quantify habitat alteration for aquatic species:
 
-- **Q97**: 3rd-percentile reference discharge threshold (stored as ``Q97_ref``)
-- **H97**: Habitat availability at Q97 in reference conditions (stored as ``H97_ref``)
+- **Q_threshold**: 3rd-percentile reference discharge threshold (stored as ``Q_threshold_ref``)
+- **H_threshold**: Habitat availability at Q_threshold in reference conditions, rounded up (stored as ``H_threshold_ref``)
 - **ISH (Index of Spatial Habitat)**: Measures average habitat reduction (0 = severe loss, 1 = no change)
 - **ITH (Index of Temporal Habitat)**: Measures habitat stress duration (0 = severe stress, 1 = no stress)
 - **IH (Habitat Index)**: Overall habitat alteration index, minimum of ISH and ITH (0 = severe impact, 1 = no impact)
 - **HSD (Habitat Stress Days)**: Cumulative measure of habitat stress events
 
-Habitat outputs are returned as {py:class}`sarawater.habitat.HabitatIndicesResult` objects.
+Habitat outputs are returned as {py:class}`sarawater.habitat.HabitatIndicesResult` objects. The UCUT curves of the reference and altered conditions are stored in the ``ucut_ref`` and ``ucut_alt`` attributes as {py:class}`sarawater.habitat.UCUTCurve` objects, with the ``durations`` (days), ``cum_days`` (cumulative days under threshold) and ``cum_freq`` (cumulative frequency, as a fraction of the total period) arrays.
 
 ### Computing Habitat Indices
 
@@ -69,7 +69,10 @@ The method accepts a single species name, a list of species, or ``None`` (comput
 Lower-level habitat computation utilities are available as:
 
 - {py:func}`sarawater.habitat.compute_habitat_indices`
-- {py:func}`sarawater.habitat.compute_h_ucut`
+- {py:func}`sarawater.habitat.resample_HQ_curve`
+- {py:func}`sarawater.habitat.compute_habitat_series`
+- {py:func}`sarawater.habitat.compute_habitat_threshold`
+- {py:func}`sarawater.habitat.compute_ucut`
 - {py:func}`sarawater.habitat.compute_IH`
 
 ## Sediment transport alteration

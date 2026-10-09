@@ -2,174 +2,189 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import numpy as np
-from typing import Any, Literal
 
 from sarawater.utils import compute_consecutive_lengths
+
+
+@dataclass(frozen=True)
+class UCUTCurve:
+    """
+    Uniform continuous under-threshold (UCUT) curve for one habitat threshold.
+
+    All arrays have the same length: one entry per integer duration between
+    the longest under-threshold event and 1 day (durations that never
+    occurred are included).
+
+    Attributes
+    ----------
+    durations : np.ndarray
+        Continuous under-threshold durations [days], in descending order.
+    cum_days : np.ndarray
+        Total number of days spent in under-threshold events lasting at least the corresponding duration [days].
+    cum_freq : np.ndarray
+        ``cum_days`` divided by the total number of days of the series [-].
+    """
+
+    durations: np.ndarray
+    cum_days: np.ndarray
+    cum_freq: np.ndarray
 
 
 @dataclass
 class HabitatIndicesResult:
     """Container for species habitat outputs computed from natural and altered flows."""
 
-    Q97_ref: float
-    H97_ref: float
-    UCUT_cum_ref: np.ndarray
-    UCUT_events_ref: np.ndarray
+    Q_threshold_ref: float
+    H_threshold_ref: float
     H_ref: np.ndarray
-    UCUT_cum_alt: np.ndarray
-    UCUT_events_alt: np.ndarray
+    ucut_ref: UCUTCurve
     H_alt: np.ndarray
+    ucut_alt: UCUTCurve
     ITH: float
     ISH: float
     IH: float
     HSD: float
 
 
-def compute_h_ucut(
-    HQ,
-    date,
-    Q,
-    Q97,
-    H97_ref: float | None = None,
-    mode: Literal["reference", "altered"] | None = None,
-    HQ_curve_resampling: bool = False,
-    n_resample: int = 13,
-) -> tuple[
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    float,
-]:
+def resample_HQ_curve(HQ: np.ndarray, n_resample: int = 13) -> np.ndarray:
     """
-    Compute habitat time series and UCUT curve for a discharge time series and habitat-discharge curve.
+    Resample a habitat-discharge curve on evenly spaced discharges.
 
     Parameters
     ----------
-    HQ : array-like, shape (m, 2)
-        Habitat-discharge table (Q, H).
-    date : array-like
-        Time series of dates (same length as Q).
-    Q : array-like
-        Discharge time series.
-    Q97 : float
-        Threshold discharge value (e.g., 3rd percentile).
-    H97_ref : float, optional
-        Habitat threshold to use (only for mode ``'altered'``).
-    mode : {'reference', 'altered'}
-        Type of calculation.
-    HQ_curve_resampling : bool, optional
-        Whether to resample the HQ curve for habitat calculation. Default is False.
+    HQ : numpy.ndarray, shape (m, 2)
+        Habitat-discharge table (Q, H), sorted by increasing Q.
     n_resample : int, optional
-        Number of points to resample the HQ curve if HQ_curve_resampling is True. Default is 13.
+        Number of points of the resampled curve. Default is 13.
 
     Returns
     -------
-    UCUT_cumsum : np.ndarray
-        Cumulative frequency of under-threshold events.
-    UCUT_events : np.ndarray
-        Durations of under-threshold events.
-    H : np.ndarray
-        Habitat time series.
-    UCUT_cumpes : np.ndarray
-        Cumulative frequency of under-threshold events, normalized.
-    H97 : float
-        Habitat threshold value used in the calculation.
+    numpy.ndarray, shape (n_resample, 2)
+        Resampled habitat-discharge table (Q, H), spanning the same discharge range as ``HQ``.
     """
-    Qstart = HQ[0, 0]
-    Qend = HQ[-1, 0]
+    if n_resample < 2:
+        raise ValueError("n_resample must be at least 2")
+    HQ_curve = np.zeros((n_resample, 2))
+    HQ_curve[:, 0] = np.linspace(HQ[0, 0], HQ[-1, 0], n_resample)
+    HQ_curve[:, 1] = np.interp(HQ_curve[:, 0], HQ[:, 0], HQ[:, 1])
+    return HQ_curve
 
-    H = np.full(Q.shape, np.nan, dtype=np.float64)
-    mask = (
-        Q < Qend
-    )  # Flow discharge values higher than the maximum flow in the HQ curve are not considered for habitat calculation
 
-    if HQ_curve_resampling:
-        HQ_resampled = np.zeros((n_resample, 2))
-        HQ_resampled[:, 0] = np.linspace(Qstart, Qend, n_resample)
-        HQ_resampled[:, 1] = np.interp(HQ_resampled[:, 0], HQ[:, 0], HQ[:, 1])
-        HQ_interp = np.copy(HQ_resampled)
-    else:
-        HQ_interp = np.copy(HQ)
+def compute_habitat_series(HQ_curve: np.ndarray, Q_series: np.ndarray) -> np.ndarray:
+    """
+    Compute the habitat time series of a discharge time series.
 
-    H[mask] = np.interp(Q[mask], HQ_interp[:, 0], HQ_interp[:, 1])
-    H = np.round(H, 3)
-    # Calculate H97 threshold
-    if mode == "reference":
-        if Q97 > Qend:
-            H97 = 0
-        else:
-            H97 = np.interp(Q97, HQ_interp[:, 0], HQ_interp[:, 1])
-            H97 = np.ceil(H97)
-    elif mode == "altered":
-        if H97_ref is None:
-            raise ValueError("H97_ref must be provided when mode='altered'")
-        H97 = H97_ref
-        H97 = np.ceil(H97)
-    else:
-        raise ValueError("mode must be 'reference' or 'altered'")
+    Parameters
+    ----------
+    HQ_curve : numpy.ndarray, shape (m, 2)
+        Habitat-discharge table (Q, H), sorted by increasing Q.
+    Q_series : np.ndarray, shape (n,)
+        Discharge time series.
 
-    # H_UT (Under Threshold) takes value True if H<H97, value False if H>=H97 or if H is NaN
-    H_UT = H < H97
-    UT_days = np.array(
-        compute_consecutive_lengths(H_UT)
-    )  # spans the habitat time series and extracts the duration of continuous under-threshold periods
-    if UT_days.size == 0:
-        # No under-threshold events
-        return (
-            np.array([], dtype=float),
-            np.array([], dtype=np.int64),
-            H,
-            np.array([], dtype=float),
-            H97,
+    Returns
+    -------
+    np.ndarray, shape (n,)
+        Habitat time series, rounded to 3 decimals. It is NaN where the discharge
+        exceeds the maximum discharge of the HQ curve.
+    """
+    Q_series = np.asarray(Q_series)
+    H_series = np.full(Q_series.shape, np.nan, dtype=np.float64)
+    # Discharges above the maximum of the HQ curve are not considered for habitat calculation
+    mask = Q_series <= HQ_curve[-1, 0]
+    H_series[mask] = np.interp(Q_series[mask], HQ_curve[:, 0], HQ_curve[:, 1])
+    return np.round(H_series, 3)
+
+
+def compute_habitat_threshold(HQ_curve: np.ndarray, Q_threshold: float) -> float:
+    """
+    Compute the habitat threshold corresponding to a threshold discharge.
+
+    Parameters
+    ----------
+    HQ_curve : numpy.ndarray, shape (m, 2)
+        Habitat-discharge table (Q, H), sorted by increasing Q.
+    Q_threshold : float
+        Threshold discharge (e.g., 3rd percentile of the natural flow).
+
+    Returns
+    -------
+    float
+        Habitat at ``Q_threshold`` rounded up to the next integer, or 0 if
+        ``Q_threshold`` exceeds the maximum discharge of the HQ curve.
+    """
+    if Q_threshold > HQ_curve[-1, 0]:
+        return 0.0
+    return float(np.ceil(np.interp(Q_threshold, HQ_curve[:, 0], HQ_curve[:, 1])))
+
+
+def compute_ucut(H_series: np.ndarray, H_threshold: float) -> UCUTCurve:
+    """
+    Compute the UCUT curve of a habitat time series.
+
+    Parameters
+    ----------
+    H_series : np.ndarray, shape (n,)
+        Habitat time series. NaN values are never counted as under-threshold,
+        but are included in the total number of days.
+    H_threshold : float
+        Habitat threshold. A day is under threshold if ``H < H_threshold``.
+
+    Returns
+    -------
+    UCUTCurve
+        UCUT curve (empty if there are no under-threshold events).
+    """
+    H_series = np.asarray(H_series)
+    # is_under_threshold is True if H < H_threshold, False if H >= H_threshold or H is NaN
+    is_under_threshold = H_series < H_threshold
+    event_durations = np.array(
+        compute_consecutive_lengths(is_under_threshold)
+    )  # durations of the continuous under-threshold periods
+    if event_durations.size == 0:
+        return UCUTCurve(
+            durations=np.array([], dtype=np.int64),
+            cum_days=np.array([], dtype=float),
+            cum_freq=np.array([], dtype=float),
         )
 
-    UT_days_sorted = np.sort(UT_days)[::-1]  # sort the array in descending order
-    UCUT_events = np.arange(
-        UT_days_sorted[0], 0, -1, dtype=np.int64
-    )  # generate the y-axis values for the UCUT curve (from the max duration to 0)
+    # y-axis of the UCUT curve: every integer duration from the longest event down to 1 day
+    UCUT_durations = np.arange(event_durations.max(), 0, -1, dtype=np.int64)
 
-    # create an array that contains the number of durations of each event and an array that contains the number of counts of each event
-    durations, counts = np.unique(UT_days_sorted, return_counts=True)
-    durations = durations[::-1]
-    counts = counts[::-1]
-    # e.g., durations = [11,  7,  5,  4,  3,  2,  1], counts = [1, 1, 1, 1, 2, 1, 1]
+    # Total days spent in events of each exact duration d = 1..max (zero if no such event),
+    # e.g. durations [11, 7, 5, 4, 3, 3, 2, 1] -> days_per_duration[d - 1] = [1, 2, 6, 4, 5, 0, 7, 0, 0, 0, 11]
+    days_per_duration = np.bincount(event_durations)[1:] * np.arange(
+        1, event_durations.max() + 1
+    )
 
-    UT_days_sum = durations * counts  # e.g., UT_days_sum = [11, 7, 5, 4, 6, 2, 1]
+    # Days in events lasting at least d days, ordered from the longest duration down to 1
+    UCUT_cum_days = np.cumsum(days_per_duration[::-1]).astype(float)
 
-    # Place each value at its corresponding index (arr[i] at index i)
-    out1 = np.zeros(UCUT_events[0])
-    for i, v in enumerate(durations):
-        out1[v - 1] = UT_days_sum[i]
-
-    UCUT_cumsum = np.cumsum(out1[::-1])
-
-    # e.g., UCUT_cumsum = [11., 11., 11., 11., 18., 18., 23., 27., 33., 35., 36.]
-    days_tot = len(date)
-    # Normalized version on total number of days
-    UCUT_cumpes = UCUT_cumsum / days_tot
-
-    return UCUT_cumsum, UCUT_events, H, UCUT_cumpes, H97
+    return UCUTCurve(
+        durations=UCUT_durations,
+        cum_days=UCUT_cum_days,
+        cum_freq=UCUT_cum_days / H_series.size,
+    )
 
 
 def compute_IH(
-    UCUT_cum_ref, UCUT_cum_alt, H_ref, H_alt, UCUT_events_ref
+    ucut_ref: UCUTCurve,
+    ucut_alt: UCUTCurve,
+    H_ref: np.ndarray,
+    H_alt: np.ndarray,
 ) -> tuple[float, float, float, float]:
     """
     Calculate HSD, ISH, ITH, IH according to the MATLAB function logic.
 
     Parameters
     ----------
-    UCUT_cum_ref : array-like
-        Cumulative UCUT curve in reference conditions.
-    UCUT_cum_alt : array-like
-        Cumulative UCUT curve in altered conditions.
+    ucut_ref : UCUTCurve
+        UCUT curve in reference conditions.
+    ucut_alt : UCUTCurve
+        UCUT curve in altered conditions.
     H_ref : array-like
         Habitat time series in reference conditions.
     H_alt : array-like
         Habitat time series in altered conditions.
-    UCUT_events_ref : array-like
-        Under-threshold events in reference conditions.
 
     Returns
     -------
@@ -178,26 +193,30 @@ def compute_IH(
     IH : float
     HSD : float
     """
-    UCUT_cum_ref = np.asarray(UCUT_cum_ref)
-    UCUT_cum_alt = np.asarray(UCUT_cum_alt)
+    cum_days_ref = np.asarray(ucut_ref.cum_days)
+    cum_days_alt = np.asarray(ucut_alt.cum_days)
+    max_duration_ref = np.max(ucut_ref.durations)
     H_ref = np.asarray(H_ref)
     H_alt = np.asarray(H_alt)
-    UCUT_events_ref = np.asarray(UCUT_events_ref)
 
-    l_ref = len(UCUT_cum_ref)
-    l_alt = len(UCUT_cum_alt)
+    l_ref = len(cum_days_ref)
+    l_alt = len(cum_days_alt)
 
     # Calculate HSD (Habitat Stress Days)
     if l_alt == 1:
         HSD = np.nan
     elif l_alt < l_ref:
-        HSD = np.nansum(
-            np.abs(UCUT_cum_alt - UCUT_cum_ref[-l_alt:]) / UCUT_cum_ref[-l_alt:]
-        ) / np.max(UCUT_events_ref)
+        HSD = (
+            np.nansum(
+                np.abs(cum_days_alt - cum_days_ref[-l_alt:]) / cum_days_ref[-l_alt:]
+            )
+            / max_duration_ref
+        )
     elif l_alt >= l_ref:
-        HSD = np.nansum(
-            np.abs(UCUT_cum_alt[-l_ref:] - UCUT_cum_ref) / UCUT_cum_ref
-        ) / np.max(UCUT_events_ref)
+        HSD = (
+            np.nansum(np.abs(cum_days_alt[-l_ref:] - cum_days_ref) / cum_days_ref)
+            / max_duration_ref
+        )
 
     # ITH Index
     ITH = np.exp(-0.38 * HSD)
@@ -222,10 +241,10 @@ def compute_IH(
 
 
 def compute_habitat_indices(
-    Qnat, Qalt, HQ, date, HQ_curve_resampling=False, n_resample=13
+    Qnat, Qalt, HQ, HQ_curve_resampling=False, n_resample=13
 ) -> HabitatIndicesResult:
     """
-    Calculate Q97, UCUT, habitat time series and indices IH, ISH, ITH, HSD for natural and altered series.
+    Calculate Q_threshold, UCUT, habitat time series and indices IH, ISH, ITH, HSD for natural and altered series.
 
     Parameters
     ----------
@@ -235,8 +254,6 @@ def compute_habitat_indices(
         Altered discharge time series.
     HQ : array-like
         Habitat-discharge table (Q, H).
-    date : array-like
-        Time series of dates (same length as Qnat and Qalt).
     HQ_curve_resampling : bool, optional
         Whether to resample the HQ curve for habitat calculation. Default is False.
     n_resample : int, optional
@@ -245,53 +262,32 @@ def compute_habitat_indices(
     Returns
     -------
     HabitatIndicesResult
-        Dataclass containing Q97, UCUT outputs, habitat time series, and IH indices.
+        Dataclass containing the reference thresholds, habitat time series, UCUT curves, and IH indices.
     """
     Qnat = np.asarray(Qnat)
     Qalt = np.asarray(Qalt)
     HQ = np.asarray(HQ)
-    date = np.asarray(date)
 
-    # Calculate Q97 (e.g., 3rd percentile of natural discharge)
-    Q97 = np.percentile(Qnat, 3)
+    # Threshold discharge: 3rd percentile of the natural discharge (Q97 exceedance)
+    Q_threshold = float(np.percentile(Qnat, 3))
 
-    # Calculate UCUT and habitat time series for the natural series (reference)
-    UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_pes_ref, H97_ref = compute_h_ucut(
-        HQ,
-        date,
-        Qnat,
-        Q97,
-        mode="reference",
-        HQ_curve_resampling=HQ_curve_resampling,
-        n_resample=n_resample,
-    )
+    HQ_curve = resample_HQ_curve(HQ, n_resample) if HQ_curve_resampling else HQ
 
-    # Calculate UCUT and habitat time series for the altered series (altered)
-    UCUT_cum_alt, UCUT_events_alt, H_alt, UCUT_cum_pes_alt, H97_alt = compute_h_ucut(
-        HQ,
-        date,
-        Qalt,
-        Q97,
-        H97_ref=H97_ref,
-        mode="altered",
-        HQ_curve_resampling=HQ_curve_resampling,
-        n_resample=n_resample,
-    )
+    H_threshold = compute_habitat_threshold(HQ_curve, Q_threshold)
+    H_ref = compute_habitat_series(HQ_curve, Qnat)
+    H_alt = compute_habitat_series(HQ_curve, Qalt)
+    ucut_ref = compute_ucut(H_ref, H_threshold)
+    ucut_alt = compute_ucut(H_alt, H_threshold)
 
-    # Calculate IH, ISH, ITH, HSD indices
-    ITH, ISH, IH, HSD = compute_IH(
-        UCUT_cum_ref, UCUT_cum_alt, H_ref, H_alt, UCUT_events_ref
-    )
+    ITH, ISH, IH, HSD = compute_IH(ucut_ref, ucut_alt, H_ref, H_alt)
 
     return HabitatIndicesResult(
-        Q97_ref=Q97,
-        H97_ref=H97_ref,
-        UCUT_cum_ref=UCUT_cum_ref,
-        UCUT_events_ref=UCUT_events_ref,
+        Q_threshold_ref=Q_threshold,
+        H_threshold_ref=H_threshold,
         H_ref=H_ref,
-        UCUT_cum_alt=UCUT_cum_alt,
-        UCUT_events_alt=UCUT_events_alt,
+        ucut_ref=ucut_ref,
         H_alt=H_alt,
+        ucut_alt=ucut_alt,
         ITH=ITH,
         ISH=ISH,
         IH=IH,
