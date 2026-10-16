@@ -1,4 +1,4 @@
-# Assessing alterations
+﻿# Assessing alterations
 
 SARAwater provides several methods to quantify hydrological, habitat, and sediment transport alterations.
 
@@ -81,4 +81,30 @@ Sediment transport alteration can be computed at scenario level and analyzed wit
 - {py:meth}`sarawater.reach.Reach.compute_natural_sediment_budget`: computes and stores the reference sediment load time series and annual budget from natural flow. Add cross-section geometry and a grain-size distribution before calling it.
 - {py:meth}`sarawater.scenarios.Scenario.plot_scenario_sediment_transport`: plots time series of sediment transport capacity
 
+The default transport formula throughout SARAwater is Meyer-Peter & Müller (MPM, 1948). Set ``transport_formula="wilcock_crowe"`` to select Wilcock & Crowe (2003). For MPM, ``mpm_theta_c`` is the dimensionless critical Shields parameter (default 0.047), not a dimensional stress. For example:
+
+```python
+scenario.compute_sediment_load(transport_formula="mpm", mpm_theta_c=0.05)
+scenario.compute_annual_sediment_budget()
+```
+
+If a sediment-load time series already exists, the annual-budget method reuses it when no formula options are given. Providing either ``transport_formula`` or ``mpm_theta_c`` to that method recomputes the series with the requested configuration before making the budget. The sediment-indices method follows the same rule, and recomputes both scenario and natural-flow series together when formula options are supplied. This keeps the compared series consistent. If an indices calculation needs to create missing series and no options are supplied, both are computed with the MPM default.
+
 Use {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_budget_vs_volume` to compare each scenario's annual sediment budget with the natural budget for the same years. The plot reports the mean and standard deviation of the annual scenario-to-natural budget ratios. It computes the natural budget if it has not already been computed; scenario annual budgets must be available first.
+
+### Sediment regime indices
+
+Beyond the annual volume, the alteration of the transport capacity *regime* is quantified with three complementary sub-indices, all ranging from 0 (severe alteration) to 1 (no alteration), and their weighted sum. They are computed with {py:meth}`sarawater.scenarios.Scenario.compute_sediment_indices` and returned as {py:class}`sarawater.sediment_load.SedimentIndicesResult` (stored in ``scenario.sediment_indices``).
+
+- **ITP (Transport Persistence Index)**: frequency and duration of the events where the transport capacity exceeds a threshold. The threshold is a percentile of the natural transport capacity (``threshold_percentile``, default 3; events are the time steps with ``Qs > threshold``). The cumulative above-threshold curves (**ACT** curves, the counterpart of the habitat UCUT curves) of the natural and altered series are compared through the **TPD (Transport Persistence Deviation)**, computed like the Habitat Stress Days, and normalised as ``ITP = exp(-0.38 * TPD)``. If the percentile of the natural transport capacity is zero (the bed is inactive for more than that share of the time), the threshold is zero and every time step with transport is above it; the threshold actually used is stored in ``Qs_threshold_ref``.
+- **IEF (Effective-discharge Event Frequency Index)**: number of events with discharge above the natural effective discharge ``Qeff_ref``, relative to the natural number, ``IEF = 1 - |N_nat - N_alt| / N_nat`` (clipped at 0). The effective discharge is the centre of the discharge class (``n_bins`` equal-width classes, default 25) carrying the largest share of the natural sediment load, i.e. the mode of the load-weighted flow distribution. Events are consecutive time steps above ``Qeff_ref``, as for the IHA high pulses.
+- **ISV (Sediment Volume Index)**: ``ISV = 1 - |V_nat - V_alt| / V_nat`` (clipped at 0), where V is the mean annual transported volume.
+- **ISR (Sediment Regime Index)**: ``ISR = w_ITP * ITP + w_IEF * IEF + w_ISV * ISV``. Weights (``weights``) must be non-negative and sum to 1; they are equal by default.
+
+The threshold and the effective discharge are always derived from the natural series and applied unchanged to the scenario. Lower-level functions are available in {py:mod}`sarawater.sediment_load`, e.g. {py:func}`sarawater.sediment_load.compute_sediment_indices`.
+
+```{note}
+The three sub-indices describe different aspects of the regime and can disagree. For instance, abstraction capped at a maximum flow may leave the events above ``Qeff`` almost unchanged (IEF close to 1), while low-flow transport and volumes are strongly reduced (ITP and ISV lower). With formulas without a sharp threshold (e.g. Wilcock-Crowe) the 3rd percentile can be a very small positive value, making ITP sensitive only to near-cessation of transport; compare ``Qs_threshold_ref`` with the transport capacity series when interpreting it.
+```
+
+Use {py:meth}`sarawater.visualization.ReachPlotter.plot_act_curves` and {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_indices_summary` to visualise the results.

@@ -44,6 +44,9 @@ The ``output_dir`` argument must be a valid directory path string (``None`` is n
 - {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_load_total`: Compare total sediment transport time series across scenarios
 - {py:meth}`sarawater.visualization.ReachPlotter.plot_annual_sediment_budget_by_class`: Compare annual sediment budgets by grain-size class
 - {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_budget_vs_volume`: Plot mean normalized annual sediment budget against normalized abstracted volume. The natural budget is computed automatically when needed; scenario annual budgets must already be computed.
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_regime_index_vs_volume`: Plot each scenario's sediment regime index (ISR) against normalized abstracted volume; sediment indices must be computed first.
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_act_curves`: Above-threshold continuous transport (ACT) curves, showing frequency and duration of high-transport events (requires ``compute_sediment_indices``)
+- {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_indices_summary`: Bar chart of ITP, IEF, ISV and ISR for all scenarios
 
 ## Plot Options
 

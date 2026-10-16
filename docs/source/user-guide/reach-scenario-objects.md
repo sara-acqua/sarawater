@@ -1,4 +1,4 @@
-# Reach and Scenario Objects
+﻿# Reach and Scenario Objects
 
 ## Reach objects
 The {py:class}`sarawater.reach.Reach` class is the central object in SARAwater, representing a river reach with its natural flow time series. It serves as a container for scenarios and associated data.
@@ -43,6 +43,7 @@ The parent class for all scenario types, containing shared functionality.
 - ``IH``: Dictionary mapping species names to {py:class}`sarawater.habitat.HabitatIndicesResult`
 - ``IARI``: {py:class}`sarawater.IHA.IHAIndexResult` (set after IARI computation)
 - ``normalized_IHA``: {py:class}`sarawater.IHA.IHAIndexResult` (set after normalized IHA computation)
+- ``sediment_indices``: {py:class}`sarawater.sediment_load.SedimentIndicesResult` (set after ``compute_sediment_indices``)
 
 ### Main Methods
 
@@ -53,9 +54,12 @@ The parent class for all scenario types, containing shared functionality.
 - {py:meth}`sarawater.scenarios.Scenario.compute_natural_abstracted_volumes`: Calculate water volumes abstracted from the reach
 - {py:meth}`sarawater.scenarios.Scenario.compute_IH_for_species`: Compute habitat indices for one or more species
 - {py:meth}`sarawater.scenarios.Scenario.cases_duration_for_month`: Compute monthly duration of each flow case (Case 1/2/3)
-- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_load`: Compute sediment transport time series for the scenario
+- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_load`: Compute sediment transport time series for the scenario (MPM is the default formula)
 - {py:meth}`sarawater.scenarios.Scenario.plot_scenario_sediment_transport`: Plot sediment transport time series
 - {py:meth}`sarawater.scenarios.Scenario.compute_annual_sediment_budget`: Compute annual sediment budgets
+- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_indices`: Compute the sediment regime indices (ITP, IEF, ISV and their weighted sum ISR)
+
+The sediment-load and natural sediment-budget methods accept ``transport_formula`` and ``mpm_theta_c`` options. The default formula is Meyer-Peter & Müller (MPM); ``mpm_theta_c`` is its dimensionless critical Shields parameter. The annual budget and sediment-indices methods accept these options when they need to compute sediment loads. If no formula option is passed, they reuse existing load series; indices are computed from a matched pair of scenario and natural-flow series.
 
 ### {py:class}`sarawater.scenarios.ConstScenario` (constant release)
 
