@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -68,6 +68,46 @@ def compute_consecutive_lengths(array: np.ndarray) -> list:
         lengths.append(current_length)
 
     return lengths
+
+
+def _validate_weights(
+    weights: Optional[Sequence[float]], n_weights: int, param_name: str = "weights"
+) -> tuple[float, ...]:
+    """Validate a set of weights and return them as a tuple of floats.
+
+    Parameters
+    ----------
+    weights : sequence of float or None
+        Weights to validate. If None, equal weights ``1 / n_weights`` are returned.
+    n_weights : int
+        Expected number of weights.
+    param_name : str, optional
+        Name of the parameter for error messages. Default is ``"weights"``.
+
+    Returns
+    -------
+    tuple of float
+        Validated weights.
+
+    Raises
+    ------
+    ValueError
+        If the weights are not numeric, their number differs from ``n_weights``,
+        they are not finite and non-negative, or they do not sum to 1.
+    """
+    if weights is None:
+        return (1.0 / n_weights,) * n_weights
+    try:
+        w = tuple(float(x) for x in weights)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{param_name} must be a sequence of numbers.") from exc
+    if len(w) != n_weights:
+        raise ValueError(f"{param_name} must contain exactly {n_weights} values.")
+    if any(not np.isfinite(x) or x < 0 for x in w):
+        raise ValueError(f"{param_name} must be finite and non-negative.")
+    if not np.isclose(sum(w), 1.0, rtol=0.0, atol=1e-10):
+        raise ValueError(f"{param_name} must sum to 1 (got {sum(w)}).")
+    return w
 
 
 def _validate_positive_numeric(value, param_name):
