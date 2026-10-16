@@ -2,6 +2,7 @@ import sys
 import os
 import numpy as np
 import pandas as pd
+import pytest
 import datetime
 import tempfile
 
@@ -323,3 +324,24 @@ def test_export_scenarios_summary_with_annual_sediment_budget():
     assert not pd.isna(df.loc[0, "annual_sediment_budget_total_mean"])
     # There should be a value (could be zero if flow is too small)
     assert df.loc[0, "annual_sediment_budget_total_mean"] >= 0
+
+
+def test_export_scenarios_summary_with_sediment_indices():
+    """Test export with sediment regime indices"""
+    sed_dates = [
+        datetime.datetime(2020, 1, 1) + datetime.timedelta(days=i)
+        for i in range(2 * 365)
+    ]
+    Qnat_sed = np.random.default_rng(1).lognormal(2.0, 0.8, len(sed_dates))
+    reach = rch.Reach("Sed Reach", sed_dates, Qnat_sed, 50.0)
+    reach.add_cross_section_geometry(0.002, 20, width=10.0)
+    reach.add_grain_size_distribution(4.0)
+    scenario = sc.ConstScenario("Const", "Const flow", reach, [10] * 12)
+    reach.add_scenario(scenario)
+    scenario.compute_Qrel()
+    scenario.compute_sediment_indices()
+
+    df = reach.export_scenarios_summary()
+    for col in ("ITP", "IEF", "ISV", "ISR", "TPD"):
+        assert col in df.columns
+    assert df.loc[0, "ISR"] == pytest.approx(scenario.sediment_indices.ISR)

@@ -1,12 +1,18 @@
 import sys
 import os
 import numpy as np
+import pytest
 import datetime
 
 # Add parent directory to path
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sarawater.sediment_load import (
+    SedimentIndicesResult,
+    compute_act_curve,
+    compute_effective_discharge,
+    compute_sediment_indices,
+    compute_transport_persistence_deviation,
     compute_sediment_load,
     wilcock_crowe_2003,
     meyer_peter_mueller,
@@ -84,6 +90,24 @@ def test_compute_sediment_load_output_shape():
     assert len(df) == 10, "DataFrame should have one row per time step"
 
 
+def test_compute_sediment_load_defaults_to_mpm():
+    default_df = compute_sediment_load(
+        Q_series[:3], dates[:3], y_coords, z_coords, slope, ks, Fi
+    )
+    mpm_df = compute_sediment_load(
+        Q_series[:3],
+        dates[:3],
+        y_coords,
+        z_coords,
+        slope,
+        ks,
+        Fi,
+        transport_formula="mpm",
+    )
+
+    np.testing.assert_allclose(default_df["Qs_total"], mpm_df["Qs_total"])
+
+
 def test_sediment_load_sensitivity():
     """Test sediment load increases with discharge (approximate monotonicity)."""
     Q_small = np.array([0.1, 1, 10])
@@ -135,6 +159,7 @@ def test_transport_capacity_selector():
     qsi_mpm = transport_capacity(theta_i, Fi, transport_formula="mpm")
     assert np.all(qsi_mpm >= 0), "MPM transport should be non-negative"
     assert qsi_mpm.sum() > 0, "Total transport should be positive"
+    np.testing.assert_allclose(transport_capacity(theta_i, Fi), qsi_mpm)
 
     # Test invalid formula
     try:
@@ -282,6 +307,127 @@ def test_mpm_steady_flow_verification():
         assert np.isclose(
             df_mpm["Qs_total"].iloc[i], Qs_total_theoretical, rtol=1e-8
         ), f"Timestep {i} does not match theoretical value"
+
+
+def _index_series():
+    rng = np.random.default_rng(0)
+    Q = rng.lognormal(1.5, 0.6, 3 * 365)
+    Qs = np.maximum(Q - 4.0, 0.0) ** 1.5
+    return Q, Qs
+
+
+def test_compute_act_curve_known_events():
+    Qs = np.array([0, 2, 2, 0, 3, 0, 1, 1, 1, 1, 0, 5])
+    act = compute_act_curve(Qs, 0.5)
+    # event durations: 2, 1, 4, 1
+    np.testing.assert_array_equal(act.events, [4, 3, 2, 1])
+    np.testing.assert_allclose(act.cum, [4, 4, 6, 8])
+
+
+def test_compute_act_curve_no_events():
+    act = compute_act_curve(np.zeros(5), 0.0)
+    assert act.cum.size == 0 and act.events.size == 0
+
+
+def test_tpd_zero_for_identical_curves_and_inf_for_empty_alt():
+    act = compute_act_curve(np.array([0, 2, 2, 0, 3, 5, 5, 5]), 1.0)
+    empty = compute_act_curve(np.zeros(3), 1.0)
+    assert compute_transport_persistence_deviation(act, act) == 0.0
+    assert compute_transport_persistence_deviation(act, empty) == np.inf
+    with pytest.raises(ValueError, match="no events above"):
+        compute_transport_persistence_deviation(empty, act)
+
+
+def test_effective_discharge_is_mode_of_weighted_distribution():
+    Q = np.concatenate([np.full(100, 1.0), np.full(10, 5.0), [10.0]])
+    Qs = np.where(Q == 5.0, 10.0, 0.1)
+    # Class load: 100*0.1 = 10 around Q=1, 10*10 = 100 around Q=5
+    qeff = compute_effective_discharge(Q, Qs, n_bins=10)
+    assert 4.5 < qeff < 5.5
+
+
+def test_effective_discharge_validation():
+    with pytest.raises(ValueError, match="same length"):
+        compute_effective_discharge(np.ones(3), np.ones(4))
+    with pytest.raises(ValueError, match="n_bins"):
+        compute_effective_discharge(np.ones(3), np.ones(3), n_bins=0)
+    with pytest.raises(ValueError, match="zero everywhere"):
+        compute_effective_discharge(np.ones(3), np.zeros(3))
+
+
+def test_indices_unaltered_scenario_is_one():
+    Q, Qs = _index_series()
+    res = compute_sediment_indices(Q, Qs, Q, Qs)
+    assert isinstance(res, SedimentIndicesResult)
+    assert res.TPD == 0.0
+    assert res.ITP == pytest.approx(1.0)
+    assert res.IEF == pytest.approx(1.0)
+    assert res.ISV == pytest.approx(1.0)
+    assert res.ISR == pytest.approx(1.0)
+
+
+def test_indices_altered_scenario_in_unit_range_and_weighted_sum():
+    Q, Qs = _index_series()
+    Q_alt = np.maximum(Q - 3.0, 0.0)
+    Qs_alt = np.maximum(Q_alt - 4.0, 0.0) ** 1.5
+    weights = (0.5, 0.3, 0.2)
+    res = compute_sediment_indices(
+        Q, Qs, Q_alt, Qs_alt, threshold_percentile=10, weights=weights
+    )
+    for value in (res.ITP, res.IEF, res.ISV, res.ISR):
+        assert 0.0 <= value <= 1.0
+    assert res.ISV < 1.0
+    assert res.ISR == pytest.approx(
+        weights[0] * res.ITP + weights[1] * res.IEF + weights[2] * res.ISV
+    )
+    assert res.Qs_threshold_ref == pytest.approx(np.percentile(Qs, 10))
+
+
+def test_isv_matches_definition():
+    Q, Qs = _index_series()
+    Qs_alt = 0.6 * Qs
+    res = compute_sediment_indices(Q, Qs, Q, Qs_alt)
+    assert res.ISV == pytest.approx(1 - (Qs.mean() - Qs_alt.mean()) / Qs.mean())
+
+
+def test_ief_uses_reference_qeff_and_event_ratio():
+    Q, Qs = _index_series()
+    res = compute_sediment_indices(Q, Qs, Q, Qs)
+    Q_alt = np.where(Q > res.Qeff_ref, 0.0, Q)  # removes every event above Qeff
+    res_alt = compute_sediment_indices(Q, Qs, Q_alt, Qs)
+    assert res_alt.Qeff_ref == res.Qeff_ref
+    assert res_alt.n_events_alt == 0
+    assert res_alt.IEF == 0.0
+
+
+def test_no_transport_in_altered_gives_zero_itp():
+    Q, Qs = _index_series()
+    res = compute_sediment_indices(Q, Qs, Q, np.zeros_like(Qs))
+    assert res.ITP == 0.0
+    assert res.ISV == 0.0
+
+
+def test_zero_threshold_selects_all_transport_steps():
+    Q, Qs = _index_series()
+    # About 70% of reference steps have no transport, so the 3rd percentile is 0
+    res = compute_sediment_indices(Q, Qs, Q, Qs, threshold_percentile=3)
+    assert res.Qs_threshold_ref == 0.0
+    assert res.ACT_ref.cum[-1] == np.sum(Qs > 0)
+
+
+def test_sediment_indices_input_validation():
+    Q, Qs = _index_series()
+    with pytest.raises(ValueError, match="same length"):
+        compute_sediment_indices(Q, Qs, Q[:-1], Qs[:-1])
+    with pytest.raises(ValueError, match="threshold_percentile"):
+        compute_sediment_indices(Q, Qs, Q, Qs, threshold_percentile=100)
+    with pytest.raises(ValueError, match="threshold_percentile"):
+        compute_sediment_indices(Q, Qs, Q, Qs, threshold_percentile=-1)
+    for bad in [(0.5, 0.5), (0.5, 0.5, 0.5), (-0.5, 1.0, 0.5), (1, 0, "a")]:
+        with pytest.raises(ValueError, match="weights"):
+            compute_sediment_indices(Q, Qs, Q, Qs, weights=bad)
+    with pytest.raises(ValueError, match="no events above"):
+        compute_sediment_indices(Q, np.zeros_like(Qs), Q, Qs)
 
 
 if __name__ == "__main__":

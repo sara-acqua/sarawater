@@ -11,6 +11,8 @@ from typing import Any
 from sarawater.scenarios import Scenario, ConstScenario, PropScenario
 from sarawater.IHA import compute_IHA
 from sarawater.sediment_load import (
+    DEFAULT_MPM_THETA_C,
+    DEFAULT_TRANSPORT_FORMULA,
     compute_annual_sediment_volume,
     compute_sediment_load,
 )
@@ -433,7 +435,14 @@ class Reach:
         self._invalidate_natural_sediment_results()
         return self
 
-    def compute_natural_sediment_budget(self, to_csv=None, **kwargs):
+    def compute_natural_sediment_budget(
+        self,
+        to_csv=None,
+        *,
+        transport_formula=DEFAULT_TRANSPORT_FORMULA,
+        mpm_theta_c=DEFAULT_MPM_THETA_C,
+        **kwargs,
+    ):
         """Compute the natural sediment load time series and annual budget.
 
         The time series is computed from ``Qnat`` using the cross-section
@@ -444,6 +453,12 @@ class Reach:
         ----------
         to_csv : str, optional
             File path to save the annual sediment budget table.
+        transport_formula : {"mpm", "wilcock_crowe"}, optional
+            Sediment transport formula. Defaults to "mpm" (Meyer-Peter & Müller,
+            1948); use "wilcock_crowe" for Wilcock & Crowe (2003).
+        mpm_theta_c : float, optional
+            Critical dimensionless Shields parameter for MPM. Defaults to 0.047
+            and is only used when ``transport_formula="mpm"``.
         kwargs : dict, optional
             Additional keyword arguments forwarded to
             :func:`sarawater.sediment_load.compute_sediment_load`.
@@ -467,7 +482,7 @@ class Reach:
                 "Reach is missing grain size information. Run Reach.add_grain_size_distribution() first."
             )
 
-        self.natural_sediment_load_df = compute_sediment_load(
+        natural_sediment_load_df = compute_sediment_load(
             self.Qnat,
             self.dates,
             self.cross_section_coordinates["y [m]"].values,
@@ -475,13 +490,20 @@ class Reach:
             self.slope,
             self.ks,
             self.phi_percentages.values,
+            transport_formula=transport_formula,
+            mpm_theta_c=mpm_theta_c,
             **kwargs,
         )
         annual_budget = compute_annual_sediment_volume(
-            self.natural_sediment_load_df,
+            natural_sediment_load_df,
             to_csv=to_csv,
         )
+        self.natural_sediment_load_df = natural_sediment_load_df
         self.natural_annual_sediment_budget = annual_budget
+
+        # Reset sediment indices for all scenarios since the natural budget has changed
+        for scenario in self.scenarios:
+            scenario.sediment_indices = None
         return annual_budget
 
     def export_scenarios_summary(
@@ -644,6 +666,15 @@ class Reach:
                     if "Qs_total" in first_year_data:
                         total_values = [budget[year]["Qs_total"] for year in all_years]
                         row["annual_sediment_budget_total_mean"] = np.mean(total_values)
+
+            # Add sediment regime indices if available
+            sed_idx = scenario.sediment_indices
+            if sed_idx is not None:
+                row["ITP"] = sed_idx.ITP
+                row["IEF"] = sed_idx.IEF
+                row["ISV"] = sed_idx.ISV
+                row["ISR"] = sed_idx.ISR
+                row["TPD"] = sed_idx.TPD
 
             data_rows.append(row)
 

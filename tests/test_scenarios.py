@@ -1,6 +1,8 @@
 import sys, os
 import numpy as np
+import pytest
 import datetime
+import pandas as pd
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -212,6 +214,130 @@ def test_scenario_normalized_IHA_with_custom_weights():
     )
 
     assert len(normalized_IHA.groups) == 5
+
+
+def _make_sediment_reach():
+    sed_dates = [
+        datetime.datetime(2020, 1, 1) + datetime.timedelta(days=i)
+        for i in range(2 * 365)
+    ]
+    Qnat_sed = np.random.default_rng(1).lognormal(2.0, 0.8, len(sed_dates))
+    reach = rch.Reach("Sed Reach", sed_dates, Qnat_sed, 50.0)
+    reach.add_cross_section_geometry(0.002, 20, width=10.0)
+    reach.add_grain_size_distribution(4.0)
+    scenario = sc.ConstScenario("Const", "Const flow", reach, [10] * 12)
+    reach.add_scenario(scenario)
+    scenario.compute_Qrel()
+    return reach, scenario
+
+
+def test_scenario_sediment_indices_guard_and_computation():
+    reach, scenario = _make_sediment_reach()
+    assert scenario.sediment_indices is None
+    with pytest.raises(ValueError, match="compute_sediment_indices"):
+        scenario._require_sediment_indices()
+
+    res = scenario.compute_sediment_indices(threshold_percentile=5, n_bins=20)
+    assert scenario.sediment_indices is res
+    assert scenario._require_sediment_indices() is res
+    assert reach.natural_sediment_load_df is not None
+    for value in (res.ITP, res.IEF, res.ISV, res.ISR):
+        assert 0.0 <= value <= 1.0
+
+
+def _make_load_df(dates, Qs_total=1.0):
+    return pd.DataFrame(
+        {
+            "Datetime": dates,
+            "Q": np.arange(1.0, len(dates) + 1),
+            "Qs_total": np.linspace(1.0, 2.0, len(dates)) * Qs_total,
+            "Qs_phi_0.5": np.linspace(1.0, 2.0, len(dates)) * Qs_total,
+        }
+    )
+
+
+def test_compute_sediment_load_defaults_to_mpm_and_invalidates_results(monkeypatch):
+    _, scenario = _make_sediment_reach()
+    calls = []
+    result = _make_load_df(scenario.dates)
+
+    def fake_compute_sediment_load(*args, **kwargs):
+        calls.append(kwargs)
+        return result
+
+    monkeypatch.setattr(sc, "compute_sediment_load", fake_compute_sediment_load)
+    scenario.annual_sediment_budget = pd.DataFrame()
+    scenario.compute_sediment_load()
+
+    assert calls[0]["transport_formula"] == "mpm"
+    assert calls[0]["mpm_theta_c"] == 0.047
+    assert scenario.sediment_load_df is result
+    assert scenario.annual_sediment_budget is None
+    assert scenario.sediment_indices is None
+
+
+def test_annual_budget_reuses_load_unless_formula_options_are_given(monkeypatch):
+    _, scenario = _make_sediment_reach()
+    scenario.sediment_load_df = _make_load_df(scenario.dates)
+
+    def unexpected_recompute(*args, **kwargs):
+        raise AssertionError("Existing sediment load should be reused")
+
+    monkeypatch.setattr(scenario, "compute_sediment_load", unexpected_recompute)
+    scenario.compute_annual_sediment_budget()
+
+    calls = []
+
+    def recompute(to_csv=None, **kwargs):
+        calls.append(kwargs)
+        scenario.sediment_load_df = _make_load_df(scenario.dates, Qs_total=2.0)
+
+    monkeypatch.setattr(scenario, "compute_sediment_load", recompute)
+    scenario.compute_annual_sediment_budget(transport_formula="wilcock_crowe")
+
+    assert calls == [{"transport_formula": "wilcock_crowe", "mpm_theta_c": 0.047}]
+    assert scenario.annual_sediment_budget is not None
+
+
+def test_sediment_indices_recompute_both_series_with_requested_options(monkeypatch):
+    reach, scenario = _make_sediment_reach()
+    calls = []
+    scenario_load = _make_load_df(reach.dates)
+    natural_load = _make_load_df(reach.dates, Qs_total=2.0)
+
+    def compute_scenario_load(transport_formula, mpm_theta_c):
+        calls.append(("scenario", transport_formula, mpm_theta_c))
+        scenario.sediment_load_df = scenario_load
+
+    def compute_natural_load(transport_formula, mpm_theta_c):
+        calls.append(("natural", transport_formula, mpm_theta_c))
+        reach.natural_sediment_load_df = natural_load
+
+    monkeypatch.setattr(scenario, "compute_sediment_load", compute_scenario_load)
+    monkeypatch.setattr(reach, "compute_natural_sediment_budget", compute_natural_load)
+
+    scenario.compute_sediment_indices(transport_formula="mpm", mpm_theta_c=0.05)
+
+    assert calls == [
+        ("scenario", "mpm", 0.05),
+        ("natural", "mpm", 0.05),
+    ]
+
+
+def test_sediment_indices_reuse_existing_series_without_formula_options(monkeypatch):
+    reach, scenario = _make_sediment_reach()
+    scenario.sediment_load_df = _make_load_df(reach.dates)
+    reach.natural_sediment_load_df = _make_load_df(reach.dates, Qs_total=2.0)
+
+    def unexpected_recompute(*args, **kwargs):
+        raise AssertionError("Existing sediment load series should be reused")
+
+    monkeypatch.setattr(scenario, "compute_sediment_load", unexpected_recompute)
+    monkeypatch.setattr(reach, "compute_natural_sediment_budget", unexpected_recompute)
+
+    result = scenario.compute_sediment_indices()
+
+    assert scenario.sediment_indices is result
 
 
 if __name__ == "__main__":

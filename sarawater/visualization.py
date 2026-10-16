@@ -1040,6 +1040,187 @@ class ReachPlotter:
             )
         return plt.gca()
 
+    def plot_sediment_regime_index_vs_volume(self, save: bool = False) -> Axes:
+        """Plot the sediment regime index against normalized abstracted volume.
+
+        Each scenario is shown at its ISR value and median yearly abstracted-to-
+        natural volume ratio. The vertical error bar shows the standard deviation
+        of that ratio across years. Sediment indices must be computed before
+        plotting; abstracted volumes are computed if they are not already present.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+
+        Returns
+        -------
+        Axes
+            The plot axes.
+
+        Raises
+        ------
+        ValueError
+            If the reach has no scenarios, any scenario lacks computed sediment
+            indices, or a scenario has no finite yearly abstracted-volume ratios.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+
+        indices = [
+            scenario._require_sediment_indices() for scenario in self.reach.scenarios
+        ]
+
+        plt.figure()
+        for i, (scenario, sediment_indices) in enumerate(
+            zip(self.reach.scenarios, indices)
+        ):
+            if (
+                getattr(scenario, "yearly_abs_volumes", None) is None
+                or getattr(scenario, "yearly_nat_volumes", None) is None
+            ):
+                scenario.compute_natural_abstracted_volumes()
+
+            yearly_nat_volumes = np.asarray(scenario.yearly_nat_volumes, dtype=float)
+            yearly_abs_volumes = np.asarray(scenario.yearly_abs_volumes, dtype=float)
+            valid = (
+                np.isfinite(yearly_nat_volumes)
+                & np.isfinite(yearly_abs_volumes)
+                & (yearly_nat_volumes > 0)
+            )
+            if not np.any(valid):
+                raise ValueError(
+                    f"Scenario '{scenario.name}' has no years with a positive "
+                    "natural abstracted-volume denominator."
+                )
+
+            normalized_abstracted_volume = (
+                yearly_abs_volumes[valid] / yearly_nat_volumes[valid]
+            )
+            plt.errorbar(
+                sediment_indices.ISR,
+                np.median(normalized_abstracted_volume),
+                yerr=np.std(normalized_abstracted_volume),
+                fmt="^",
+                color=self.scenario_colors[i],
+                label=scenario.name,
+                capsize=5,
+                elinewidth=1,
+                markersize=10,
+            )
+
+        plt.axvline(1.0, color="gray", linestyle="--", linewidth=1)
+        plt.xlim(0, 1)
+        plt.xlabel("Sediment Regime Index (ISR) [-]")
+        plt.ylabel(r"Normalized abstracted volume $V_{der}/V_{nat}$ [-]")
+        plt.grid(True)
+        plt.legend()
+        plt.title(f"{self.reach.name} - ISR vs Abstracted Volume")
+
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "sediment_regime_index_vs_volume.png"),
+                bbox_inches="tight",
+            )
+        return plt.gca()
+
+    def plot_act_curves(self, save: bool = False) -> Axes:
+        """
+        Plot the above-threshold continuous transport (ACT) curves for all scenarios.
+
+        The curves are the sediment counterpart of the UCUT curves: they show the
+        cumulative duration of the events where the transport capacity exceeds the
+        threshold derived from the natural regime. Requires
+        ``scenario.compute_sediment_indices()`` for every scenario.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+        indices = [s._require_sediment_indices() for s in self.reach.scenarios]
+
+        plt.figure()
+        for i, (scenario, res) in enumerate(zip(self.reach.scenarios, indices)):
+            plt.plot(
+                res.ACT_alt.cum,
+                res.ACT_alt.events,
+                label=scenario.name,
+                color=self.scenario_colors[i],
+            )
+        max_scenario_events = max(
+            (
+                int(np.max(res.ACT_alt.events))
+                for res in indices
+                if res.ACT_alt.events.size > 0
+            ),
+            default=0,
+        )
+        plt.plot(
+            indices[0].ACT_ref.cum,
+            indices[0].ACT_ref.events,
+            label="Reference Q",
+            color="tab:blue",
+            linestyle="--",
+        )
+        if max_scenario_events > 0:
+            plt.ylim(top=max_scenario_events)
+
+        plt.xlabel("Cumulative continuous duration [time steps]")
+        plt.ylabel("Continuous time steps above threshold")
+        plt.title(f"{self.reach.name} - Above-threshold transport (ACT) curves")
+        plt.grid(True)
+        plt.legend()
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "act_curves.png"), bbox_inches="tight"
+            )
+        return plt.gca()
+
+    def plot_sediment_indices_summary(self, save: bool = False) -> Axes:
+        """
+        Plot a grouped bar chart of the sediment regime indices (ITP, IEF, ISV, ISR).
+
+        Requires ``scenario.compute_sediment_indices()`` for every scenario.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+        scenarios = self.reach.scenarios
+        results = [s._require_sediment_indices() for s in scenarios]
+        labels = ["ITP", "IEF", "ISV", "ISR"]
+
+        plt.figure()
+        x = np.arange(len(labels))
+        width = 0.8 / len(scenarios)
+        for i, (scenario, res) in enumerate(zip(scenarios, results)):
+            values = [res.ITP, res.IEF, res.ISV, res.ISR]
+            plt.bar(
+                x + (i - (len(scenarios) - 1) / 2) * width,
+                values,
+                width,
+                label=scenario.name,
+                color=self.scenario_colors[i],
+            )
+        plt.xticks(x, labels)
+        plt.ylim(0, 1.05)
+        plt.ylabel("Index [-]")
+        plt.title(f"{self.reach.name} - Sediment regime indices")
+        plt.grid(True, axis="y")
+        plt.legend()
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "sediment_indices_summary.png"),
+                bbox_inches="tight",
+            )
+        return plt.gca()
+
     def plot_nIHA_vs_volume(self, save: bool = False) -> Axes:
         """
         Create a scatter plot showing the relationship between abstracted volumes and nIHA indexes.

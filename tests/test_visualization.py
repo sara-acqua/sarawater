@@ -220,6 +220,51 @@ def test_sediment_load_plots_use_computed_scenario_data():
     )
 
 
+def test_sediment_indices_plots():
+    plt.close("all")
+    sed_dates = [
+        datetime.datetime(2020, 1, 1) + datetime.timedelta(days=i)
+        for i in range(2 * 365)
+    ]
+    Qnat_sed = np.random.default_rng(1).lognormal(2.0, 0.8, len(sed_dates))
+    reach = rch.Reach("Sed Reach", sed_dates, Qnat_sed, 50.0)
+    reach.add_cross_section_geometry(0.002, 20, width=10.0)
+    reach.add_grain_size_distribution(4.0)
+    scenario = sc.ConstScenario("Const", "Const flow", reach, [10] * 12)
+    reach.add_scenario(scenario)
+    scenario.compute_Qrel()
+
+    plotter = ReachPlotter(reach, output_dir="outputs")
+    with pytest.raises(ValueError, match="compute_sediment_indices"):
+        plotter.plot_act_curves()
+    with pytest.raises(ValueError, match="compute_sediment_indices"):
+        plotter.plot_sediment_regime_index_vs_volume()
+    scenario.compute_sediment_indices()
+    act_ax = plotter.plot_act_curves()
+    assert len(act_ax.lines) == 2
+    assert act_ax.get_ylim()[1] == np.max(scenario.sediment_indices.ACT_alt.events)
+    bar_ax = plotter.plot_sediment_indices_summary()
+    assert len(bar_ax.patches) == 4
+    tradeoff_ax = plotter.plot_sediment_regime_index_vs_volume()
+    assert len(tradeoff_ax.containers) == 1
+    assert tradeoff_ax.get_xlabel() == "Sediment Regime Index (ISR) [-]"
+    assert (
+        tradeoff_ax.get_ylabel()
+        == r"Normalized abstracted volume $V_{der}/V_{nat}$ [-]"
+    )
+    data_line = tradeoff_ax.containers[0].lines[0]
+    np.testing.assert_allclose(
+        np.asarray(data_line.get_xdata(), dtype=float),
+        [scenario.sediment_indices.ISR],
+    )
+    normalized_abstraction = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
+    np.testing.assert_allclose(
+        np.asarray(data_line.get_ydata(), dtype=float),
+        [np.median(normalized_abstraction)],
+    )
+    plt.close("all")
+
+
 if __name__ == "__main__":
     test_plotter_initialization()
     test_scenario_discharge_plot()
