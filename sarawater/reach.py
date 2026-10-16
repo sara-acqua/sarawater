@@ -296,7 +296,7 @@ class Reach:
             Grain size distribution data. Can be one of the following:
             - A single float representing D50 in millimeters. This will be converted to a uniform grain size distribution with 100% in the corresponding phi class.
             - A pandas DataFrame with columns 'i(di)' (cumulative percentage) and 'di[mm]' (diameter in millimeters).
-            - A 2D array with columns 'i(di)' and 'di[mm]'.
+            - A 2D array with columns corresponding to the cumulative percentage and corresponding diameter.
             - A path to a CSV file containing columns 'i(di)' and 'di[mm]'.
 
         Returns

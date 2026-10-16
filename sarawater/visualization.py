@@ -1163,7 +1163,6 @@ class ReachPlotter:
             indices[0].ACT_ref.events,
             label="Reference Q",
             color="tab:blue",
-            linestyle="--",
         )
         if max_scenario_events > 0:
             plt.ylim(top=max_scenario_events)
