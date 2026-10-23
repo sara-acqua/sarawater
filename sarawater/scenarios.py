@@ -561,7 +561,6 @@ class Scenario:
     def compute_annual_sediment_budget(
         self,
         to_csv=None,
-        *,
         transport_formula: str | None = None,
         mpm_theta_c: float | None = None,
     ) -> pd.DataFrame:
