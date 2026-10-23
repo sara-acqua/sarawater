@@ -16,6 +16,9 @@ DEFAULT_MPM_THETA_C = 0.047
 PHI_RANGE = np.arange(-9.5, 7.5 + 1, 1)
 DMI = 2 ** (-PHI_RANGE) / 1000.0  # Grain diameters in meters
 
+# Decay coefficient of the exponential normalisation of the ITS index. The habitat index ITH uses 0.38.
+TPD_DECAY_COEFFICIENT = 0.38
+
 
 def shields_parameter(tau_b, rho_w, rho_s, g, D):
     """
@@ -367,11 +370,6 @@ def compute_annual_sediment_volume(df, to_csv=None):
     return annual
 
 
-# Decay coefficient of the exponential normalisation of the Transport Persistence
-# Deviation. It is the same value used for the habitat index ITH.
-TPD_DECAY_COEFFICIENT = 0.38
-
-
 @dataclass
 class ACTResult:
     """Above-threshold Continuous Transport (ACT) curve of a transport capacity series.
@@ -407,8 +405,8 @@ class SedimentIndicesResult:
     TPD : float
         Transport Persistence Deviation, the distance between the reference
         and altered ACT curves (analogous to the Habitat Stress Days).
-    ITP : float
-        Transport Persistence Index, in [0, 1] (1 = unaltered).
+    ITS : float
+        Index of Temporal alteration of Sediment transport, in [0, 1] (1 = unaltered).
     Qeff_ref : float
         Effective discharge (m³/s) of the reference scenario.
     n_events_ref, n_events_alt : int
@@ -418,14 +416,14 @@ class SedimentIndicesResult:
     ISV : float
         Sediment Volume Index, in [0, 1] (1 = unaltered).
     ISR : float
-        Sediment Regime Index, weighted sum of ITP, IEF and ISV.
+        Sediment Regime Index, weighted sum of ITS, IEF and ISV.
     """
 
     Qs_threshold_ref: float
     ACT_ref: ACTResult
     ACT_alt: ACTResult
     TPD: float
-    ITP: float
+    ITS: float
     Qeff_ref: float
     n_events_ref: int
     n_events_alt: int
@@ -561,21 +559,21 @@ def compute_sediment_indices(
     Three complementary sub-indices, all in [0, 1] with 1 meaning no alteration,
     are computed and combined in the Sediment Regime Index (ISR):
 
-    - **ITP** (Transport Persistence Index): frequency and duration of the events
+    - **ITS** (Index of Temporal alteration of Sediment transport): frequency and duration of the events
       with transport capacity above a threshold, using ACT curves (the
       above-threshold counterpart of the habitat UCUT curves). The threshold is
       a percentile of the reference transport capacity. The distance between
       the reference and altered curves is the Transport Persistence Deviation
-      (TPD), normalised as ``ITP = exp(-0.38 * TPD)`` like the habitat ITH.
+      (TPD), normalised as ``ITS = exp(-0.38 * TPD)`` like the habitat ITH.
     - **IEF** (Effective-discharge Event Frequency Index): number of events with
       discharge above the reference effective discharge, compared to the
       reference, ``IEF = 1 - |N_ref - N_alt| / N_ref`` (clipped at 0).
     - **ISV** (Sediment Volume Index): mean annual transported volume,
       ``ISV = 1 - |V_ref - V_alt| / V_ref`` (clipped at 0).
 
-    ``ISR = w_ITP * ITP + w_IEF * IEF + w_ISV * ISV``.
+    ``ISR = w_ITS * ITS + w_IEF * IEF + w_ISV * ISV``.
 
-    The threshold of ITP and the effective discharge are derived from the
+    The threshold of ITS and the effective discharge are derived from the
     reference series only and applied unchanged to the altered one. Reference
     and altered series must share the same dates and time step.
 
@@ -586,14 +584,14 @@ def compute_sediment_indices(
     Q_alt, Qs_alt : np.ndarray
         Altered discharge (m³/s) and total transport capacity (m³/s).
     threshold_percentile : float, optional
-        Percentile in [0, 100) of ``Qs_ref`` used as threshold of ITP. Default 3.
+        Percentile in [0, 100) of ``Qs_ref`` used as threshold of ITS. Default 3.
         Events are defined by ``Qs > threshold``, so a percentile whose value is
         zero (reference inactive for a larger share of time) selects every
         time step with transport.
     n_bins : int, optional
         Number of discharge classes used to find the effective discharge. Default 25.
     weights : tuple[float, float, float], optional
-        Non-negative weights of (ITP, IEF, ISV), summing to 1. If None (default),
+        Non-negative weights of (ITS, IEF, ISV), summing to 1. If None (default),
         equal weights are used.
 
     Returns
@@ -612,14 +610,14 @@ def compute_sediment_indices(
         raise ValueError("Reference and altered series must have the same length.")
     if not 0 <= threshold_percentile < 100:
         raise ValueError("threshold_percentile must be in the range [0, 100).")
-    w_ITP, w_IEF, w_ISV = _validate_weights(weights, 3)
+    w_ITS, w_IEF, w_ISV = _validate_weights(weights, 3)
 
     # Index A: persistence of above-threshold transport
     Qs_threshold = float(np.percentile(Qs_ref, threshold_percentile))
     ACT_ref = compute_act_curve(Qs_ref, Qs_threshold)
     ACT_alt = compute_act_curve(Qs_alt, Qs_threshold)
     TPD = compute_transport_persistence_deviation(ACT_ref, ACT_alt)
-    ITP = float(np.exp(-TPD_DECAY_COEFFICIENT * TPD))
+    ITS = float(np.exp(-TPD_DECAY_COEFFICIENT * TPD))
 
     # Index B: frequency of events above the reference effective discharge
     Qeff = compute_effective_discharge(Q_ref, Qs_ref, n_bins=n_bins)
@@ -644,11 +642,11 @@ def compute_sediment_indices(
         ACT_ref=ACT_ref,
         ACT_alt=ACT_alt,
         TPD=TPD,
-        ITP=ITP,
+        ITS=ITS,
         Qeff_ref=Qeff,
         n_events_ref=n_events_ref,
         n_events_alt=n_events_alt,
         IEF=IEF,
         ISV=ISV,
-        ISR=float(w_ITP * ITP + w_IEF * IEF + w_ISV * ISV),
+        ISR=float(w_ITS * ITS + w_IEF * IEF + w_ISV * ISV),
     )

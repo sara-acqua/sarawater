@@ -342,6 +342,6 @@ def test_export_scenarios_summary_with_sediment_indices():
     scenario.compute_sediment_indices()
 
     df = reach.export_scenarios_summary()
-    for col in ("ITP", "IEF", "ISV", "ISR", "TPD"):
+    for col in ("ITS", "IEF", "ISV", "ISR", "TPD"):
         assert col in df.columns
     assert df.loc[0, "ISR"] == pytest.approx(scenario.sediment_indices.ISR)

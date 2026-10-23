@@ -440,7 +440,6 @@ class Scenario:
     def compute_sediment_load(
         self,
         to_csv=None,
-        *,
         transport_formula=DEFAULT_TRANSPORT_FORMULA,
         mpm_theta_c=DEFAULT_MPM_THETA_C,
         **kwargs,
@@ -448,9 +447,9 @@ class Scenario:
         """
         Compute the sediment load time series using the scenario's released flow discharge time series
         and the cross-section geometry stored in the Reach associated with the scenario.
-        This method uses the lower-level compute_sediment_load function.
+        This method uses the lower-level compute_sediment_load function, and always overwrites any existing sediment load time series in the scenario.
 
-        The computed sediment load time series is stored as a DataFrame in self.sediment_load_df.
+        The computed sediment load time series is stored as a DataFrame in scenario.sediment_load_df.
 
         Parameters
         ----------
@@ -622,7 +621,6 @@ class Scenario:
         threshold_percentile: float = 3.0,
         n_bins: int = 25,
         weights: tuple[float, float, float] | None = None,
-        *,
         transport_formula: str | None = None,
         mpm_theta_c: float | None = None,
     ) -> SedimentIndicesResult:
@@ -630,7 +628,7 @@ class Scenario:
         Compute the indices quantifying the alteration of the sediment transport regime.
 
         The scenario is compared with the natural flow of the reach through three
-        sub-indices (transport persistence ITP, effective-discharge event frequency IEF
+        sub-indices (sediment transport temporal alteration ITS, effective-discharge event frequency IEF
         and sediment volume ISV) and their weighted combination, the Sediment Regime Index
         (ISR). See :func:`sarawater.sediment_load.compute_sediment_indices` for details.
 
@@ -638,17 +636,17 @@ class Scenario:
         provided, they are reused. If either is missing, both series are computed
         using MPM by default. Providing a formula option recomputes both series
         with the same settings, ensuring that the natural and scenario results are
-        comparable. The result is stored in ``self.sediment_indices``.
+        comparable. The result is stored in ``scenario.sediment_indices``.
 
         Parameters
         ----------
         threshold_percentile : float, optional
             Percentile in [0, 100) of the natural transport capacity used as threshold
-            for the transport persistence index. Default is 3.
+            for the sediment transport temporal alteration sub-index ITS. Default is 3.
         n_bins : int, optional
             Number of discharge classes used to find the effective discharge. Default is 25.
         weights : tuple[float, float, float], optional
-            Weights of (ITP, IEF, ISV) in ISR. Must be non-negative and sum to 1.
+            Weights of (ITS, IEF, ISV) in ISR. Must be non-negative and sum to 1.
             If None (default), equal weights are used.
         transport_formula : {"mpm", "wilcock_crowe"}, optional
             Formula to use for both sediment load series. Defaults to ``None``:

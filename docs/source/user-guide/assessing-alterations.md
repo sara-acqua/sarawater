@@ -52,8 +52,8 @@ The following indices quantify habitat alteration for aquatic species:
 
 - **Q97**: 3rd-percentile reference discharge threshold (stored as ``Q97_ref``)
 - **H97**: Habitat availability at Q97 in reference conditions (stored as ``H97_ref``)
-- **ISH (Index of Spatial Habitat)**: Measures average habitat reduction (0 = severe loss, 1 = no change)
-- **ITH (Index of Temporal Habitat)**: Measures habitat stress duration (0 = severe stress, 1 = no stress)
+- **ISH**: Measures average habitat reduction (0 = severe loss, 1 = no change)
+- **ITH**: Measures habitat stress frequency and duration (0 = severe stress, 1 = no stress)
 - **IH (Habitat Index)**: Overall habitat alteration index, minimum of ISH and ITH (0 = severe impact, 1 = no impact)
 - **HSD (Habitat Stress Days)**: Cumulative measure of habitat stress events
 
@@ -96,15 +96,15 @@ Use {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_budget_vs_volum
 
 Beyond the annual volume, the alteration of the transport capacity *regime* is quantified with three complementary sub-indices, all ranging from 0 (severe alteration) to 1 (no alteration), and their weighted sum. They are computed with {py:meth}`sarawater.scenarios.Scenario.compute_sediment_indices` and returned as {py:class}`sarawater.sediment_load.SedimentIndicesResult` (stored in ``scenario.sediment_indices``).
 
-- **ITP (Transport Persistence Index)**: frequency and duration of the events where the transport capacity exceeds a threshold. The threshold is a percentile of the natural transport capacity (``threshold_percentile``, default 3; events are the time steps with ``Qs > threshold``). The cumulative above-threshold curves (**ACT** curves, the counterpart of the habitat UCUT curves) of the natural and altered series are compared through the **TPD (Transport Persistence Deviation)**, computed like the Habitat Stress Days, and normalised as ``ITP = exp(-0.38 * TPD)``. If the percentile of the natural transport capacity is zero (the bed is inactive for more than that share of the time), the threshold is zero and every time step with transport is above it; the threshold actually used is stored in ``Qs_threshold_ref``.
+- **ITS (Index of Temporal alteration of Sediment transport)**: frequency and duration of the events where the transport capacity exceeds a threshold. The threshold is a percentile of the natural transport capacity (``threshold_percentile``, default 3; events are the time steps with ``Qs > threshold``). The cumulative above-threshold curves (**ACT** curves, the counterpart of the habitat UCUT curves) of the natural and altered series are compared through the **TPD (Transport Persistence Deviation)**, computed like the Habitat Stress Days, and normalised as ``ITS = exp(-0.38 * TPD)``. If the percentile of the natural transport capacity is zero (the bed is inactive for more than that share of the time), the threshold is zero and every time step with transport is above it; the threshold actually used is stored in ``Qs_threshold_ref``.
 - **IEF (Effective-discharge Event Frequency Index)**: number of events with discharge above the natural effective discharge ``Qeff_ref``, relative to the natural number, ``IEF = 1 - |N_nat - N_alt| / N_nat`` (clipped at 0). The effective discharge is the centre of the discharge class (``n_bins`` equal-width classes, default 25) carrying the largest share of the natural sediment load, i.e. the mode of the load-weighted flow distribution. Events are consecutive time steps above ``Qeff_ref``, as for the IHA high pulses.
 - **ISV (Sediment Volume Index)**: ``ISV = 1 - |V_nat - V_alt| / V_nat`` (clipped at 0), where V is the mean annual transported volume.
-- **ISR (Sediment Regime Index)**: ``ISR = w_ITP * ITP + w_IEF * IEF + w_ISV * ISV``. Weights (``weights``) must be non-negative and sum to 1; they are equal by default.
+- **ISR (Sediment Regime Index)**: ``ISR = w_ITS * ITS + w_IEF * IEF + w_ISV * ISV``. Weights (``weights``) must be non-negative and sum to 1; they are equal by default.
 
 The threshold and the effective discharge are always derived from the natural series and applied unchanged to the scenario. Lower-level functions are available in {py:mod}`sarawater.sediment_load`, e.g. {py:func}`sarawater.sediment_load.compute_sediment_indices`.
 
 ```{note}
-The three sub-indices describe different aspects of the regime and can disagree. For instance, abstraction capped at a maximum flow may leave the events above ``Qeff`` almost unchanged (IEF close to 1), while low-flow transport and volumes are strongly reduced (ITP and ISV lower). With formulas without a sharp threshold (e.g. Wilcock-Crowe) the 3rd percentile can be a very small positive value, making ITP sensitive only to near-cessation of transport; compare ``Qs_threshold_ref`` with the transport capacity series when interpreting it.
+The three sub-indices describe different aspects of the regime and can disagree. For instance, abstraction capped at a maximum flow may leave the events above ``Qeff`` almost unchanged (IEF close to 1), while low-flow transport and volumes are strongly reduced (ITS and ISV lower). With formulas without a sharp threshold (e.g. Wilcock-Crowe) the 3rd percentile can be a very small positive value, making ITS sensitive only to near-cessation of transport; compare ``Qs_threshold_ref`` with the transport capacity series when interpreting it.
 ```
 
 Use {py:meth}`sarawater.visualization.ReachPlotter.plot_act_curves` and {py:meth}`sarawater.visualization.ReachPlotter.plot_sediment_indices_summary` to visualise the results.

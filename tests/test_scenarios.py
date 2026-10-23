@@ -241,7 +241,7 @@ def test_scenario_sediment_indices_guard_and_computation():
     assert scenario.sediment_indices is res
     assert scenario._require_sediment_indices() is res
     assert reach.natural_sediment_load_df is not None
-    for value in (res.ITP, res.IEF, res.ISV, res.ISR):
+    for value in (res.ITS, res.IEF, res.ISV, res.ISR):
         assert 0.0 <= value <= 1.0
 
 

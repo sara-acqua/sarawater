@@ -360,7 +360,7 @@ def test_indices_unaltered_scenario_is_one():
     res = compute_sediment_indices(Q, Qs, Q, Qs)
     assert isinstance(res, SedimentIndicesResult)
     assert res.TPD == 0.0
-    assert res.ITP == pytest.approx(1.0)
+    assert res.ITS == pytest.approx(1.0)
     assert res.IEF == pytest.approx(1.0)
     assert res.ISV == pytest.approx(1.0)
     assert res.ISR == pytest.approx(1.0)
@@ -374,11 +374,11 @@ def test_indices_altered_scenario_in_unit_range_and_weighted_sum():
     res = compute_sediment_indices(
         Q, Qs, Q_alt, Qs_alt, threshold_percentile=10, weights=weights
     )
-    for value in (res.ITP, res.IEF, res.ISV, res.ISR):
+    for value in (res.ITS, res.IEF, res.ISV, res.ISR):
         assert 0.0 <= value <= 1.0
     assert res.ISV < 1.0
     assert res.ISR == pytest.approx(
-        weights[0] * res.ITP + weights[1] * res.IEF + weights[2] * res.ISV
+        weights[0] * res.ITS + weights[1] * res.IEF + weights[2] * res.ISV
     )
     assert res.Qs_threshold_ref == pytest.approx(np.percentile(Qs, 10))
 
@@ -403,7 +403,7 @@ def test_ief_uses_reference_qeff_and_event_ratio():
 def test_no_transport_in_altered_gives_zero_itp():
     Q, Qs = _index_series()
     res = compute_sediment_indices(Q, Qs, Q, np.zeros_like(Qs))
-    assert res.ITP == 0.0
+    assert res.ITS == 0.0
     assert res.ISV == 0.0
 
 
