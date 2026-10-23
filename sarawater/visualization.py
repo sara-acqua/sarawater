@@ -1159,7 +1159,7 @@ class ReachPlotter:
             default=0,
         )
         plt.plot(
-            indices[0].ACT_ref.cum,
+            indices[0].ACT_ref.cum_norm * 100,
             indices[0].ACT_ref.events,
             label="Reference Q",
             color="tab:blue",
@@ -1167,7 +1167,7 @@ class ReachPlotter:
         if max_scenario_events > 0:
             plt.ylim(top=max_scenario_events)
 
-        plt.xlabel("Cumulative continuous duration [time steps]")
+        plt.xlabel("Cumulative continuous duration [%]")
         plt.ylabel("Continuous time steps above threshold")
         plt.title(f"{self.reach.name} - Above-threshold transport (ACT) curves")
         plt.grid(True)

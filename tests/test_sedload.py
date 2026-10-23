@@ -319,14 +319,16 @@ def _index_series():
 def test_compute_act_curve_known_events():
     Qs = np.array([0, 2, 2, 0, 3, 0, 1, 1, 1, 1, 0, 5])
     act = compute_act_curve(Qs, 0.5)
+    expected_cums = np.array([4, 4, 6, 8])
     # event durations: 2, 1, 4, 1
     np.testing.assert_array_equal(act.events, [4, 3, 2, 1])
-    np.testing.assert_allclose(act.cum, [4, 4, 6, 8])
+    np.testing.assert_allclose(act.cum, expected_cums)
+    np.testing.assert_allclose(act.cum_norm, expected_cums / Qs.size)
 
 
 def test_compute_act_curve_no_events():
     act = compute_act_curve(np.zeros(5), 0.0)
-    assert act.cum.size == 0 and act.events.size == 0
+    assert act.cum.size == 0 and act.events.size == 0 and act.cum_norm.size == 0
 
 
 def test_tpd_zero_for_identical_curves_and_inf_for_empty_alt():

@@ -388,6 +388,7 @@ class ACTResult:
     """
 
     cum: np.ndarray
+    cum_norm: np.ndarray
     events: np.ndarray
 
 
@@ -440,8 +441,7 @@ def compute_act_curve(Qs: np.ndarray, threshold: float) -> ACTResult:
     Qs : np.ndarray
         Total transport capacity time series (m³/s).
     threshold : float
-        Transport capacity threshold (m³/s). Events are consecutive time steps
-        with ``Qs > threshold``.
+        Transport capacity threshold (m³/s). Events are consecutive time steps with ``Qs > threshold``.
 
     Returns
     -------
@@ -450,13 +450,23 @@ def compute_act_curve(Qs: np.ndarray, threshold: float) -> ACTResult:
     """
     lengths = np.asarray(compute_consecutive_lengths(Qs > threshold), dtype=np.int64)
     if lengths.size == 0:
-        return ACTResult(np.array([], dtype=float), np.array([], dtype=np.int64))
+        return ACTResult(
+            np.array([], dtype=float),
+            np.array([], dtype=float),
+            np.array([], dtype=np.int64),
+        )
 
     longest = int(lengths.max())
-    counts = np.bincount(lengths, minlength=longest + 1)[1:]
-    steps_per_duration = counts * np.arange(1, longest + 1)
+    counts = np.bincount(lengths, minlength=longest + 1)[
+        1:
+    ]  # counts the number of events of each length from 1 to longest. The first element of the array corresponds to the number of events with length 1, the second to length 2, and so on.
+    steps_per_duration = counts * np.arange(
+        1, longest + 1
+    )  # multiply the number of events of each length by the length itself to get the total number of time steps for each duration.
+    cum = np.cumsum(steps_per_duration[::-1]).astype(float)
     return ACTResult(
-        cum=np.cumsum(steps_per_duration[::-1]).astype(float),
+        cum=cum,
+        cum_norm=cum / Qs.size,
         events=np.arange(longest, 0, -1, dtype=np.int64),
     )
 
@@ -499,7 +509,7 @@ def compute_transport_persistence_deviation(
     n = min(ACT_ref.cum.size, ACT_alt.cum.size)
     ref = ACT_ref.cum[-n:]
     alt = ACT_alt.cum[-n:]
-    return float(np.nansum(np.abs(alt - ref) / ref) / np.max(ACT_ref.events))
+    return float(np.nansum(np.abs(alt - ref) / ref) / np.max(ACT_alt.events))
 
 
 def compute_effective_discharge(
@@ -584,7 +594,7 @@ def compute_sediment_indices(
     Q_alt, Qs_alt : np.ndarray
         Altered discharge (m³/s) and total transport capacity (m³/s).
     threshold_percentile : float, optional
-        Percentile in [0, 100) of ``Qs_ref`` used as threshold of ITS. Default 3.
+        Percentile in [0, 100) of ``Qs_ref`` used as threshold of ITS. Zero-values in Qs_ref are excluded. Default 3.
         Events are defined by ``Qs > threshold``, so a percentile whose value is
         zero (reference inactive for a larger share of time) selects every
         time step with transport.
@@ -612,14 +622,14 @@ def compute_sediment_indices(
         raise ValueError("threshold_percentile must be in the range [0, 100).")
     w_ITS, w_IEF, w_ISV = _validate_weights(weights, 3)
 
-    # Index A: persistence of above-threshold transport
-    Qs_threshold = float(np.percentile(Qs_ref, threshold_percentile))
+    # ITS index: persistence of above-threshold transport
+    Qs_threshold = float(np.percentile(Qs_ref[Qs_ref > 0], threshold_percentile))
     ACT_ref = compute_act_curve(Qs_ref, Qs_threshold)
     ACT_alt = compute_act_curve(Qs_alt, Qs_threshold)
     TPD = compute_transport_persistence_deviation(ACT_ref, ACT_alt)
     ITS = float(np.exp(-TPD_DECAY_COEFFICIENT * TPD))
 
-    # Index B: frequency of events above the reference effective discharge
+    # IEF index: frequency of events above the reference effective discharge
     Qeff = compute_effective_discharge(Q_ref, Qs_ref, n_bins=n_bins)
     n_events_ref = len(compute_consecutive_lengths(Q_ref > Qeff))
     n_events_alt = len(compute_consecutive_lengths(Q_alt > Qeff))
@@ -630,7 +640,7 @@ def compute_sediment_indices(
         )
     IEF = max(0.0, 1.0 - abs(n_events_ref - n_events_alt) / n_events_ref)
 
-    # Index C: mean annual volume (proportional to the mean transport capacity
+    # ISV index: mean annual volume (proportional to the mean transport capacity
     # because both series share the same time step)
     Qs_mean_ref = float(np.mean(Qs_ref))
     if Qs_mean_ref <= 0:
