@@ -45,6 +45,10 @@ class ReachPlotter:
         os.makedirs(output_dir, exist_ok=True)
 
         if scenario_colors is not None:
+            if len(scenario_colors) < len(self.reach.scenarios):
+                raise ValueError(
+                    "Not enough colors provided for the number of scenarios"
+                )
             self.scenario_colors = list(scenario_colors)[: len(self.reach.scenarios)]
         else:
             self.scenario_colors = [
@@ -1145,7 +1149,7 @@ class ReachPlotter:
         plt.figure()
         for i, (scenario, res) in enumerate(zip(self.reach.scenarios, indices)):
             plt.plot(
-                res.ACT_alt.cum,
+                res.ACT_alt.cum_norm * 100,
                 res.ACT_alt.events,
                 label=scenario.name,
                 color=self.scenario_colors[i],
