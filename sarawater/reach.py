@@ -671,7 +671,6 @@ class Reach:
             sed_idx = scenario.sediment_indices
             if sed_idx is not None:
                 row["ITS"] = sed_idx.ITS
-                row["IEF"] = sed_idx.IEF
                 row["ISV"] = sed_idx.ISV
                 row["ISR"] = sed_idx.ISR
                 row["TPD"] = sed_idx.TPD

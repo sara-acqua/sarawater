@@ -618,17 +618,16 @@ class Scenario:
     def compute_sediment_indices(
         self,
         threshold_percentile: float = 3.0,
-        n_bins: int = 25,
-        weights: tuple[float, float, float] | None = None,
+        weights: tuple[float, float] | None = None,
         transport_formula: str | None = None,
         mpm_theta_c: float | None = None,
     ) -> SedimentIndicesResult:
         """
         Compute the indices quantifying the alteration of the sediment transport regime.
 
-        The scenario is compared with the natural flow of the reach through three
-        sub-indices (sediment transport temporal alteration ITS, effective-discharge event frequency IEF
-        and sediment volume ISV) and their weighted combination, the Sediment Regime Index
+        The scenario is compared with the natural flow of the reach through two
+        sub-indices (sediment transport temporal alteration ITS and sediment
+        volume ISV) and their weighted combination, the Sediment Regime Index
         (ISR). See :func:`sarawater.sediment_load.compute_sediment_indices` for details.
 
         If both sediment load series already exist and no formula options are
@@ -642,10 +641,8 @@ class Scenario:
         threshold_percentile : float, optional
             Percentile in [0, 100) of the natural transport capacity used as threshold
             for the sediment transport temporal alteration sub-index ITS. Default is 3.
-        n_bins : int, optional
-            Number of discharge classes used to find the effective discharge. Default is 25.
-        weights : tuple[float, float, float], optional
-            Weights of (ITS, IEF, ISV) in ISR. Must be non-negative and sum to 1.
+        weights : tuple[float, float], optional
+            Weights of (ITS, ISV) in ISR. Must be non-negative and sum to 1.
             If None (default), equal weights are used.
         transport_formula : {"mpm", "wilcock_crowe"}, optional
             Formula to use for both sediment load series. Defaults to ``None``:
@@ -690,12 +687,9 @@ class Scenario:
             raise ValueError("Natural sediment load could not be computed.")
 
         self.sediment_indices = compute_sediment_indices(
-            natural_load["Q"].to_numpy(dtype=float),
             natural_load["Qs_total"].to_numpy(dtype=float),
-            scenario_load["Q"].to_numpy(dtype=float),
             scenario_load["Qs_total"].to_numpy(dtype=float),
             threshold_percentile=threshold_percentile,
-            n_bins=n_bins,
             weights=weights,
         )
         return self.sediment_indices

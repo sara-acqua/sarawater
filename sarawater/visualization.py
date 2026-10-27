@@ -1184,7 +1184,7 @@ class ReachPlotter:
 
     def plot_sediment_indices_summary(self, save: bool = False) -> Axes:
         """
-        Plot a grouped bar chart of the sediment regime indices (ITS, IEF, ISV, ISR).
+        Plot a grouped bar chart of the sediment regime indices (ITS, ISV, ISR).
 
         Requires ``scenario.compute_sediment_indices()`` for every scenario.
 
@@ -1197,13 +1197,13 @@ class ReachPlotter:
             raise ValueError("The reach has no scenarios to plot.")
         scenarios = self.reach.scenarios
         results = [s._require_sediment_indices() for s in scenarios]
-        labels = ["ITS", "IEF", "ISV", "ISR"]
+        labels = ["ITS", "ISV", "ISR"]
 
         plt.figure()
         x = np.arange(len(labels))
         width = 0.8 / len(scenarios)
         for i, (scenario, res) in enumerate(zip(scenarios, results)):
-            values = [res.ITS, res.IEF, res.ISV, res.ISR]
+            values = [res.ITS, res.ISV, res.ISR]
             plt.bar(
                 x + (i - (len(scenarios) - 1) / 2) * width,
                 values,

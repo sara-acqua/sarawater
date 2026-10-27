@@ -57,7 +57,7 @@ The parent class for all scenario types, containing shared functionality.
 - {py:meth}`sarawater.scenarios.Scenario.compute_sediment_load`: Compute sediment transport time series for the scenario (MPM is the default formula)
 - {py:meth}`sarawater.scenarios.Scenario.plot_scenario_sediment_transport`: Plot sediment transport time series
 - {py:meth}`sarawater.scenarios.Scenario.compute_annual_sediment_budget`: Compute annual sediment budgets
-- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_indices`: Compute the sediment regime indices (ITS, IEF, ISV and their weighted sum ISR)
+- {py:meth}`sarawater.scenarios.Scenario.compute_sediment_indices`: Compute the sediment regime indices (ITS, ISV and their weighted sum ISR)
 
 The sediment-load and natural sediment-budget methods accept ``transport_formula`` and ``mpm_theta_c`` options. The default formula is Meyer-Peter & Müller (MPM); ``mpm_theta_c`` is its dimensionless critical Shields parameter. The annual budget and sediment-indices methods accept these options when they need to compute sediment loads. If no formula option is passed, they reuse existing load series; indices are computed from a matched pair of scenario and natural-flow series.
 

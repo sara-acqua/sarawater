@@ -408,16 +408,10 @@ class SedimentIndicesResult:
         and altered ACT curves (analogous to the Habitat Stress Days).
     ITS : float
         Index of Temporal alteration of Sediment transport, in [0, 1] (1 = unaltered).
-    Qeff_ref : float
-        Effective discharge (m³/s) of the reference scenario.
-    n_events_ref, n_events_alt : int
-        Number of events above ``Qeff_ref`` in the reference and altered flows.
-    IEF : float
-        Effective-discharge Event Frequency Index, in [0, 1] (1 = unaltered).
     ISV : float
         Sediment Volume Index, in [0, 1] (1 = unaltered).
     ISR : float
-        Sediment Regime Index, weighted sum of ITS, IEF and ISV.
+        Sediment Regime Index, weighted sum of ITS and ISV.
     """
 
     Qs_threshold_ref: float
@@ -425,10 +419,6 @@ class SedimentIndicesResult:
     ACT_alt: ACTResult
     TPD: float
     ITS: float
-    Qeff_ref: float
-    n_events_ref: int
-    n_events_alt: int
-    IEF: float
     ISV: float
     ISR: float
 
@@ -509,64 +499,18 @@ def compute_transport_persistence_deviation(
     n = min(ACT_ref.cum.size, ACT_alt.cum.size)
     ref = ACT_ref.cum[-n:]
     alt = ACT_alt.cum[-n:]
-    return float(np.nansum(np.abs(alt - ref) / ref) / np.max(ACT_alt.events))
-
-
-def compute_effective_discharge(
-    Q: np.ndarray, Qs: np.ndarray, n_bins: int = 25
-) -> float:
-    """Compute the effective discharge as the mode of the load-weighted flow distribution.
-
-    The effective discharge is the discharge class that maximises the product
-    of its frequency of occurrence and its transport capacity, i.e. the class
-    transporting the largest share of the total sediment load.
-
-    Parameters
-    ----------
-    Q : np.ndarray
-        Flow discharge time series (m³/s).
-    Qs : np.ndarray
-        Total transport capacity time series (m³/s), same length as ``Q``.
-    n_bins : int, optional
-        Number of equal-width discharge classes. Default is 25.
-
-    Returns
-    -------
-    float
-        Centre of the discharge class carrying the largest sediment load (m³/s).
-
-    Raises
-    ------
-    ValueError
-        If the inputs are inconsistent, ``n_bins`` is not a positive integer or
-        the total transport capacity is zero.
-    """
-    if Q.shape != Qs.shape:
-        raise ValueError("Q and Qs must have the same length.")
-    if not isinstance(n_bins, (int, np.integer)) or n_bins < 1:
-        raise ValueError("n_bins must be a positive integer.")
-    if not np.any(Qs > 0):
-        raise ValueError(
-            "The reference transport capacity is zero everywhere: the effective discharge is undefined."
-        )
-
-    load_per_class, edges = np.histogram(Q, bins=n_bins, weights=Qs)
-    k = int(np.argmax(load_per_class))
-    return float(0.5 * (edges[k] + edges[k + 1]))
+    return float(np.nansum(np.abs(alt - ref) / ref) / np.max(ACT_ref.events))
 
 
 def compute_sediment_indices(
-    Q_ref: np.ndarray,
     Qs_ref: np.ndarray,
-    Q_alt: np.ndarray,
     Qs_alt: np.ndarray,
     threshold_percentile: float = 3.0,
-    n_bins: int = 25,
-    weights: tuple[float, float, float] | None = None,
+    weights: tuple[float, float] | None = None,
 ) -> SedimentIndicesResult:
     """Compute the indices describing the alteration of the sediment transport regime.
 
-    Three complementary sub-indices, all in [0, 1] with 1 meaning no alteration,
+    Two complementary sub-indices, both in [0, 1] with 1 meaning no alteration,
     are computed and combined in the Sediment Regime Index (ISR):
 
     - **ITS** (Index of Temporal alteration of Sediment transport): frequency and duration of the events
@@ -575,33 +519,28 @@ def compute_sediment_indices(
       a percentile of the reference transport capacity. The distance between
       the reference and altered curves is the Transport Persistence Deviation
       (TPD), normalised as ``ITS = exp(-0.38 * TPD)`` like the habitat ITH.
-    - **IEF** (Effective-discharge Event Frequency Index): number of events with
-      discharge above the reference effective discharge, compared to the
-      reference, ``IEF = 1 - |N_ref - N_alt| / N_ref`` (clipped at 0).
     - **ISV** (Sediment Volume Index): mean annual transported volume,
       ``ISV = 1 - |V_ref - V_alt| / V_ref`` (clipped at 0).
 
-    ``ISR = w_ITS * ITS + w_IEF * IEF + w_ISV * ISV``.
+    ``ISR = w_ITS * ITS + w_ISV * ISV``.
 
-    The threshold of ITS and the effective discharge are derived from the
-    reference series only and applied unchanged to the altered one. Reference
-    and altered series must share the same dates and time step.
+    The threshold of ITS is derived from the reference series only and applied
+    unchanged to the altered one. Reference and altered series must share the
+    same dates and time step.
 
     Parameters
     ----------
-    Q_ref, Qs_ref : np.ndarray
-        Reference (natural) discharge (m³/s) and total transport capacity (m³/s).
-    Q_alt, Qs_alt : np.ndarray
-        Altered discharge (m³/s) and total transport capacity (m³/s).
+    Qs_ref : np.ndarray
+        Reference (natural) total transport capacity (m³/s).
+    Qs_alt : np.ndarray
+        Altered total transport capacity (m³/s).
     threshold_percentile : float, optional
         Percentile in [0, 100) of ``Qs_ref`` used as threshold of ITS. Zero-values in Qs_ref are excluded. Default 3.
         Events are defined by ``Qs > threshold``, so a percentile whose value is
         zero (reference inactive for a larger share of time) selects every
         time step with transport.
-    n_bins : int, optional
-        Number of discharge classes used to find the effective discharge. Default 25.
-    weights : tuple[float, float, float], optional
-        Non-negative weights of (ITS, IEF, ISV), summing to 1. If None (default),
+    weights : tuple[float, float], optional
+        Non-negative weights of (ITS, ISV), summing to 1. If None (default),
         equal weights are used.
 
     Returns
@@ -613,38 +552,28 @@ def compute_sediment_indices(
     ------
     ValueError
         If inputs have inconsistent lengths, parameters are out of range, or the
-        reference has no above-threshold events, no events above the effective
-        discharge or a null transport volume.
+        reference has no above-threshold events or a null transport volume.
     """
-    if not (Q_ref.shape == Qs_ref.shape == Q_alt.shape == Qs_alt.shape):
+    if Qs_ref.shape != Qs_alt.shape:
         raise ValueError("Reference and altered series must have the same length.")
     if not 0 <= threshold_percentile < 100:
         raise ValueError("threshold_percentile must be in the range [0, 100).")
-    w_ITS, w_IEF, w_ISV = _validate_weights(weights, 3)
+    w_ITS, w_ISV = _validate_weights(weights, 2)
+
+    Qs_mean_ref = float(np.mean(Qs_ref))
+    if Qs_mean_ref <= 0:
+        raise ValueError("The reference sediment volume is zero.")
 
     # ITS index: persistence of above-threshold transport
     Qs_threshold = float(np.percentile(Qs_ref[Qs_ref > 0], threshold_percentile))
     ACT_ref = compute_act_curve(Qs_ref, Qs_threshold)
     ACT_alt = compute_act_curve(Qs_alt, Qs_threshold)
+
     TPD = compute_transport_persistence_deviation(ACT_ref, ACT_alt)
     ITS = float(np.exp(-TPD_DECAY_COEFFICIENT * TPD))
 
-    # IEF index: frequency of events above the reference effective discharge
-    Qeff = compute_effective_discharge(Q_ref, Qs_ref, n_bins=n_bins)
-    n_events_ref = len(compute_consecutive_lengths(Q_ref > Qeff))
-    n_events_alt = len(compute_consecutive_lengths(Q_alt > Qeff))
-    if n_events_ref == 0:
-        raise ValueError(
-            "The reference flow has no events above the effective discharge; "
-            "the event frequency index is undefined."
-        )
-    IEF = max(0.0, 1.0 - abs(n_events_ref - n_events_alt) / n_events_ref)
-
     # ISV index: mean annual volume (proportional to the mean transport capacity
     # because both series share the same time step)
-    Qs_mean_ref = float(np.mean(Qs_ref))
-    if Qs_mean_ref <= 0:
-        raise ValueError("The reference sediment volume is zero.")
     ISV = max(0.0, 1.0 - abs(Qs_mean_ref - float(np.mean(Qs_alt))) / Qs_mean_ref)
 
     return SedimentIndicesResult(
@@ -653,10 +582,6 @@ def compute_sediment_indices(
         ACT_alt=ACT_alt,
         TPD=TPD,
         ITS=ITS,
-        Qeff_ref=Qeff,
-        n_events_ref=n_events_ref,
-        n_events_alt=n_events_alt,
-        IEF=IEF,
         ISV=ISV,
-        ISR=float(w_ITS * ITS + w_IEF * IEF + w_ISV * ISV),
+        ISR=float(w_ITS * ITS + w_ISV * ISV),
     )

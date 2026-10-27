@@ -244,7 +244,12 @@ def test_sediment_indices_plots():
     assert len(act_ax.lines) == 2
     assert act_ax.get_ylim()[1] == np.max(scenario.sediment_indices.ACT_alt.events)
     bar_ax = plotter.plot_sediment_indices_summary()
-    assert len(bar_ax.patches) == 4
+    assert len(bar_ax.patches) == 3
+    assert [label.get_text() for label in bar_ax.get_xticklabels()] == [
+        "ITS",
+        "ISV",
+        "ISR",
+    ]
     tradeoff_ax = plotter.plot_sediment_regime_index_vs_volume()
     assert len(tradeoff_ax.containers) == 1
     assert tradeoff_ax.get_xlabel() == "Sediment Regime Index (ISR) [-]"
