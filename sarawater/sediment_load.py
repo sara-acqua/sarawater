@@ -364,6 +364,9 @@ def compute_annual_sediment_volume(df, to_csv=None):
 
     vol_df["Year"] = vol_df["Datetime"].dt.year
     annual = vol_df.groupby("Year")[phi_cols + [total_col]].sum()
+    annual = annual.rename(
+        columns=lambda col: col[3:] if col.startswith("Qs_") else col
+    )  # Remove the "Qs_" prefix from column names for clarity
 
     if to_csv is not None:
         annual.to_csv(to_csv)
@@ -468,7 +471,7 @@ def compute_transport_persistence_deviation(
 
     TPD is the analogue of the Habitat Stress Days: the relative distance
     between the altered and reference ACT curves, aligned on the shortest
-    events, summed and normalised by the longest reference event.
+    events, summed and normalised by the longest reference event. Before computing the distance, the altered curve is extended with zeros to match the length of the reference curve if it has fewer events.
 
     Parameters
     ----------
@@ -495,6 +498,18 @@ def compute_transport_persistence_deviation(
         )
     if ACT_alt.cum.size == 0:
         return float("inf")
+
+    if ACT_alt.cum.size < ACT_ref.cum.size:
+        missing_events = np.arange(
+            ACT_ref.events.max(), ACT_alt.events.max(), -1, dtype=np.int64
+        )
+        ACT_alt.events = np.concatenate((missing_events, ACT_alt.events))
+        ACT_alt.cum = np.concatenate(
+            (np.zeros(missing_events.size, dtype=float), ACT_alt.cum)
+        )
+        ACT_alt.cum_norm = np.concatenate(
+            (np.zeros(missing_events.size, dtype=float), ACT_alt.cum_norm)
+        )
 
     n = min(ACT_ref.cum.size, ACT_alt.cum.size)
     ref = ACT_ref.cum[-n:]

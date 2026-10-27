@@ -74,8 +74,8 @@ class ReachPlotter:
         start_date: Optional[Union[str, datetime]] = None,
         end_date: Optional[Union[str, datetime]] = None,
         log_scale: bool = True,
-        save: bool = False,
         plot_Qnat: bool = True,
+        save: bool = False,
     ) -> Axes:
         """
         Plot discharge comparison between scenarios.
@@ -88,10 +88,10 @@ class ReachPlotter:
             End date for the plot range
         log_scale : bool, default=True
             Whether to use log scale for y-axis
+        plot_Qnat : bool, default=True
+            Whether to plot the natural flow discharge time series (Qnat)
         save : bool, default=False
             Whether to save the plot to file
-        plot_Qnat : bool, default=True
-            Whether to plot the natural flow (Qnat)
         """
         mask = _compute_date_mask(self.reach.dates, start_date, end_date)
 
@@ -1284,6 +1284,7 @@ class ReachPlotter:
         start_date: Optional[Union[str, datetime]] = None,
         end_date: Optional[Union[str, datetime]] = None,
         log_scale: bool = True,
+        plot_Qsnat: bool = True,
         save: bool = False,
     ) -> Axes:
         """
@@ -1297,6 +1298,8 @@ class ReachPlotter:
             End date for the plot
         log_scale : bool, default=True
             Use log scale for y-axis
+        plot_Qsnat : bool, default=True
+            Whether to plot the transport capacity time series of the natural flow time series
         save : bool, default=False
             Whether to save the plot
         """
@@ -1315,6 +1318,15 @@ class ReachPlotter:
                 Qs_total[mask],
                 label=scenario.name,
                 color=self.scenario_colors[i],
+            )
+
+        if plot_Qsnat:
+            Qsnat = self.reach._require_natural_sediment_load()
+            plt.plot(
+                np.array(self.reach.dates)[mask],
+                Qsnat["Qs_total"].to_numpy(dtype=float)[mask],
+                color="tab:blue",
+                label="Natural",
             )
 
         if log_scale:
@@ -1369,13 +1381,13 @@ class ReachPlotter:
             raise ValueError("The reach has no scenarios to plot.")
 
         phi_cols = [
-            column for column in budgets[0][1].columns if column.startswith("Qs_phi_")
+            column for column in budgets[0][1].columns if column.startswith("phi_")
         ]
         if not phi_cols:
             raise ValueError("Annual budgets contain no per-class data.")
 
         diameters_mm = np.array(
-            [2 ** (-float(column[len("Qs_phi_") :])) for column in phi_cols]
+            [2 ** (-float(column[len("phi_") :])) for column in phi_cols]
         )
         size_order = np.argsort(diameters_mm)
         phi_cols = [phi_cols[index] for index in size_order]

@@ -53,18 +53,24 @@ class Reach:
         self.scenarios: list[Scenario] = []
         self.IHA_nat = compute_IHA(Qnat, Qnat, dates)
         self.natural_sediment_load_df: DataFrame | None = None
-        self.natural_annual_sediment_budget: DataFrame | dict | None = None
+        self.natural_annual_sediment_budget: DataFrame | None = None
+
+    def _require_natural_sediment_load(self) -> DataFrame:
+        """Return the natural sediment load time series, ensuring it was computed."""
+        if self.natural_sediment_load_df is None:
+            raise ValueError(
+                "Reach has no natural sediment load time series. Run Reach.compute_natural_sediment_budget() first."
+            )
+        return self.natural_sediment_load_df
 
     def _require_natural_annual_sediment_budget(self) -> DataFrame:
         """Return the natural annual sediment budget, ensuring it was computed."""
-        budget = self.natural_annual_sediment_budget
-        if budget is None:
+
+        if self.natural_annual_sediment_budget is None:
             raise ValueError(
                 "Reach has no natural sediment budget. Run Reach.compute_natural_sediment_budget() first."
             )
-        if isinstance(budget, dict):
-            return pd.DataFrame.from_dict(budget, orient="index")
-        return budget
+        return self.natural_annual_sediment_budget
 
     def _invalidate_natural_sediment_results(self) -> None:
         self.natural_sediment_load_df = None
@@ -438,7 +444,6 @@ class Reach:
     def compute_natural_sediment_budget(
         self,
         to_csv=None,
-        *,
         transport_formula=DEFAULT_TRANSPORT_FORMULA,
         mpm_theta_c=DEFAULT_MPM_THETA_C,
         **kwargs,
@@ -446,8 +451,8 @@ class Reach:
         """Compute the natural sediment load time series and annual budget.
 
         The time series is computed from ``Qnat`` using the cross-section
-        geometry and grain-size distribution attached to this reach. The annual
-        budget is stored in ``natural_annual_sediment_budget``.
+        geometry and grain-size distribution attached to this reach. The transport capacity time series is stored in ``natural_sediment_load_df``, and the
+        annual budget is stored in ``natural_annual_sediment_budget``.
 
         Parameters
         ----------
