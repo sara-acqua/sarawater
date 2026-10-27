@@ -14,7 +14,7 @@ The test validates:
 - Proper reach object creation and HQ curve integration
 - Scenario creation and flow computation
 - Habitat index computation using the habitat module functions
-- Individual function testing for compute_h_ucut, compute_IH, and compute_habitat_indices
+- Individual function testing for compute_habitat_series, compute_habitat_threshold, compute_ucut, compute_IH, and compute_habitat_indices
 
 Expected vs Computed IH values:
 - The test compares computed IH values with those in IH_Synopsis.txt
@@ -25,6 +25,7 @@ Expected vs Computed IH values:
 import sys, os
 import numpy as np
 import pandas as pd
+import pytest
 
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -32,9 +33,13 @@ import sarawater.reach as rch
 import sarawater.scenarios as sc
 from sarawater.habitat import (
     HabitatIndicesResult,
+    UCUTCurve,
     compute_habitat_indices,
-    compute_h_ucut,
+    compute_habitat_series,
+    compute_habitat_threshold,
+    compute_ucut,
     compute_IH,
+    resample_HQ_curve,
 )
 
 # Global test data setup
@@ -208,8 +213,8 @@ def test_habitat_index_values():
     assert 0 <= min_computed_IH <= 1
 
 
-def test_compute_h_ucut_function():
-    """Test the compute_h_ucut function directly."""
+def test_habitat_building_blocks():
+    """Test the habitat series, threshold and UCUT functions directly."""
     test_reach = setup_reach_with_dmv_scenario()
 
     # Use BROW_A_R HQ curve for testing
@@ -217,44 +222,90 @@ def test_compute_h_ucut_function():
     HQ = hq_data[["DIS", "BROW_A_R"]].values
 
     # Use a subset of data for faster testing
-    test_dates = datetime_list[:365]  # One year
     test_Q = discharge_data[:365]
+    Q_threshold = np.percentile(test_Q, 3)
 
-    # Compute Q97 (3rd percentile)
-    Q97 = np.percentile(test_Q, 3)
+    H_series = compute_habitat_series(HQ, test_Q)
+    H_threshold = compute_habitat_threshold(HQ, Q_threshold)
+    ucut = compute_ucut(H_series, H_threshold)
 
-    # Test reference mode
-    UCUT_cum_ref, UCUT_events_ref, H_ref, UCUT_cum_pes_ref, H97_ref = compute_h_ucut(
-        HQ, test_dates, test_Q, Q97, mode="reference"
-    )
+    assert len(H_series) == len(test_Q)
+    assert isinstance(H_threshold, float)
+    assert isinstance(ucut, UCUTCurve)
+    n_ucut = len(ucut.durations)
+    assert len(ucut.cum_days) == n_ucut
+    assert len(ucut.cum_freq) == n_ucut
+    assert np.all(np.diff(ucut.durations) < 0)
+    assert np.all((ucut.cum_freq >= 0) & (ucut.cum_freq <= 1))
 
-    # Verify outputs
-    assert isinstance(H_ref, np.ndarray)
-    assert len(H_ref) == len(test_Q)
-    assert isinstance(H97_ref, (float, np.floating, int, np.integer))
 
-    # Test altered mode
-    UCUT_cum_alt, UCUT_events_alt, H_alt, UCUT_cum_pes_alt, H97_alt = compute_h_ucut(
-        HQ, test_dates, test_Q * 0.5, Q97, H97_ref=float(H97_ref), mode="altered"
-    )
+def test_resample_HQ_curve():
+    HQ = np.array([[0.0, 0.0], [5.0, 10.0], [10.0, 0.0]])
+    curve = resample_HQ_curve(HQ, 5)
+    assert curve.shape == (5, 2)
+    assert np.allclose(curve[:, 0], [0, 2.5, 5, 7.5, 10])
+    assert np.allclose(curve[:, 1], [0, 5, 10, 5, 0])
+    with pytest.raises(ValueError):
+        resample_HQ_curve(HQ, 1)
 
-    # Verify outputs
-    assert isinstance(H_alt, np.ndarray)
-    assert len(H_alt) == len(test_Q)
+
+def test_compute_habitat_threshold():
+    HQ = np.array([[0.0, 0.0], [10.0, 10.0]])
+    assert compute_habitat_threshold(HQ, 4.2) == 5.0
+    assert compute_habitat_threshold(HQ, 11.0) == 0.0
+
+
+def test_compute_ucut_known_curve():
+    """UCUT durations/cumulative days on a hand-computed habitat series."""
+    # Under-threshold (H < 5) events of 3, 3, 1 and 2 days
+    H_series = np.array([1, 1, 1, 9, 1, 1, 1, 9, 1, 9, 1, 1, 9], dtype=float)
+    ucut = compute_ucut(H_series, 5.0)
+
+    assert np.array_equal(ucut.durations, [3, 2, 1])
+    # >=3 days: 6; >=2 days: 6 + 2; >=1 day: 6 + 2 + 1
+    assert np.allclose(ucut.cum_days, [6, 8, 9])
+    assert np.allclose(ucut.cum_freq, np.array([6, 8, 9]) / H_series.size)
+
+
+def test_compute_ucut_no_events():
+    ucut = compute_ucut(np.full(10, 9.0), 5.0)
+    assert ucut.durations.size == 0
+    assert ucut.cum_days.size == 0
+    assert ucut.cum_freq.size == 0
+
+
+def test_compute_ucut_nan_not_under_threshold():
+    ucut = compute_ucut(np.array([1.0, np.nan, 1.0]), 5.0)
+    assert np.array_equal(ucut.durations, [1])
+    assert np.allclose(ucut.cum_days, [2])
+    assert np.allclose(ucut.cum_freq, [2 / 3])
+
+
+def test_compute_habitat_series_discharge_equal_to_curve_maximum():
+    """A discharge equal to the last HQ point has a defined habitat value."""
+    HQ = np.array([[0.0, 0.0], [10.0, 10.0]])
+    H_series = compute_habitat_series(HQ, np.array([10.0, 12.0]))
+    assert H_series[0] == 10.0
+    assert np.isnan(H_series[1])
 
 
 def test_compute_IH_function():
     """Test the compute_IH function directly."""
     # Create some test data
-    UCUT_cum_ref = np.array([5, 10, 15, 20])
-    UCUT_cum_alt = np.array([8, 12, 18, 25])
+    ucut_ref = UCUTCurve(
+        durations=np.array([4, 3, 2, 1]),
+        cum_days=np.array([5, 10, 15, 20], dtype=float),
+        cum_freq=np.array([5, 10, 15, 20]) / 100,
+    )
+    ucut_alt = UCUTCurve(
+        durations=np.array([4, 3, 2, 1]),
+        cum_days=np.array([8, 12, 18, 25], dtype=float),
+        cum_freq=np.array([8, 12, 18, 25]) / 100,
+    )
     H_ref = np.random.uniform(0.5, 1.0, 100)
     H_alt = np.random.uniform(0.3, 0.8, 100)
-    UCUT_events_ref = np.array([4, 3, 2, 1])
 
-    ITH, ISH, IH, HSD = compute_IH(
-        UCUT_cum_ref, UCUT_cum_alt, H_ref, H_alt, UCUT_events_ref
-    )
+    ITH, ISH, IH, HSD = compute_IH(ucut_ref, ucut_alt, H_ref, H_alt)
 
     # Verify outputs are in reasonable ranges
     assert 0 <= ISH <= 1
@@ -277,7 +328,7 @@ def test_compute_habitat_indices_function():
     Qalt = Qnat * 0.6  # Simulated altered flow
 
     # Compute habitat indices
-    result = compute_habitat_indices(Qnat, Qalt, HQ, test_dates)
+    result = compute_habitat_indices(Qnat, Qalt, HQ)
 
     assert isinstance(result, HabitatIndicesResult)
 
@@ -373,7 +424,6 @@ def test_compute_IH_for_species_hq_resampling_options_forwarded():
         dmv_scenario.Qnat,
         dmv_scenario.Qrel,
         HQ,
-        dmv_scenario.dates,
         HQ_curve_resampling=True,
         n_resample=9,
     )
@@ -391,7 +441,7 @@ if __name__ == "__main__":
     test_hq_curves_addition()
     test_habitat_computation()
     test_habitat_index_values()
-    test_compute_h_ucut_function()
+    test_compute_ucut_known_curve()
     test_compute_IH_function()
     test_compute_habitat_indices_function()
     test_compute_IH_default_behavior()

@@ -40,7 +40,7 @@ def _compute_date_mask(
     return mask
 
 
-def compute_consecutive_lengths(array: np.ndarray) -> list:
+def compute_consecutive_lengths(array: np.ndarray) -> list[int]:
     """Compute lengths of consecutive True values in array.
 
     Parameters
@@ -50,7 +50,7 @@ def compute_consecutive_lengths(array: np.ndarray) -> list:
 
     Returns
     -------
-    list
+    list[int]
         List of consecutive True value lengths
     """
     lengths = []
