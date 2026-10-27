@@ -72,9 +72,13 @@ class Reach:
             )
         return self.natural_annual_sediment_budget
 
-    def _invalidate_natural_sediment_results(self) -> None:
+    def _invalidate_sediment_results(self) -> None:
         self.natural_sediment_load_df = None
         self.natural_annual_sediment_budget = None
+        for scenario in self.scenarios:
+            scenario.sediment_load_df = None
+            scenario.annual_sediment_budget = None
+            scenario.sediment_indices = None
 
     def __str__(self):
         return f"{self.name} is a Reach object with a flow time series with {len(self.Qnat)} elements. The date range starts from {min(self.dates)} and has {len(self.dates)} elements. The maximum flow abstraction is Qabs_max={self.Qabs_max} m3/s. So far, {len(self.scenarios)} scenarios have been added."
@@ -290,7 +294,7 @@ class Reach:
                 raise ValueError("y coordinates must be monotonically increasing")
 
         self.cross_section_coordinates = cross_section_coordinates
-        self._invalidate_natural_sediment_results()
+        self._invalidate_sediment_results()
         return self
 
     def add_grain_size_distribution(self, grain_data):
@@ -438,7 +442,7 @@ class Reach:
 
         self.grain_size_data = dfphi
         self.phi_percentages = phi_percentages
-        self._invalidate_natural_sediment_results()
+        self._invalidate_sediment_results()
         return self
 
     def compute_natural_sediment_budget(
