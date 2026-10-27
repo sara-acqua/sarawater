@@ -221,6 +221,8 @@ class Reach:
     ):
         """Add cross-section geometry, channel roughness and bed slope to the reach. Either coordinate pairs (composite cross section) or channel width (rectangular cross section) must be provided. When a width is provided, a two-point simple rectangular cross-section is created with a flat bed at elevation 0, corresponding to the coordinate pairs y [m] = [0, width] and z [m] = [0, 0]. When section coordinates are provided, they must be in the form of a CSV file or a DataFrame with columns 'y [m]' (transverse coordinate) and 'z [m]' (bed elevation).
 
+        Any previously computed sediment load and budget results for the reach and scenarios are deleted when this method is called.
+
         Parameters
         ----------
         slope : float
@@ -299,6 +301,8 @@ class Reach:
 
     def add_grain_size_distribution(self, grain_data):
         """Add grain size distribution data to the reach. The input can be a single D50 value, a DataFrame with columns 'i(di)' and 'di[mm]', a 2D array with those columns, or a path to a CSV file containing that data.
+
+        Any previously computed sediment load and budget results for the reach and scenarios are deleted when this method is called.
 
         Parameters
         ----------
