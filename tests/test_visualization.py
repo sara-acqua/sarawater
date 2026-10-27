@@ -2,6 +2,7 @@ import sys, os
 import numpy as np
 import datetime
 import matplotlib.pyplot as plt
+import pandas as pd
 import pytest
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
@@ -220,6 +221,26 @@ def test_sediment_load_plots_use_computed_scenario_data():
     np.testing.assert_allclose(
         (x_error_segment[1, 0] - x_error_segment[0, 0]) / 2,
         np.std(normalized_budget),
+    )
+
+
+def test_sediment_budget_vs_volume_ignores_invalid_volume_ratios():
+    local_reach, scenario = _make_local_reach()
+    scenario.annual_sediment_budget = pd.DataFrame(
+        {"phi_0.5": [1.0], "total": [1.0]}, index=[2025]
+    )
+    local_reach.natural_annual_sediment_budget = pd.DataFrame(
+        {"phi_0.5": [2.0], "total": [2.0]}, index=[2025]
+    )
+    scenario.yearly_abs_volumes = np.array([0.0, 1.0, 2.0, np.inf])
+    scenario.yearly_nat_volumes = np.array([0.0, 2.0, 10.0, 5.0])
+
+    ax = ReachPlotter(local_reach).plot_sediment_budget_vs_volume()
+
+    data_line = ax.containers[0].lines[0]
+    np.testing.assert_allclose(np.asarray(data_line.get_ydata(), dtype=float), [0.35])
+    np.testing.assert_allclose(
+        ax.containers[0].lines[2][1].get_segments()[0][:, 1], [0.2, 0.5]
     )
 
 
