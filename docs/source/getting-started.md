@@ -17,12 +17,12 @@ pip install sarawater
 ```
 
 ### Installing from Source (Development)
-To install the latest development version directly from GitHub:
+To install the latest development version directly from GitHub with the packages needed to support development and documentation:
 
 ```bash
 git clone https://github.com/sara-acqua/sarawater.git
-cd SARAwater
-pip install -e .
+cd sarawater
+pip install -e ".[dev,docs]"
 ```
 
 ### Verify Installation
