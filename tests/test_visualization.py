@@ -2,6 +2,7 @@ import sys, os
 import numpy as np
 import datetime
 import matplotlib.pyplot as plt
+import pandas as pd
 import pytest
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
@@ -169,6 +170,7 @@ def test_sediment_load_plots_use_computed_scenario_data():
     """Test sediment plots read the scenario sediment-load DataFrame."""
     test_visualization_reach.add_cross_section_geometry(0.002, 20, width=10.0)
     test_visualization_reach.add_grain_size_distribution(4.0)
+    test_visualization_reach.compute_natural_sediment_budget()
     for scenario in test_visualization_reach.scenarios:
         scenario.compute_sediment_load()
         scenario.compute_annual_sediment_budget()
@@ -178,7 +180,9 @@ def test_sediment_load_plots_use_computed_scenario_data():
     class_ax = plotter.plot_annual_sediment_budget_by_class()
     budget_ax = plotter.plot_sediment_budget_vs_volume()
 
-    assert len(total_ax.lines) == len(test_visualization_reach.scenarios)
+    assert (
+        len(total_ax.lines) == len(test_visualization_reach.scenarios) + 1
+    )  # natural transport capacity is included
     assert total_ax.get_ylabel() == "Total Sediment Load (m³/s)"
     scenario_axes = class_ax.figure.axes[:-1]
     colorbar_ax = class_ax.figure.axes[-1]
@@ -201,9 +205,9 @@ def test_sediment_load_plots_use_computed_scenario_data():
     scenario_budget = scenario._require_annual_sediment_budget()
     natural_budget = test_visualization_reach._require_natural_annual_sediment_budget()
     common_years = scenario_budget.index.intersection(natural_budget.index)
-    normalized_budget = scenario_budget.loc[common_years, "Qs_total"].to_numpy(
+    normalized_budget = scenario_budget.loc[common_years, "total"].to_numpy(
         dtype=float
-    ) / natural_budget.loc[common_years, "Qs_total"].to_numpy(dtype=float)
+    ) / natural_budget.loc[common_years, "total"].to_numpy(dtype=float)
     errorbar = budget_ax.containers[0]
     data_line, _, errorbar_lines = errorbar.lines
     np.testing.assert_allclose(
@@ -218,6 +222,76 @@ def test_sediment_load_plots_use_computed_scenario_data():
         (x_error_segment[1, 0] - x_error_segment[0, 0]) / 2,
         np.std(normalized_budget),
     )
+
+
+def test_sediment_budget_vs_volume_ignores_invalid_volume_ratios():
+    local_reach, scenario = _make_local_reach()
+    scenario.annual_sediment_budget = pd.DataFrame(
+        {"phi_0.5": [1.0], "total": [1.0]}, index=[2025]
+    )
+    local_reach.natural_annual_sediment_budget = pd.DataFrame(
+        {"phi_0.5": [2.0], "total": [2.0]}, index=[2025]
+    )
+    scenario.yearly_abs_volumes = np.array([0.0, 1.0, 2.0, np.inf])
+    scenario.yearly_nat_volumes = np.array([0.0, 2.0, 10.0, 5.0])
+
+    ax = ReachPlotter(local_reach).plot_sediment_budget_vs_volume()
+
+    data_line = ax.containers[0].lines[0]
+    np.testing.assert_allclose(np.asarray(data_line.get_ydata(), dtype=float), [0.35])
+    np.testing.assert_allclose(
+        ax.containers[0].lines[2][1].get_segments()[0][:, 1], [0.2, 0.5]
+    )
+
+
+def test_sediment_indices_plots():
+    plt.close("all")
+    sed_dates = [
+        datetime.datetime(2020, 1, 1) + datetime.timedelta(days=i)
+        for i in range(2 * 365)
+    ]
+    Qnat_sed = np.random.default_rng(1).lognormal(2.0, 0.8, len(sed_dates))
+    reach = rch.Reach("Sed Reach", sed_dates, Qnat_sed, 50.0)
+    reach.add_cross_section_geometry(0.002, 20, width=10.0)
+    reach.add_grain_size_distribution(4.0)
+    scenario = sc.ConstScenario("Const", "Const flow", reach, [10] * 12)
+    reach.add_scenario(scenario)
+    scenario.compute_Qrel()
+
+    plotter = ReachPlotter(reach, output_dir="outputs")
+    with pytest.raises(ValueError, match="compute_sediment_indices"):
+        plotter.plot_act_curves()
+    with pytest.raises(ValueError, match="compute_sediment_indices"):
+        plotter.plot_sediment_regime_index_vs_volume()
+    scenario.compute_sediment_indices()
+    act_ax = plotter.plot_act_curves()
+    assert len(act_ax.lines) == 2
+    assert act_ax.get_ylim()[1] == np.max(scenario.sediment_indices.ACT_alt.events)
+    bar_ax = plotter.plot_sediment_indices_summary()
+    assert len(bar_ax.patches) == 3
+    assert [label.get_text() for label in bar_ax.get_xticklabels()] == [
+        "ITS",
+        "ISV",
+        "ISR",
+    ]
+    tradeoff_ax = plotter.plot_sediment_regime_index_vs_volume()
+    assert len(tradeoff_ax.containers) == 1
+    assert tradeoff_ax.get_xlabel() == "Sediment Regime Index (ISR) [-]"
+    assert (
+        tradeoff_ax.get_ylabel()
+        == r"Normalized abstracted volume $V_{der}/V_{nat}$ [-]"
+    )
+    data_line = tradeoff_ax.containers[0].lines[0]
+    np.testing.assert_allclose(
+        np.asarray(data_line.get_xdata(), dtype=float),
+        [scenario.sediment_indices.ISR],
+    )
+    normalized_abstraction = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
+    np.testing.assert_allclose(
+        np.asarray(data_line.get_ydata(), dtype=float),
+        [np.median(normalized_abstraction)],
+    )
+    plt.close("all")
 
 
 if __name__ == "__main__":

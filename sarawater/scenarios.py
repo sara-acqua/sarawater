@@ -13,8 +13,12 @@ from sarawater.IHA import IHAIndexResult, IHAResult, compute_IHA_index, compute_
 from sarawater.utils import _compute_date_mask
 from sarawater.habitat import HabitatIndicesResult, compute_habitat_indices
 from sarawater.sediment_load import (
+    DEFAULT_MPM_THETA_C,
+    DEFAULT_TRANSPORT_FORMULA,
+    SedimentIndicesResult,
     compute_sediment_load,
     compute_annual_sediment_volume,
+    compute_sediment_indices,
 )
 
 if TYPE_CHECKING:
@@ -53,6 +57,7 @@ class Scenario:
         self.normalized_IHA: IHAIndexResult | None = None
         self.sediment_load_df: pd.DataFrame | None = None
         self.annual_sediment_budget: pd.DataFrame | None = None
+        self.sediment_indices: SedimentIndicesResult | None = None
 
     def __repr__(self):
         return f"Scenario(name={self.name}, description={self.description}, reach={self.reach.name})"
@@ -122,6 +127,15 @@ class Scenario:
         if isinstance(annual_budget, dict):
             return pd.DataFrame.from_dict(annual_budget, orient="index")
         return annual_budget
+
+    def _require_sediment_indices(self) -> SedimentIndicesResult:
+        """Return the sediment regime indices, ensuring they have been computed."""
+        sediment_indices = self.sediment_indices
+        if sediment_indices is None:
+            raise ValueError(
+                f"Scenario '{self.name}' has no sediment indices. Run scenario.compute_sediment_indices() first."
+            )
+        return sediment_indices
 
     def compute_Qrel(self) -> ndarray:
         """Compute the released flow rate time series for the scenario.
@@ -422,13 +436,19 @@ class Scenario:
 
         return self.IH
 
-    def compute_sediment_load(self, to_csv=None, **kwargs):
+    def compute_sediment_load(
+        self,
+        to_csv=None,
+        transport_formula=DEFAULT_TRANSPORT_FORMULA,
+        mpm_theta_c=DEFAULT_MPM_THETA_C,
+        **kwargs,
+    ):
         """
         Compute the sediment load time series using the scenario's released flow discharge time series
         and the cross-section geometry stored in the Reach associated with the scenario.
-        This method uses the lower-level compute_sediment_load function.
+        This method uses the lower-level compute_sediment_load function, and always overwrites any existing sediment load time series in the scenario.
 
-        The computed sediment load time series is stored as a DataFrame in self.sediment_load_df.
+        The computed sediment load time series is stored as a DataFrame in scenario.sediment_load_df.
 
         Parameters
         ----------
@@ -436,6 +456,12 @@ class Scenario:
             If a path-like string or file-like object is provided, the computed results will be
             written to CSV at that location or using that file handle. If None or False, no CSV
             file is written. The exact accepted values are forwarded to compute_sediment_load.
+        transport_formula : {"mpm", "wilcock_crowe"}, optional
+            Sediment transport formula. Defaults to "mpm" (Meyer-Peter & Müller, 1948);
+            use "wilcock_crowe" for Wilcock & Crowe (2003).
+        mpm_theta_c : float, optional
+            Critical dimensionless Shields parameter for MPM. Defaults to 0.047 and is
+            only used when ``transport_formula="mpm"``.
         kwargs : dict, optional
             Additional keyword arguments to pass to compute_sediment_load (see compute_sediment_load documentation).
 
@@ -462,7 +488,7 @@ class Scenario:
                 "Reach is missing grain size information. Run Reach.add_grain_size_distribution() first."
             )
 
-        self.sediment_load_df = compute_sediment_load(
+        sediment_load_df = compute_sediment_load(
             Qrel,
             self.dates,
             self.reach.cross_section_coordinates["y [m]"].values,
@@ -470,9 +496,14 @@ class Scenario:
             self.reach.slope,
             self.reach.ks,
             self.reach.phi_percentages.values,
+            transport_formula=transport_formula,
+            mpm_theta_c=mpm_theta_c,
             to_csv=to_csv,
             **kwargs,
         )
+        self.sediment_load_df = sediment_load_df
+        self.annual_sediment_budget = None
+        self.sediment_indices = None
         return self.sediment_load_df
 
     def plot_scenario_sediment_transport(
@@ -526,17 +557,33 @@ class Scenario:
 
         return plt.gca()
 
-    def compute_annual_sediment_budget(self, to_csv=None) -> pd.DataFrame:
+    def compute_annual_sediment_budget(
+        self,
+        to_csv=None,
+        transport_formula: str | None = None,
+        mpm_theta_c: float | None = None,
+    ) -> pd.DataFrame:
         """
         Compute annual sediment volume (m³/year) from the scenario's sediment load.
 
-        If sediment load has not been computed yet, this method will compute it first by calling
-        compute_sediment_load(). The annual budget is then stored as the annual_sediment_budget attribute of the scenario.
+        If sediment load has not been computed yet, this method computes it using
+        Meyer-Peter & Müller (MPM) by default. If a formula-specific argument is
+        provided, the load time series is recomputed with the requested options
+        before calculating the budget. Otherwise an existing time series is reused.
+        The budget is stored as ``annual_sediment_budget``.
 
         Parameters
         ----------
         to_csv : str, optional
             File path to save the annual sediment budget table.
+        transport_formula : {"mpm", "wilcock_crowe"}, optional
+            Formula to use when computing the sediment load. Defaults to ``None``:
+            reuse an existing load series, or use "mpm" if none exists. Providing
+            this argument recomputes an existing load series.
+        mpm_theta_c : float, optional
+            Critical dimensionless Shields parameter for MPM. Defaults to ``None``.
+            Providing this argument recomputes the load series; when MPM is used,
+            an omitted value defaults to 0.047.
 
         Returns
         -------
@@ -545,14 +592,106 @@ class Scenario:
             Also stored in self.annual_sediment_budget.
         """
         # Ensure sediment load time series has been computed
-        if self.sediment_load_df is None:
-            self.compute_sediment_load(to_csv=None)
+        formula_options_provided = (
+            transport_formula is not None or mpm_theta_c is not None
+        )
+        if self.sediment_load_df is None or formula_options_provided:
+            load_options = {}
+            if formula_options_provided:
+                load_options["transport_formula"] = (
+                    transport_formula
+                    if transport_formula is not None
+                    else DEFAULT_TRANSPORT_FORMULA
+                )
+                load_options["mpm_theta_c"] = (
+                    mpm_theta_c if mpm_theta_c is not None else DEFAULT_MPM_THETA_C
+                )
+            self.compute_sediment_load(to_csv=None, **load_options)
         sediment_load_df = self._require_sediment_load_df()
 
         # Compute annual volumes (save to CSV here if requested)
         annual_budget = compute_annual_sediment_volume(sediment_load_df, to_csv=to_csv)
         self.annual_sediment_budget = annual_budget
         return annual_budget
+
+    def compute_sediment_indices(
+        self,
+        threshold_percentile: float = 3.0,
+        weights: tuple[float, float] | None = None,
+        transport_formula: str | None = None,
+        mpm_theta_c: float | None = None,
+    ) -> SedimentIndicesResult:
+        """
+        Compute the indices quantifying the alteration of the sediment transport regime.
+
+        The scenario is compared with the natural flow of the reach through two
+        sub-indices (sediment transport temporal alteration ITS and sediment
+        volume ISV) and their weighted combination, the Sediment Regime Index
+        (ISR). See :func:`sarawater.sediment_load.compute_sediment_indices` for details.
+
+        If both sediment load series already exist and no formula options are
+        provided, they are reused. If either is missing, both series are computed
+        using deafult settings (declared in ``sarawater.sediment_load.py``). Providing a formula option recomputes both series
+        with the same settings, ensuring that the natural and scenario results are
+        comparable. The result is stored in ``scenario.sediment_indices``.
+
+        Parameters
+        ----------
+        threshold_percentile : float, optional
+            Percentile in [0, 100) of the natural transport capacity used as threshold
+            for the sediment transport temporal alteration sub-index ITS. Default is 3.
+        weights : tuple[float, float], optional
+            Weights of (ITS, ISV) in ISR. Must be non-negative and sum to 1.
+            If None (default), equal weights are used.
+        transport_formula : {"mpm", "wilcock_crowe"}, optional
+            Formula to use for both sediment load series. Defaults to ``None``:
+            reuse both existing series, or use "mpm" if either series is missing.
+            Providing this argument recomputes both series.
+        mpm_theta_c : float, optional
+            Critical dimensionless Shields parameter for MPM. Defaults to ``None``.
+            Providing this argument recomputes both series; when MPM is used, an
+            omitted value defaults to 0.047.
+
+        Returns
+        -------
+        SedimentIndicesResult
+            Sub-indices, combined index and thresholds adopted.
+        """
+        formula_options_provided = (
+            transport_formula is not None or mpm_theta_c is not None
+        )
+        recompute_both = (
+            formula_options_provided
+            or self.sediment_load_df is None
+            or self.reach.natural_sediment_load_df is None
+        )
+        if recompute_both:
+            formula = (
+                transport_formula
+                if transport_formula is not None
+                else DEFAULT_TRANSPORT_FORMULA
+            )
+            theta_c = mpm_theta_c if mpm_theta_c is not None else DEFAULT_MPM_THETA_C
+            self.compute_sediment_load(
+                transport_formula=formula,
+                mpm_theta_c=theta_c,
+            )
+            self.reach.compute_natural_sediment_budget(
+                transport_formula=formula,
+                mpm_theta_c=theta_c,
+            )
+        scenario_load = self._require_sediment_load_df()
+        natural_load = self.reach.natural_sediment_load_df
+        if natural_load is None:
+            raise ValueError("Natural sediment load could not be computed.")
+
+        self.sediment_indices = compute_sediment_indices(
+            natural_load["Qs_total"].to_numpy(dtype=float),
+            scenario_load["Qs_total"].to_numpy(dtype=float),
+            threshold_percentile=threshold_percentile,
+            weights=weights,
+        )
+        return self.sediment_indices
 
 
 class ConstScenario(Scenario):

@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 import numpy as np
 import pandas as pd
 
-from sarawater.utils import compute_consecutive_lengths
+from sarawater.utils import _validate_weights, compute_consecutive_lengths
 
 IHAResult = dict[
     str, dict[str, np.ndarray]
@@ -313,13 +313,7 @@ def compute_IHA_index(
     years = np.unique([d.year for d in dates])
     n_years = len(years)
 
-    # Set default weights if none provided
-    if weights is None:
-        weights = [0.2] * 5
-    elif len(weights) != 5:
-        raise ValueError("weights must be a list of 5 values")
-    elif abs(sum(weights) - 1.0) > 1e-10:  # Allow for floating point precision
-        raise ValueError("weights must sum to 1")
+    weights = _validate_weights(weights, 5)
 
     # Define weights for each group
     group_weights = {group_name: w for group_name, w in zip(IHA_nat.keys(), weights)}

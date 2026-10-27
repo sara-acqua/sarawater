@@ -45,6 +45,10 @@ class ReachPlotter:
         os.makedirs(output_dir, exist_ok=True)
 
         if scenario_colors is not None:
+            if len(scenario_colors) < len(self.reach.scenarios):
+                raise ValueError(
+                    "Not enough colors provided for the number of scenarios"
+                )
             self.scenario_colors = list(scenario_colors)[: len(self.reach.scenarios)]
         else:
             self.scenario_colors = [
@@ -67,11 +71,11 @@ class ReachPlotter:
 
     def plot_scenarios_discharge(
         self,
-        start_date: Optional[Union[str, datetime]] = None,
-        end_date: Optional[Union[str, datetime]] = None,
+        start_date: str | datetime | None = None,
+        end_date: str | datetime | None = None,
         log_scale: bool = True,
-        save: bool = False,
         plot_Qnat: bool = True,
+        save: bool = False,
     ) -> Axes:
         """
         Plot discharge comparison between scenarios.
@@ -84,10 +88,10 @@ class ReachPlotter:
             End date for the plot range
         log_scale : bool, default=True
             Whether to use log scale for y-axis
+        plot_Qnat : bool, default=True
+            Whether to plot the natural flow discharge time series (Qnat)
         save : bool, default=False
             Whether to save the plot to file
-        plot_Qnat : bool, default=True
-            Whether to plot the natural flow (Qnat)
         """
         mask = _compute_date_mask(self.reach.dates, start_date, end_date)
 
@@ -989,10 +993,8 @@ class ReachPlotter:
                     f"Scenario '{scenario.name}' has no annual sediment budget years in common with the natural budget."
                 )
 
-            natural_values = natural_budget.loc[years, "Qs_total"].to_numpy(dtype=float)
-            scenario_values = scenario_budget.loc[years, "Qs_total"].to_numpy(
-                dtype=float
-            )
+            natural_values = natural_budget.loc[years, "total"].to_numpy(dtype=float)
+            scenario_values = scenario_budget.loc[years, "total"].to_numpy(dtype=float)
             valid = (
                 np.isfinite(natural_values)
                 & np.isfinite(scenario_values)
@@ -1012,7 +1014,22 @@ class ReachPlotter:
                 or getattr(scenario, "yearly_nat_volumes", None) is None
             ):
                 scenario.compute_natural_abstracted_volumes()
-            volume_values = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
+            yearly_nat_volumes = np.asarray(scenario.yearly_nat_volumes, dtype=float)
+            yearly_abs_volumes = np.asarray(scenario.yearly_abs_volumes, dtype=float)
+            valid_volume_years = (
+                np.isfinite(yearly_nat_volumes)
+                & np.isfinite(yearly_abs_volumes)
+                & (yearly_nat_volumes > 0)
+            )
+            if not np.any(valid_volume_years):
+                raise ValueError(
+                    f"Scenario '{scenario.name}' has no years with a positive "
+                    "natural abstracted-volume denominator."
+                )
+            volume_values = (
+                yearly_abs_volumes[valid_volume_years]
+                / yearly_nat_volumes[valid_volume_years]
+            )
 
             plt.errorbar(
                 sediment_mean,
@@ -1036,6 +1053,186 @@ class ReachPlotter:
         if save:
             plt.savefig(
                 os.path.join(self.output_dir, "sediment_budget_vs_volume.png"),
+                bbox_inches="tight",
+            )
+        return plt.gca()
+
+    def plot_sediment_regime_index_vs_volume(self, save: bool = False) -> Axes:
+        """Plot the sediment regime index against normalized abstracted volume.
+
+        Each scenario is shown at its ISR value and median yearly abstracted-to-
+        natural volume ratio. The vertical error bar shows the standard deviation
+        of that ratio across years. Sediment indices must be computed before
+        plotting; abstracted volumes are computed if they are not already present.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+
+        Returns
+        -------
+        Axes
+            The plot axes.
+
+        Raises
+        ------
+        ValueError
+            If the reach has no scenarios, any scenario lacks computed sediment
+            indices, or a scenario has no finite yearly abstracted-volume ratios.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+
+        indices = [
+            scenario._require_sediment_indices() for scenario in self.reach.scenarios
+        ]
+
+        plt.figure()
+        for i, (scenario, sediment_indices) in enumerate(
+            zip(self.reach.scenarios, indices)
+        ):
+            if (
+                getattr(scenario, "yearly_abs_volumes", None) is None
+                or getattr(scenario, "yearly_nat_volumes", None) is None
+            ):
+                scenario.compute_natural_abstracted_volumes()
+
+            yearly_nat_volumes = np.asarray(scenario.yearly_nat_volumes, dtype=float)
+            yearly_abs_volumes = np.asarray(scenario.yearly_abs_volumes, dtype=float)
+            valid = (
+                np.isfinite(yearly_nat_volumes)
+                & np.isfinite(yearly_abs_volumes)
+                & (yearly_nat_volumes > 0)
+            )
+            if not np.any(valid):
+                raise ValueError(
+                    f"Scenario '{scenario.name}' has no years with a positive "
+                    "natural abstracted-volume denominator."
+                )
+
+            normalized_abstracted_volume = (
+                yearly_abs_volumes[valid] / yearly_nat_volumes[valid]
+            )
+            plt.errorbar(
+                sediment_indices.ISR,
+                np.median(normalized_abstracted_volume),
+                yerr=np.std(normalized_abstracted_volume),
+                fmt="^",
+                color=self.scenario_colors[i],
+                label=scenario.name,
+                capsize=5,
+                elinewidth=1,
+                markersize=10,
+            )
+
+        plt.axvline(1.0, color="gray", linestyle="--", linewidth=1)
+        plt.xlim(0, 1)
+        plt.xlabel("Sediment Regime Index (ISR) [-]")
+        plt.ylabel(r"Normalized abstracted volume $V_{der}/V_{nat}$ [-]")
+        plt.grid(True)
+        plt.legend()
+        plt.title(f"{self.reach.name} - ISR vs Abstracted Volume")
+
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "sediment_regime_index_vs_volume.png"),
+                bbox_inches="tight",
+            )
+        return plt.gca()
+
+    def plot_act_curves(self, save: bool = False) -> Axes:
+        """
+        Plot the above-threshold continuous transport (ACT) curves for all scenarios.
+
+        The curves are the sediment counterpart of the UCUT curves: they show the
+        cumulative duration of the events where the transport capacity exceeds the
+        threshold derived from the natural regime. Requires
+        ``scenario.compute_sediment_indices()`` for every scenario.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+        indices = [s._require_sediment_indices() for s in self.reach.scenarios]
+
+        plt.figure()
+        for i, (scenario, res) in enumerate(zip(self.reach.scenarios, indices)):
+            plt.plot(
+                res.ACT_alt.cum_norm * 100,
+                res.ACT_alt.events,
+                label=scenario.name,
+                color=self.scenario_colors[i],
+            )
+        max_scenario_events = max(
+            (
+                int(np.max(res.ACT_alt.events))
+                for res in indices
+                if res.ACT_alt.events.size > 0
+            ),
+            default=0,
+        )
+        plt.plot(
+            indices[0].ACT_ref.cum_norm * 100,
+            indices[0].ACT_ref.events,
+            label="Reference Q",
+            color="tab:blue",
+        )
+        if max_scenario_events > 0:
+            plt.ylim(top=max_scenario_events)
+
+        plt.xlabel("Cumulative continuous duration [%]")
+        plt.ylabel("Continuous time steps above threshold")
+        plt.title(f"{self.reach.name} - Above-threshold transport (ACT) curves")
+        plt.grid(True)
+        plt.legend()
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "act_curves.png"), bbox_inches="tight"
+            )
+        return plt.gca()
+
+    def plot_sediment_indices_summary(self, save: bool = False) -> Axes:
+        """
+        Plot a grouped bar chart of the sediment regime indices (ITS, ISV, ISR).
+
+        Requires ``scenario.compute_sediment_indices()`` for every scenario.
+
+        Parameters
+        ----------
+        save : bool, default=False
+            Whether to save the plot to file.
+        """
+        if not self.reach.scenarios:
+            raise ValueError("The reach has no scenarios to plot.")
+        scenarios = self.reach.scenarios
+        results = [s._require_sediment_indices() for s in scenarios]
+        labels = ["ITS", "ISV", "ISR"]
+
+        plt.figure()
+        x = np.arange(len(labels))
+        width = 0.8 / len(scenarios)
+        for i, (scenario, res) in enumerate(zip(scenarios, results)):
+            values = [res.ITS, res.ISV, res.ISR]
+            plt.bar(
+                x + (i - (len(scenarios) - 1) / 2) * width,
+                values,
+                width,
+                label=scenario.name,
+                color=self.scenario_colors[i],
+            )
+        plt.xticks(x, labels)
+        plt.ylim(0, 1.05)
+        plt.ylabel("Index [-]")
+        plt.title(f"{self.reach.name} - Sediment regime indices")
+        plt.grid(True, axis="y")
+        plt.legend()
+        if save:
+            plt.savefig(
+                os.path.join(self.output_dir, "sediment_indices_summary.png"),
                 bbox_inches="tight",
             )
         return plt.gca()
@@ -1097,9 +1294,10 @@ class ReachPlotter:
 
     def plot_sediment_load_total(
         self,
-        start_date: Optional[Union[str, datetime]] = None,
-        end_date: Optional[Union[str, datetime]] = None,
+        start_date: str | datetime | None = None,
+        end_date: str | datetime | None = None,
         log_scale: bool = True,
+        plot_Qsnat: bool = True,
         save: bool = False,
     ) -> Axes:
         """
@@ -1113,6 +1311,8 @@ class ReachPlotter:
             End date for the plot
         log_scale : bool, default=True
             Use log scale for y-axis
+        plot_Qsnat : bool, default=True
+            Whether to plot the transport capacity time series of the natural flow time series
         save : bool, default=False
             Whether to save the plot
         """
@@ -1131,6 +1331,15 @@ class ReachPlotter:
                 Qs_total[mask],
                 label=scenario.name,
                 color=self.scenario_colors[i],
+            )
+
+        if plot_Qsnat:
+            Qsnat = self.reach._require_natural_sediment_load()
+            plt.plot(
+                np.array(self.reach.dates)[mask],
+                Qsnat["Qs_total"].to_numpy(dtype=float)[mask],
+                color="tab:blue",
+                label="Natural",
             )
 
         if log_scale:
@@ -1185,13 +1394,13 @@ class ReachPlotter:
             raise ValueError("The reach has no scenarios to plot.")
 
         phi_cols = [
-            column for column in budgets[0][1].columns if column.startswith("Qs_phi_")
+            column for column in budgets[0][1].columns if column.startswith("phi_")
         ]
         if not phi_cols:
             raise ValueError("Annual budgets contain no per-class data.")
 
         diameters_mm = np.array(
-            [2 ** (-float(column[len("Qs_phi_") :])) for column in phi_cols]
+            [2 ** (-float(column[len("phi_") :])) for column in phi_cols]
         )
         size_order = np.argsort(diameters_mm)
         phi_cols = [phi_cols[index] for index in size_order]

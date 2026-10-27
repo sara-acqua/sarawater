@@ -11,6 +11,8 @@ from typing import Any
 from sarawater.scenarios import Scenario, ConstScenario, PropScenario
 from sarawater.IHA import compute_IHA
 from sarawater.sediment_load import (
+    DEFAULT_MPM_THETA_C,
+    DEFAULT_TRANSPORT_FORMULA,
     compute_annual_sediment_volume,
     compute_sediment_load,
 )
@@ -51,22 +53,32 @@ class Reach:
         self.scenarios: list[Scenario] = []
         self.IHA_nat = compute_IHA(Qnat, Qnat, dates)
         self.natural_sediment_load_df: DataFrame | None = None
-        self.natural_annual_sediment_budget: DataFrame | dict | None = None
+        self.natural_annual_sediment_budget: DataFrame | None = None
+
+    def _require_natural_sediment_load(self) -> DataFrame:
+        """Return the natural sediment load time series, ensuring it was computed."""
+        if self.natural_sediment_load_df is None:
+            raise ValueError(
+                "Reach has no natural sediment load time series. Run Reach.compute_natural_sediment_budget() first."
+            )
+        return self.natural_sediment_load_df
 
     def _require_natural_annual_sediment_budget(self) -> DataFrame:
         """Return the natural annual sediment budget, ensuring it was computed."""
-        budget = self.natural_annual_sediment_budget
-        if budget is None:
+
+        if self.natural_annual_sediment_budget is None:
             raise ValueError(
                 "Reach has no natural sediment budget. Run Reach.compute_natural_sediment_budget() first."
             )
-        if isinstance(budget, dict):
-            return pd.DataFrame.from_dict(budget, orient="index")
-        return budget
+        return self.natural_annual_sediment_budget
 
-    def _invalidate_natural_sediment_results(self) -> None:
+    def _invalidate_sediment_results(self) -> None:
         self.natural_sediment_load_df = None
         self.natural_annual_sediment_budget = None
+        for scenario in self.scenarios:
+            scenario.sediment_load_df = None
+            scenario.annual_sediment_budget = None
+            scenario.sediment_indices = None
 
     def __str__(self):
         return f"{self.name} is a Reach object with a flow time series with {len(self.Qnat)} elements. The date range starts from {min(self.dates)} and has {len(self.dates)} elements. The maximum flow abstraction is Qabs_max={self.Qabs_max} m3/s. So far, {len(self.scenarios)} scenarios have been added."
@@ -209,6 +221,8 @@ class Reach:
     ):
         """Add cross-section geometry, channel roughness and bed slope to the reach. Either coordinate pairs (composite cross section) or channel width (rectangular cross section) must be provided. When a width is provided, a two-point simple rectangular cross-section is created with a flat bed at elevation 0, corresponding to the coordinate pairs y [m] = [0, width] and z [m] = [0, 0]. When section coordinates are provided, they must be in the form of a CSV file or a DataFrame with columns 'y [m]' (transverse coordinate) and 'z [m]' (bed elevation).
 
+        Any previously computed sediment load and budget results for the reach and scenarios are deleted when this method is called.
+
         Parameters
         ----------
         slope : float
@@ -282,11 +296,13 @@ class Reach:
                 raise ValueError("y coordinates must be monotonically increasing")
 
         self.cross_section_coordinates = cross_section_coordinates
-        self._invalidate_natural_sediment_results()
+        self._invalidate_sediment_results()
         return self
 
     def add_grain_size_distribution(self, grain_data):
         """Add grain size distribution data to the reach. The input can be a single D50 value, a DataFrame with columns 'i(di)' and 'di[mm]', a 2D array with those columns, or a path to a CSV file containing that data.
+
+        Any previously computed sediment load and budget results for the reach and scenarios are deleted when this method is called.
 
         Parameters
         ----------
@@ -294,7 +310,7 @@ class Reach:
             Grain size distribution data. Can be one of the following:
             - A single float representing D50 in millimeters. This will be converted to a uniform grain size distribution with 100% in the corresponding phi class.
             - A pandas DataFrame with columns 'i(di)' (cumulative percentage) and 'di[mm]' (diameter in millimeters).
-            - A 2D array with columns 'i(di)' and 'di[mm]'.
+            - A 2D array with columns corresponding to the cumulative percentage and corresponding diameter.
             - A path to a CSV file containing columns 'i(di)' and 'di[mm]'.
 
         Returns
@@ -430,20 +446,32 @@ class Reach:
 
         self.grain_size_data = dfphi
         self.phi_percentages = phi_percentages
-        self._invalidate_natural_sediment_results()
+        self._invalidate_sediment_results()
         return self
 
-    def compute_natural_sediment_budget(self, to_csv=None, **kwargs):
+    def compute_natural_sediment_budget(
+        self,
+        to_csv=None,
+        transport_formula=DEFAULT_TRANSPORT_FORMULA,
+        mpm_theta_c=DEFAULT_MPM_THETA_C,
+        **kwargs,
+    ):
         """Compute the natural sediment load time series and annual budget.
 
         The time series is computed from ``Qnat`` using the cross-section
-        geometry and grain-size distribution attached to this reach. The annual
-        budget is stored in ``natural_annual_sediment_budget``.
+        geometry and grain-size distribution attached to this reach. The transport capacity time series is stored in ``natural_sediment_load_df``, and the
+        annual budget is stored in ``natural_annual_sediment_budget``.
 
         Parameters
         ----------
         to_csv : str, optional
             File path to save the annual sediment budget table.
+        transport_formula : {"mpm", "wilcock_crowe"}, optional
+            Sediment transport formula. Defaults to "mpm" (Meyer-Peter & Müller,
+            1948); use "wilcock_crowe" for Wilcock & Crowe (2003).
+        mpm_theta_c : float, optional
+            Critical dimensionless Shields parameter for MPM. Defaults to 0.047
+            and is only used when ``transport_formula="mpm"``.
         kwargs : dict, optional
             Additional keyword arguments forwarded to
             :func:`sarawater.sediment_load.compute_sediment_load`.
@@ -467,7 +495,7 @@ class Reach:
                 "Reach is missing grain size information. Run Reach.add_grain_size_distribution() first."
             )
 
-        self.natural_sediment_load_df = compute_sediment_load(
+        natural_sediment_load_df = compute_sediment_load(
             self.Qnat,
             self.dates,
             self.cross_section_coordinates["y [m]"].values,
@@ -475,13 +503,20 @@ class Reach:
             self.slope,
             self.ks,
             self.phi_percentages.values,
+            transport_formula=transport_formula,
+            mpm_theta_c=mpm_theta_c,
             **kwargs,
         )
         annual_budget = compute_annual_sediment_volume(
-            self.natural_sediment_load_df,
+            natural_sediment_load_df,
             to_csv=to_csv,
         )
+        self.natural_sediment_load_df = natural_sediment_load_df
         self.natural_annual_sediment_budget = annual_budget
+
+        # Reset sediment indices for all scenarios since the natural budget has changed
+        for scenario in self.scenarios:
+            scenario.sediment_indices = None
         return annual_budget
 
     def export_scenarios_summary(
@@ -628,22 +663,17 @@ class Reach:
             # Add annual sediment budget if available
             budget = getattr(scenario, "annual_sediment_budget", None)
             if budget is not None:
-                # If it's a DataFrame, compute mean values
-                if isinstance(budget, pd.DataFrame):
-                    # Add mean total sediment budget
-                    if "Qs_total" in budget.columns:
-                        row["annual_sediment_budget_total_mean"] = budget[
-                            "Qs_total"
-                        ].mean()
+                # Add mean total sediment budget
+                if "total" in budget.columns:
+                    row["annual_sediment_budget_total_mean"] = budget["total"].mean()
 
-                # If it's a dict, compute mean from yearly values
-                elif isinstance(budget, dict):
-                    # Structure is {year: {phi_class: value, ...}}
-                    all_years = list(budget.keys())
-                    first_year_data = budget[all_years[0]]
-                    if "Qs_total" in first_year_data:
-                        total_values = [budget[year]["Qs_total"] for year in all_years]
-                        row["annual_sediment_budget_total_mean"] = np.mean(total_values)
+            # Add sediment regime indices if available
+            sed_idx = getattr(scenario, "sediment_indices", None)
+            if sed_idx is not None:
+                row["ITS"] = sed_idx.ITS
+                row["ISV"] = sed_idx.ISV
+                row["ISR"] = sed_idx.ISR
+                row["TPD"] = sed_idx.TPD
 
             data_rows.append(row)
 
