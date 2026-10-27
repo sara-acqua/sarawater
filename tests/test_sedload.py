@@ -356,15 +356,11 @@ def test_indices_altered_scenario_in_unit_range_and_weighted_sum():
     Q_alt = np.maximum(Q - 3.0, 0.0)
     Qs_alt = np.maximum(Q_alt - 4.0, 0.0) ** 1.5
     weights = (0.7, 0.3)
-    res = compute_sediment_indices(
-        Qs, Qs_alt, threshold_percentile=10, weights=weights
-    )
+    res = compute_sediment_indices(Qs, Qs_alt, threshold_percentile=10, weights=weights)
     for value in (res.ITS, res.ISV, res.ISR):
         assert 0.0 <= value <= 1.0
     assert res.ISV < 1.0
-    assert res.ISR == pytest.approx(
-        weights[0] * res.ITS + weights[1] * res.ISV
-    )
+    assert res.ISR == pytest.approx(weights[0] * res.ITS + weights[1] * res.ISV)
     assert res.Qs_threshold_ref == pytest.approx(np.percentile(Qs[Qs > 0], 10))
 
 
