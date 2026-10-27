@@ -1,4 +1,4 @@
-# SARAwater — Agent Instructions
+﻿# SARAwater — Agent Instructions
 
 **SARAwater** (Scenario-based Alteration of Rivers subject to water Abstraction) is a Python package for analysing hydrological, habitat, and sediment transport alterations in river reaches under different water abstraction scenarios.
 
@@ -30,7 +30,7 @@ The typical workflow is:
 | `IHA.py` | `compute_IHA()`, `compute_IHA_index()` — hydrologic alteration indicators |
 | `habitat.py` | `compute_habitat_indices()` — habitat-discharge curve analysis (UCUT method) |
 | `hydraulics.py` | `steady_flow_solver()` — cross-section hydraulics (Manning/Strickler) |
-| `sediment_load.py` | `compute_sediment_load()` — bedload transport per grain-size class |
+| `sediment_load.py` | `compute_sediment_load()` — bedload transport per grain-size class; `compute_sediment_indices()` — ITS, ISV and combined ISR sediment regime indices |
 | `visualization.py` | `ReachPlotter` — multi-scenario comparison plots |
 | `utils.py` | Shared validators (e.g. `_validate_positive_numeric`) |
 
@@ -55,7 +55,7 @@ The typical workflow is:
 - **No `verbose` parameter** — do not add verbosity controls.
 - **Plotting type annotations** — plotting functions should return a Matplotlib axis and be annotated consistently: import `Axes` via `from matplotlib.axes import Axes`, annotate plotting methods as `-> Axes`, and ensure methods annotated as `Axes` always return an axis (do not mix `-> None` annotations with `return plt.gca()`).
 - **Typing conventions** — prefer explicit, readable project-level types: use `np.ndarray` for NumPy arrays, `list[datetime]` for date series, and custom aliases/dataclasses for structured outputs (`IHAResult`, `IHAIndexResult`, `HabitatIndicesResult`).
-- **Structured results** — for fixed-schema scientific outputs, prefer `@dataclass` containers over dictionaries. Current standard outputs are `IHAIndexResult` (IHA index groups + aggregated values) and `HabitatIndicesResult` (Q97/H97, UCUT series, and IH metrics). In consumers (plotting, exports, summaries), use attribute access (e.g. `result.aggregated`, `result.IH`) instead of dictionary-key indexing.
+- **Structured results** — for fixed-schema scientific outputs, prefer `@dataclass` containers over dictionaries. Current standard outputs are `IHAIndexResult` (IHA index groups + aggregated values) and `HabitatIndicesResult` (Q97/H97, UCUT series, and IH metrics) and `SedimentIndicesResult` (ACT curves, ITS/ISV/ISR). In consumers (plotting, exports, summaries), use attribute access (e.g. `result.aggregated`, `result.IH`) instead of dictionary-key indexing.
 - **Scenario computed-attribute guards** — when adding new Scenario attributes that are populated only after a compute step (for example indices, tables, or budgets), always follow the same contract:
 	1. initialize the attribute in `Scenario.__init__` with an explicit nullable type (`... | None`) instead of creating it dynamically with `hasattr` patterns;
 	2. add a private `_require_<attribute>()` helper that returns the non-null typed value and raises a clear `ValueError` explaining which compute method must be run first;
@@ -82,4 +82,3 @@ Docs source is in `docs/source/` (markdown + Sphinx). Tutorials are Jupyter note
 Tutorial notebooks target domain scientists (e.g. environmental engineers) who may only know Python basics:
 - **No `try`/`except` blocks** — they can be intimidating for non-programmers. Prefer simple, linear cells (e.g. plain `if`/`else` checks, or a commented-out install/download line) over exception handling.
 - Explain any non-obvious step (data loading, optional installs) in a short markdown cell right before the code, in plain language, rather than relying on code comments alone.
-
