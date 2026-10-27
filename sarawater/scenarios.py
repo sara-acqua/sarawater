@@ -632,7 +632,7 @@ class Scenario:
 
         If both sediment load series already exist and no formula options are
         provided, they are reused. If either is missing, both series are computed
-        using MPM by default. Providing a formula option recomputes both series
+        using deafult settings (declared in ``sarawater.sediment_load.py``). Providing a formula option recomputes both series
         with the same settings, ensuring that the natural and scenario results are
         comparable. The result is stored in ``scenario.sediment_indices``.
 

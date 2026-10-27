@@ -71,8 +71,8 @@ class ReachPlotter:
 
     def plot_scenarios_discharge(
         self,
-        start_date: Optional[Union[str, datetime]] = None,
-        end_date: Optional[Union[str, datetime]] = None,
+        start_date: str | datetime | None = None,
+        end_date: str | datetime | None = None,
         log_scale: bool = True,
         plot_Qnat: bool = True,
         save: bool = False,
@@ -1014,7 +1014,22 @@ class ReachPlotter:
                 or getattr(scenario, "yearly_nat_volumes", None) is None
             ):
                 scenario.compute_natural_abstracted_volumes()
-            volume_values = scenario.yearly_abs_volumes / scenario.yearly_nat_volumes
+            yearly_nat_volumes = np.asarray(scenario.yearly_nat_volumes, dtype=float)
+            yearly_abs_volumes = np.asarray(scenario.yearly_abs_volumes, dtype=float)
+            valid_volume_years = (
+                np.isfinite(yearly_nat_volumes)
+                & np.isfinite(yearly_abs_volumes)
+                & (yearly_nat_volumes > 0)
+            )
+            if not np.any(valid_volume_years):
+                raise ValueError(
+                    f"Scenario '{scenario.name}' has no years with a positive "
+                    "natural abstracted-volume denominator."
+                )
+            volume_values = (
+                yearly_abs_volumes[valid_volume_years]
+                / yearly_nat_volumes[valid_volume_years]
+            )
 
             plt.errorbar(
                 sediment_mean,
@@ -1279,8 +1294,8 @@ class ReachPlotter:
 
     def plot_sediment_load_total(
         self,
-        start_date: Optional[Union[str, datetime]] = None,
-        end_date: Optional[Union[str, datetime]] = None,
+        start_date: str | datetime | None = None,
+        end_date: str | datetime | None = None,
         log_scale: bool = True,
         plot_Qsnat: bool = True,
         save: bool = False,
