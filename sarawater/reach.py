@@ -655,25 +655,12 @@ class Reach:
             # Add annual sediment budget if available
             budget = getattr(scenario, "annual_sediment_budget", None)
             if budget is not None:
-                # If it's a DataFrame, compute mean values
-                if isinstance(budget, pd.DataFrame):
-                    # Add mean total sediment budget
-                    if "Qs_total" in budget.columns:
-                        row["annual_sediment_budget_total_mean"] = budget[
-                            "Qs_total"
-                        ].mean()
-
-                # If it's a dict, compute mean from yearly values
-                elif isinstance(budget, dict):
-                    # Structure is {year: {phi_class: value, ...}}
-                    all_years = list(budget.keys())
-                    first_year_data = budget[all_years[0]]
-                    if "Qs_total" in first_year_data:
-                        total_values = [budget[year]["Qs_total"] for year in all_years]
-                        row["annual_sediment_budget_total_mean"] = np.mean(total_values)
+                # Add mean total sediment budget
+                if "total" in budget.columns:
+                    row["annual_sediment_budget_total_mean"] = budget["total"].mean()
 
             # Add sediment regime indices if available
-            sed_idx = scenario.sediment_indices
+            sed_idx = getattr(scenario, "sediment_indices", None)
             if sed_idx is not None:
                 row["ITS"] = sed_idx.ITS
                 row["ISV"] = sed_idx.ISV
