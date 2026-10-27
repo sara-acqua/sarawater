@@ -993,10 +993,8 @@ class ReachPlotter:
                     f"Scenario '{scenario.name}' has no annual sediment budget years in common with the natural budget."
                 )
 
-            natural_values = natural_budget.loc[years, "Qs_total"].to_numpy(dtype=float)
-            scenario_values = scenario_budget.loc[years, "Qs_total"].to_numpy(
-                dtype=float
-            )
+            natural_values = natural_budget.loc[years, "total"].to_numpy(dtype=float)
+            scenario_values = scenario_budget.loc[years, "total"].to_numpy(dtype=float)
             valid = (
                 np.isfinite(natural_values)
                 & np.isfinite(scenario_values)

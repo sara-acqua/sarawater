@@ -169,6 +169,7 @@ def test_sediment_load_plots_use_computed_scenario_data():
     """Test sediment plots read the scenario sediment-load DataFrame."""
     test_visualization_reach.add_cross_section_geometry(0.002, 20, width=10.0)
     test_visualization_reach.add_grain_size_distribution(4.0)
+    test_visualization_reach.compute_natural_sediment_budget()
     for scenario in test_visualization_reach.scenarios:
         scenario.compute_sediment_load()
         scenario.compute_annual_sediment_budget()
@@ -178,7 +179,9 @@ def test_sediment_load_plots_use_computed_scenario_data():
     class_ax = plotter.plot_annual_sediment_budget_by_class()
     budget_ax = plotter.plot_sediment_budget_vs_volume()
 
-    assert len(total_ax.lines) == len(test_visualization_reach.scenarios)
+    assert (
+        len(total_ax.lines) == len(test_visualization_reach.scenarios) + 1
+    )  # natural transport capacity is included
     assert total_ax.get_ylabel() == "Total Sediment Load (m³/s)"
     scenario_axes = class_ax.figure.axes[:-1]
     colorbar_ax = class_ax.figure.axes[-1]
@@ -201,9 +204,9 @@ def test_sediment_load_plots_use_computed_scenario_data():
     scenario_budget = scenario._require_annual_sediment_budget()
     natural_budget = test_visualization_reach._require_natural_annual_sediment_budget()
     common_years = scenario_budget.index.intersection(natural_budget.index)
-    normalized_budget = scenario_budget.loc[common_years, "Qs_total"].to_numpy(
+    normalized_budget = scenario_budget.loc[common_years, "total"].to_numpy(
         dtype=float
-    ) / natural_budget.loc[common_years, "Qs_total"].to_numpy(dtype=float)
+    ) / natural_budget.loc[common_years, "total"].to_numpy(dtype=float)
     errorbar = budget_ax.containers[0]
     data_line, _, errorbar_lines = errorbar.lines
     np.testing.assert_allclose(
