@@ -855,14 +855,14 @@ class ReachPlotter:
         plt.figure()
         for i, scenario in enumerate(self.reach.scenarios):
             plt.plot(
-                scenario.IH[species].UCUT_cum_alt,
+                scenario.IH[species].UCUT_cum_alt / len(self.reach.dates) * 100,
                 scenario.IH[species].UCUT_events_alt,
                 label=f"{scenario.name} - {species}",
                 color=self.scenario_colors[i],
             )
 
         plt.plot(
-            scenario.IH[species].UCUT_cum_ref,
+            scenario.IH[species].UCUT_cum_ref / len(self.reach.dates) * 100,
             scenario.IH[species].UCUT_events_ref,
             label=f"Reference Q",
             color="tab:blue",
@@ -878,7 +878,7 @@ class ReachPlotter:
             plt.savefig(
                 os.path.join(
                     self.output_dir,
-                    f"habitat_timeseries_{species}_{self.reach.name}.png",
+                    f"ucut_{species}_{self.reach.name}.png",
                 ),
                 bbox_inches="tight",
             )
